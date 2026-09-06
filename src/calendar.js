@@ -406,6 +406,81 @@
    * 건수만 세면 "체류 3" 이 사흘인지 세 번인지 알 수 없다. 그래서 비행은 편수로,
    * 나머지는 날수로 센다(하루에 두 번 적혀 있어도 하루). 다녀온 도시도 순서대로 모은다.
    */
+  /**
+   * 한 해를 열두 개의 작은 달로 그린다. 칸마다 그날의 성격을 점으로만 찍는다.
+   * 휴가를 어디에 붙일지, 어느 달이 빡셌는지 한눈에 보라고 만든 화면이다.
+   * 날짜를 누르면 그 달로 넘어간다.
+   */
+  function renderYear(container, options) {
+    var year = options.year;
+    var entriesByDate = options.entriesByDate || {};
+    var onSelect = options.onSelect || function () {};
+    var today = todayIso();
+
+    container.innerHTML = '';
+    var wrap = document.createElement('div');
+    wrap.className = 'year-grid';
+
+    for (var month = 1; month <= 12; month++) {
+      (function (m) {
+        var card = document.createElement('div');
+        card.className = 'year-month';
+
+        var title = document.createElement('div');
+        title.className = 'ym-title';
+        title.textContent = m + '월';
+        var stat = document.createElement('span');
+        var sum = summarize(entriesByDate, year, m);
+        stat.className = 'ym-stat';
+        stat.textContent = sum.flights ? sum.flights + '편' : '';
+        title.appendChild(stat);
+        card.appendChild(title);
+
+        var head = document.createElement('div');
+        head.className = 'ym-head';
+        WEEKDAYS.forEach(function (w) {
+          var cell = document.createElement('div');
+          cell.textContent = w;
+          head.appendChild(cell);
+        });
+        card.appendChild(head);
+
+        var grid = document.createElement('div');
+        grid.className = 'ym-grid';
+        var lead = firstWeekday(year, m);
+        for (var blank = 0; blank < lead; blank++) {
+          grid.appendChild(document.createElement('span'));
+        }
+        var total = daysInMonth(year, m);
+        for (var day = 1; day <= total; day++) {
+          (function (d) {
+            var date = iso(year, m, d);
+            var list = entriesByDate[date] || [];
+            var cell = document.createElement('span');
+            cell.className = 'ym-day';
+            if (date === today) cell.className += ' today';
+            cell.textContent = d;
+            if (list.length) {
+              var main = list[0];
+              for (var i = 0; i < list.length; i++) {
+                if (list[i].type === 'flight') { main = list[i]; break; }
+              }
+              cell.className += ' has cat-' + (main.category || 'other');
+              cell.title = date + ' ' + list.map(function (e) { return e.code; }).join(', ');
+              cell.setAttribute('role', 'button');
+              cell.addEventListener('click', function () { onSelect(date); });
+            }
+            grid.appendChild(cell);
+          })(day);
+        }
+        card.appendChild(grid);
+        wrap.appendChild(card);
+      })(month);
+    }
+
+    container.appendChild(wrap);
+  }
+
   function summarize(entriesByDate, year, month) {
     var prefix = year + '-' + pad2(month);
     var counts = { flight: 0, layover: 0, standby: 0, off: 0, training: 0, other: 0, unknown: 0 };
@@ -485,6 +560,7 @@
     WEEKDAYS: WEEKDAYS,
     render: render,
     renderList: renderList,
+    renderYear: renderYear,
     gridDates: gridDates,
     suppressedTimes: suppressedTimes,
     upcoming: upcoming,

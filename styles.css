@@ -823,6 +823,61 @@ button.ghost.danger { color: var(--danger); }
 
 .sum-cities { flex-basis: 100%; margin-top: 6px; font-size: 13px; color: var(--cal-sub); }
 
+/* ---------- 연간 보기 ---------- */
+.year-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+.year-month { min-width: 0; }
+.ym-title {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.ym-stat { font-size: 11px; font-weight: 500; color: var(--muted); margin-left: auto; }
+.ym-head, .ym-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.ym-head {
+  font-size: 9px;
+  color: var(--faint);
+  text-align: center;
+  margin-bottom: 2px;
+}
+.ym-day {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: var(--muted);
+  border-radius: 5px;
+  font-variant-numeric: tabular-nums;
+}
+.ym-day.has {
+  color: var(--accent-ink);
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--cat-other);
+}
+.ym-day.has.cat-flight { background: var(--cat-flight); }
+.ym-day.has.cat-layover { background: var(--cat-layover); }
+.ym-day.has.cat-standby { background: var(--cat-standby); }
+.ym-day.has.cat-off { background: var(--cat-off); }
+.ym-day.has.cat-training { background: var(--cat-training); }
+.ym-day.has.cat-unknown { background: var(--cat-unknown); }
+.ym-day.today { outline: 2px solid var(--accent); outline-offset: -2px; }
+@media (max-width: 900px) { .year-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 560px) {
+  .year-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .ym-title { font-size: 12px; }
+  .ym-stat { display: none; }
+  .ym-head { font-size: 8px; }
+  .ym-day { font-size: 9px; border-radius: 4px; }
+}
+
 /* ---------- 지난 일정 찾기 ---------- */
 .search-bar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
 .search-bar input { flex: 1; min-width: 0; }

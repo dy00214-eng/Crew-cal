@@ -47,7 +47,7 @@
   function loadView() {
     try {
       var saved = localStorage.getItem(VIEW_KEY);
-      if (saved === 'list' || saved === 'calendar') return saved;
+      if (saved === 'list' || saved === 'calendar' || saved === 'year') return saved;
     } catch (e) { /* 저장소를 못 읽으면 달력으로 */ }
     return 'calendar';
   }
@@ -112,11 +112,16 @@
       onSelect: selectDate
     };
 
-    var listMode = state.view === 'list';
-    $('calendar').hidden = listMode;
-    $('listView').hidden = !listMode;
-    if (listMode) calendar.renderList($('listView'), viewOptions);
+    var mode = state.view;
+    $('calendar').hidden = mode !== 'calendar';
+    $('listView').hidden = mode !== 'list';
+    $('yearView').hidden = mode !== 'year';
+    if (mode === 'list') calendar.renderList($('listView'), viewOptions);
+    else if (mode === 'year') calendar.renderYear($('yearView'), { year: state.year, entriesByDate: entriesByDate, onSelect: goToDate });
     else calendar.render($('calendar'), viewOptions);
+
+    // 연간 화면에서는 달 이름 대신 해를 보여준다
+    if (mode === 'year') $('monthLabel').textContent = state.year + '년';
 
     renderMonthSummary(entriesByDate);
     renderNextDuty(entriesByDate);
@@ -296,6 +301,13 @@
   }
 
   function goMonth(delta) {
+    // 연간 화면에서는 화살표가 해를 넘긴다
+    if (state.view === 'year') {
+      state.year += delta;
+      syncPasteBase();
+      refresh();
+      return;
+    }
     var m = state.month + delta;
     var y = state.year;
     while (m > 12) { m -= 12; y++; }
@@ -1210,6 +1222,11 @@
   }
 
   function goToDate(date) {
+    if (state.view === 'year') {
+      state.view = 'calendar';
+      saveView(state.view);
+      syncViewButtons();
+    }
     state.year = +date.slice(0, 4);
     state.month = +date.slice(5, 7);
     state.selectedDate = date;

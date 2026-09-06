@@ -827,6 +827,61 @@ button.ghost.danger { color: var(--danger); }
 
 .sum-cities { flex-basis: 100%; margin-top: 6px; font-size: 13px; color: var(--cal-sub); }
 
+/* ---------- 연간 보기 ---------- */
+.year-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+.year-month { min-width: 0; }
+.ym-title {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.ym-stat { font-size: 11px; font-weight: 500; color: var(--muted); margin-left: auto; }
+.ym-head, .ym-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.ym-head {
+  font-size: 9px;
+  color: var(--faint);
+  text-align: center;
+  margin-bottom: 2px;
+}
+.ym-day {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: var(--muted);
+  border-radius: 5px;
+  font-variant-numeric: tabular-nums;
+}
+.ym-day.has {
+  color: var(--accent-ink);
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--cat-other);
+}
+.ym-day.has.cat-flight { background: var(--cat-flight); }
+.ym-day.has.cat-layover { background: var(--cat-layover); }
+.ym-day.has.cat-standby { background: var(--cat-standby); }
+.ym-day.has.cat-off { background: var(--cat-off); }
+.ym-day.has.cat-training { background: var(--cat-training); }
+.ym-day.has.cat-unknown { background: var(--cat-unknown); }
+.ym-day.today { outline: 2px solid var(--accent); outline-offset: -2px; }
+@media (max-width: 900px) { .year-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 560px) {
+  .year-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .ym-title { font-size: 12px; }
+  .ym-stat { display: none; }
+  .ym-head { font-size: 8px; }
+  .ym-day { font-size: 9px; border-radius: 4px; }
+}
+
 /* ---------- 지난 일정 찾기 ---------- */
 .search-bar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
 .search-bar input { flex: 1; min-width: 0; }
@@ -1030,6 +1085,7 @@ button.ghost.danger { color: var(--danger); }
       <div class="seg" role="group" aria-label="보기 방식">
         <button type="button" class="seg-btn active" data-view="calendar">달력</button>
         <button type="button" class="seg-btn" data-view="list">목록</button>
+        <button type="button" class="seg-btn" data-view="year">연간</button>
       </div>
     </div>
     <div class="search-bar">
@@ -1040,6 +1096,7 @@ button.ghost.danger { color: var(--danger); }
     <div id="searchResults" class="search-results" hidden></div>
     <div id="calendar" class="calendar"></div>
     <div id="listView" class="list-view" hidden></div>
+    <div id="yearView" class="year-view" hidden></div>
     <p class="local-clock" id="localClock" hidden></p>
     <div id="monthSummary" class="month-summary"></div>
     <ul class="legend">
@@ -3654,6 +3711,81 @@ button.ghost.danger { color: var(--danger); }
    * 건수만 세면 "체류 3" 이 사흘인지 세 번인지 알 수 없다. 그래서 비행은 편수로,
    * 나머지는 날수로 센다(하루에 두 번 적혀 있어도 하루). 다녀온 도시도 순서대로 모은다.
    */
+  /**
+   * 한 해를 열두 개의 작은 달로 그린다. 칸마다 그날의 성격을 점으로만 찍는다.
+   * 휴가를 어디에 붙일지, 어느 달이 빡셌는지 한눈에 보라고 만든 화면이다.
+   * 날짜를 누르면 그 달로 넘어간다.
+   */
+  function renderYear(container, options) {
+    var year = options.year;
+    var entriesByDate = options.entriesByDate || {};
+    var onSelect = options.onSelect || function () {};
+    var today = todayIso();
+
+    container.innerHTML = '';
+    var wrap = document.createElement('div');
+    wrap.className = 'year-grid';
+
+    for (var month = 1; month <= 12; month++) {
+      (function (m) {
+        var card = document.createElement('div');
+        card.className = 'year-month';
+
+        var title = document.createElement('div');
+        title.className = 'ym-title';
+        title.textContent = m + '월';
+        var stat = document.createElement('span');
+        var sum = summarize(entriesByDate, year, m);
+        stat.className = 'ym-stat';
+        stat.textContent = sum.flights ? sum.flights + '편' : '';
+        title.appendChild(stat);
+        card.appendChild(title);
+
+        var head = document.createElement('div');
+        head.className = 'ym-head';
+        WEEKDAYS.forEach(function (w) {
+          var cell = document.createElement('div');
+          cell.textContent = w;
+          head.appendChild(cell);
+        });
+        card.appendChild(head);
+
+        var grid = document.createElement('div');
+        grid.className = 'ym-grid';
+        var lead = firstWeekday(year, m);
+        for (var blank = 0; blank < lead; blank++) {
+          grid.appendChild(document.createElement('span'));
+        }
+        var total = daysInMonth(year, m);
+        for (var day = 1; day <= total; day++) {
+          (function (d) {
+            var date = iso(year, m, d);
+            var list = entriesByDate[date] || [];
+            var cell = document.createElement('span');
+            cell.className = 'ym-day';
+            if (date === today) cell.className += ' today';
+            cell.textContent = d;
+            if (list.length) {
+              var main = list[0];
+              for (var i = 0; i < list.length; i++) {
+                if (list[i].type === 'flight') { main = list[i]; break; }
+              }
+              cell.className += ' has cat-' + (main.category || 'other');
+              cell.title = date + ' ' + list.map(function (e) { return e.code; }).join(', ');
+              cell.setAttribute('role', 'button');
+              cell.addEventListener('click', function () { onSelect(date); });
+            }
+            grid.appendChild(cell);
+          })(day);
+        }
+        card.appendChild(grid);
+        wrap.appendChild(card);
+      })(month);
+    }
+
+    container.appendChild(wrap);
+  }
+
   function summarize(entriesByDate, year, month) {
     var prefix = year + '-' + pad2(month);
     var counts = { flight: 0, layover: 0, standby: 0, off: 0, training: 0, other: 0, unknown: 0 };
@@ -3733,6 +3865,7 @@ button.ghost.danger { color: var(--danger); }
     WEEKDAYS: WEEKDAYS,
     render: render,
     renderList: renderList,
+    renderYear: renderYear,
     gridDates: gridDates,
     suppressedTimes: suppressedTimes,
     upcoming: upcoming,
@@ -4588,7 +4721,7 @@ button.ghost.danger { color: var(--danger); }
   function loadView() {
     try {
       var saved = localStorage.getItem(VIEW_KEY);
-      if (saved === 'list' || saved === 'calendar') return saved;
+      if (saved === 'list' || saved === 'calendar' || saved === 'year') return saved;
     } catch (e) { /* 저장소를 못 읽으면 달력으로 */ }
     return 'calendar';
   }
@@ -4653,11 +4786,16 @@ button.ghost.danger { color: var(--danger); }
       onSelect: selectDate
     };
 
-    var listMode = state.view === 'list';
-    $('calendar').hidden = listMode;
-    $('listView').hidden = !listMode;
-    if (listMode) calendar.renderList($('listView'), viewOptions);
+    var mode = state.view;
+    $('calendar').hidden = mode !== 'calendar';
+    $('listView').hidden = mode !== 'list';
+    $('yearView').hidden = mode !== 'year';
+    if (mode === 'list') calendar.renderList($('listView'), viewOptions);
+    else if (mode === 'year') calendar.renderYear($('yearView'), { year: state.year, entriesByDate: entriesByDate, onSelect: goToDate });
     else calendar.render($('calendar'), viewOptions);
+
+    // 연간 화면에서는 달 이름 대신 해를 보여준다
+    if (mode === 'year') $('monthLabel').textContent = state.year + '년';
 
     renderMonthSummary(entriesByDate);
     renderNextDuty(entriesByDate);
@@ -4837,6 +4975,13 @@ button.ghost.danger { color: var(--danger); }
   }
 
   function goMonth(delta) {
+    // 연간 화면에서는 화살표가 해를 넘긴다
+    if (state.view === 'year') {
+      state.year += delta;
+      syncPasteBase();
+      refresh();
+      return;
+    }
     var m = state.month + delta;
     var y = state.year;
     while (m > 12) { m -= 12; y++; }
@@ -5751,6 +5896,11 @@ button.ghost.danger { color: var(--danger); }
   }
 
   function goToDate(date) {
+    if (state.view === 'year') {
+      state.view = 'calendar';
+      saveView(state.view);
+      syncViewButtons();
+    }
     state.year = +date.slice(0, 4);
     state.month = +date.slice(5, 7);
     state.selectedDate = date;
