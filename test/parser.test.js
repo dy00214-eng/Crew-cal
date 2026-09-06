@@ -385,3 +385,10 @@ test('근무 이름은 한글로 짧게 쓴다', () => {
   const r = parse('2026-09-06 LO STBY DO');
   assert.deepStrictEqual(r.entries.map(e => e.label), ['체류', '대기', '휴무']);
 });
+
+test('RF 는 자택 대기로 읽는다', () => {
+  const r = parse('2026-09-06 RF');
+  assert.strictEqual(r.entries[0].label, '자택 대기');
+  assert.strictEqual(r.entries[0].category, 'standby');
+  assert.strictEqual(r.warnings.length, 0);
+});

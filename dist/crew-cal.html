@@ -1103,6 +1103,7 @@ button.ghost.danger { color: var(--danger); }
     SBY: { label: '대기', category: 'standby' },
     STB: { label: '대기', category: 'standby' },
     HSBY: { label: '자택 대기', category: 'standby' },
+    RF: { label: '자택 대기', category: 'standby' },
     ASBY: { label: '공항 대기', category: 'standby' },
     RES: { label: '예비', category: 'standby' },
     RSV: { label: '예비', category: 'standby' },
@@ -1704,6 +1705,31 @@ button.ghost.danger { color: var(--danger); }
     '2066': ['PEK', '14:25'], '2126': ['NRT', '19:05']
   };
 
+  /*
+   * 지방 공항(대구·광주·청주·여수·울산·사천) 전광판에서 모은 값.
+   * 대부분 위 표의 반대쪽 시각이라, 합쳐지면 국내선 출발·도착이 모두 채워진다.
+   * [편명, 구간, 출발, 도착]
+   */
+  var LOCAL = [
+    ['1431', 'ICN/TAE', null, '19:55'], ['1432', 'TAE/ICN', '07:55', null],
+    ['1569', 'TAE/CJU', '11:05', null], ['1575', 'TAE/CJU', '18:40', null],
+    ['1570', 'CJU/TAE', null, '10:20'], ['1576', 'CJU/TAE', null, '17:45'],
+
+    ['1607', 'KWJ/CJU', '10:40', null], ['1611', 'KWJ/CJU', '13:10', null],
+    ['1613', 'KWJ/CJU', '14:35', null], ['1619', 'KWJ/CJU', '17:35', null],
+    ['1608', 'CJU/KWJ', null, '10:05'], ['1610', 'CJU/KWJ', null, '12:30'],
+    ['1612', 'CJU/KWJ', null, '14:00'], ['1620', 'CJU/KWJ', null, '17:00'],
+
+    ['1717', 'CJJ/CJU', '14:05', null], ['1725', 'CJJ/CJU', '17:20', null],
+    ['1704', 'CJU/CJJ', null, '08:30'], ['1712', 'CJU/CJJ', null, '13:25'],
+    ['1722', 'CJU/CJJ', null, '16:05'], ['1762', 'CJU/CJJ', null, '07:45'],
+
+    ['1635', 'RSU/CJU', '13:15', null], ['1636', 'CJU/RSU', null, '12:35'],
+    ['1595', 'USN/CJU', '15:00', null], ['1596', 'CJU/USN', null, '14:15'],
+    ['1847', 'GMP/USN', null, '19:55'],
+    ['1585', 'HIN/CJU', '15:25', null], ['1586', 'CJU/HIN', null, '14:25']
+  ];
+
   /* 국내선이나 한국을 거치지 않는 편처럼 양쪽 시각을 다 아는 편 */
   var FULL = {
     '1402': ['PUS/ICN', '07:00', '08:10', 0]
@@ -1740,6 +1766,7 @@ button.ghost.danger { color: var(--danger); }
   Object.keys(PUS_IN).forEach(function (n) { put(n, PUS_IN[n][0] + '/PUS', null, PUS_IN[n][1], 0); });
   Object.keys(CJU_OUT).forEach(function (n) { put(n, 'CJU/' + CJU_OUT[n][0], CJU_OUT[n][1], null, 0); });
   Object.keys(CJU_IN).forEach(function (n) { put(n, CJU_IN[n][0] + '/CJU', null, CJU_IN[n][1], 0); });
+  LOCAL.forEach(function (row) { put(row[0], row[1], row[2], row[3], 0); });
   Object.keys(FULL).forEach(function (n) {
     TABLE['KE' + n] = { route: FULL[n][0], start: FULL[n][1], end: FULL[n][2], endOffset: FULL[n][3] || 0 };
   });

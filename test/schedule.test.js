@@ -149,3 +149,20 @@ test('김포-제주 국내선은 양쪽 전광판을 합쳐 출발·도착을 �
   assert.strictEqual(back.start, '08:35');
   assert.strictEqual(back.end, '09:50');
 });
+
+test('지방 공항 국내선은 양쪽 전광판이 합쳐져 출발·도착을 모두 갖는다', () => {
+  const pairs = [
+    ['KE1569', 'TAE/CJU', '11:05', '12:10'],
+    ['KE1608', 'CJU/KWJ', '09:10', '10:05'],
+    ['KE1704', 'CJU/CJJ', '07:20', '08:30'],
+    ['KE1595', 'USN/CJU', '15:00', '16:10'],
+    ['KE1586', 'CJU/HIN', '13:20', '14:25'],
+    ['KE1432', 'TAE/ICN', '07:55', '09:00']
+  ];
+  pairs.forEach(([code, route, start, end]) => {
+    const hit = schedule.lookup(code);
+    assert.strictEqual(hit.route, route, code + ' 구간');
+    assert.strictEqual(hit.start, start, code + ' 출발');
+    assert.strictEqual(hit.end, end, code + ' 도착');
+  });
+});

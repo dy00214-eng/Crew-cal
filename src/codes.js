@@ -45,6 +45,7 @@
     SBY: { label: '대기', category: 'standby' },
     STB: { label: '대기', category: 'standby' },
     HSBY: { label: '자택 대기', category: 'standby' },
+    RF: { label: '자택 대기', category: 'standby' },
     ASBY: { label: '공항 대기', category: 'standby' },
     RES: { label: '예비', category: 'standby' },
     RSV: { label: '예비', category: 'standby' },
