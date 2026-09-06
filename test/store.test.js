@@ -185,8 +185,8 @@ test('이미 저장된 일정에도 기억한 값을 소급해서 채운다', ()
 test('기본 시간표에 있는 편은 등록 없이도 채워진다', () => {
   const e = store.addEntry({ date: '2026-09-19', code: 'KE0901' });
   assert.strictEqual(e.route, 'ICN/CDG');
-  assert.strictEqual(e.start, '12:05');
-  assert.strictEqual(e.end, '18:30');
+  assert.strictEqual(e.start, '12:05');   // 한국 출발 시각
+  assert.strictEqual(e.end, null);        // 현지 도착 시각은 화면에 쓰지 않는다
 });
 
 test('직접 등록한 값이 기본 시간표를 이긴다', () => {
@@ -194,4 +194,22 @@ test('직접 등록한 값이 기본 시간표를 이긴다', () => {
   const e = store.addEntry({ date: '2026-09-19', code: 'KE0901' });
   assert.strictEqual(e.start, '13:00');
   assert.strictEqual(e.end, '19:30');
+});
+
+test('기본 시간표에 없는 짝수 편도 구간은 채워진다', () => {
+  const e = store.addEntry({ date: '2026-08-09', code: 'KE0038' });
+  assert.strictEqual(e.route, 'ORD/ICN');
+  assert.strictEqual(e.start, null);
+  assert.strictEqual(e.end, null);
+});
+
+test('편명 숫자를 네 자리로 맞춰 같은 편을 하나로 본다', () => {
+  assert.strictEqual(store.normalizeCode('KE704'), 'KE0704');
+  assert.strictEqual(store.normalizeCode('ke35'), 'KE0035');
+  assert.strictEqual(store.normalizeCode('KE0704'), 'KE0704');
+  assert.strictEqual(store.normalizeCode('LO'), 'LO');
+  assert.strictEqual(store.normalizeCode('STBY'), 'STBY');
+  const e = store.addEntry({ date: '2026-08-13', code: 'KE704' });
+  assert.strictEqual(e.code, 'KE0704');
+  assert.strictEqual(e.route, 'NRT/ICN');
 });

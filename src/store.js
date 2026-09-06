@@ -182,11 +182,21 @@
     });
   }
 
+  /** KE704 와 KE0704 가 다른 일정으로 남지 않도록 편명 숫자를 네 자리로 맞춘다. */
+  function normalizeCode(code) {
+    var raw = String(code || '').toUpperCase().replace(/\s+/g, '');
+    var m = raw.match(/^([A-Z]{2})-?(\d{1,4})([A-Z]?)$/);
+    if (!m || codes.lookup(raw)) return raw;
+    var digits = m[2];
+    while (digits.length < 4) digits = '0' + digits;
+    return m[1] + digits + m[3];
+  }
+
   function decorate(entry) {
     var out = {
       id: entry.id || newId(),
       date: entry.date,
-      code: String(entry.code || '').toUpperCase(),
+      code: normalizeCode(entry.code),
       type: entry.type || null,
       category: entry.category || null,
       label: entry.label || null,
@@ -363,6 +373,7 @@
     exportJson: exportJson,
     importJson: importJson,
     decorate: decorate,
+    normalizeCode: normalizeCode,
     sortByTime: sortByTime,
     learnFlight: learnFlight,
     recallFlight: recallFlight,
