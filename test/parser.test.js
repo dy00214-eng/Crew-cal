@@ -274,3 +274,26 @@ test('크루넷 표 형태 전체 흐름', () => {
   assert.strictEqual(r.entries.find(e => e.date === '2026-09-05').start, '09:00');
   assert.strictEqual(r.entries.find(e => e.date === '2026-09-05').end, '17:00');
 });
+
+test('TVL 은 비행 근무로 읽는다', () => {
+  const r = parse('2026-07-04 KE0038 TVL');
+  assert.deepStrictEqual(r.entries.map(e => [e.code, e.category]), [['KE0038', 'flight'], ['TVL', 'flight']]);
+  assert.strictEqual(r.warnings.length, 0);
+});
+
+test('화면 조작용 줄은 조용히 건너뛴다', () => {
+  const text = ['MY SKD', 'Actual (Current Month)', 'Extra (Current Month)', 'prev', 'next',
+    'clear 오늘', '2026-07-06 ATDO'].join('\n');
+  const r = parse(text);
+  assert.strictEqual(r.entries.length, 1);
+  assert.strictEqual(r.warnings.length, 0);
+  assert.strictEqual(r.skippedLines.length, 0);
+});
+
+test('읽어내지 못한 줄은 따로 남겨 확인할 수 있게 한다', () => {
+  const r = parse('2026-07-04 KE0038\n알 수 없는 내용입니다\n2026-07-06 ATDO');
+  assert.strictEqual(r.entries.length, 2);
+  assert.strictEqual(r.skippedLines.length, 1);
+  assert.strictEqual(r.skippedLines[0].line, 2);
+  assert.strictEqual(r.skippedLines[0].text, '알 수 없는 내용입니다');
+});

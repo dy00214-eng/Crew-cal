@@ -117,6 +117,22 @@
     return null;
   }
 
+  /**
+   * 스케줄이 아니라 화면 조작용으로 붙어 오는 줄. 페이지를 통째로 복사하면 섞여 들어온다.
+   * 경고 목록만 어지럽히므로 조용히 건너뛴다.
+   */
+  var NOISE_LINE = /^(?:MY\s*SKD|Actual|Extra|prev(?:ious)?|next|clear|오늘|이전|다음|초기화|인쇄|조회|검색|더보기|Total|Sum|합계|Page\s*\d+)(?:\s*\(\s*(?:Current|Next|Previous)\s*Month\s*\))?$/i;
+
+  function isNoiseLine(line) {
+    var t = String(line || '').trim().replace(/\s+/g, ' ');
+    if (!t) return true;
+    if (NOISE_LINE.test(t)) return true;
+    // "clear 오늘" 처럼 조작용 단어만 이어 붙은 줄
+    var words = t.split(' ');
+    if (words.length <= 3 && words.every(function (w) { return NOISE_LINE.test(w); })) return true;
+    return false;
+  }
+
   function tokenize(line) {
     return line
       .split(/[\s,;|]+/)
@@ -262,6 +278,7 @@
     var entries = [];
     var warnings = [];
     var ignoredLines = [];
+    var skippedLines = [];
     var seen = {};
     var currentDates = [];
     var seq = 0;
@@ -270,7 +287,7 @@
 
     rawLines.forEach(function (rawLine, lineIndex) {
       var trimmed = rawLine.trim();
-      if (!trimmed) return;
+      if (!trimmed || isNoiseLine(trimmed)) return;
 
       var tokens = tokenize(preprocessLine(trimmed));
       if (!tokens.length) return;
@@ -396,7 +413,11 @@
       var targetDates = lineDates.length ? lineDates : currentDates;
       if (lineDates.length) currentDates = lineDates;
 
-      if (!items.length) return;
+      if (!items.length) {
+        // 날짜도 근무도 못 읽어낸 줄. 왜 빠졌는지 볼 수 있게 남긴다.
+        if (!lineDates.length) skippedLines.push({ line: lineIndex + 1, text: trimmed });
+        return;
+      }
 
       if (!targetDates.length) {
         warnings.push({
@@ -447,6 +468,7 @@
       entries: entries,
       warnings: warnings,
       ignoredLines: ignoredLines,
+      skippedLines: skippedLines,
       stats: summarize(entries)
     };
 
@@ -538,6 +560,7 @@
     normalizeText: normalizeText,
     preprocessLine: preprocessLine,
     tokenize: tokenize,
+    isNoiseLine: isNoiseLine,
     expandRange: expandRange,
     readClockToken: readClockToken,
     readTimeRange: readTimeRange,

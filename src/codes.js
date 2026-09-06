@@ -47,6 +47,9 @@
     RES: { label: '예비', category: 'standby' },
     RSV: { label: '예비', category: 'standby' },
 
+    // 비행 근무
+    TVL: { label: '비행 근무', category: 'flight' },
+
     // 체류 / 비행 부속
     LO: { label: '레이오버(체류)', category: 'layover' },
     LAYOVER: { label: '레이오버(체류)', category: 'layover' },

@@ -403,6 +403,22 @@
       warnBox.innerHTML = '';
     }
 
+    var skipped = result.skippedLines || [];
+    $('previewSkipped').hidden = skipped.length === 0;
+    $('skippedCount').textContent = skipped.length;
+    var skippedList = $('skippedList');
+    skippedList.innerHTML = '';
+    skipped.slice(0, 40).forEach(function (item) {
+      var li = document.createElement('li');
+      li.textContent = item.line + '행: ' + item.text;
+      skippedList.appendChild(li);
+    });
+    if (skipped.length > 40) {
+      var more = document.createElement('li');
+      more.textContent = '… 외 ' + (skipped.length - 40) + '줄';
+      skippedList.appendChild(more);
+    }
+
     var tbody = $('previewBody');
     tbody.innerHTML = '';
     result.entries.forEach(function (entry) {
@@ -466,6 +482,7 @@
     state.preview = null;
     $('preview').hidden = true;
     $('previewBody').innerHTML = '';
+    $('previewSkipped').hidden = true;
   }
 
   function selectedPreviewEntries() {
