@@ -20,6 +20,7 @@ function fakeCanvas() {
     restore() { ops.push(['restore']); },
     scale(x, y) { ops.push(['scale', x, y]); },
     beginPath() { ops.push(['beginPath']); },
+    closePath() { ops.push(['closePath']); },
     moveTo(x, y) { ops.push(['moveTo', x, y]); },
     lineTo(x, y) { ops.push(['lineTo', x, y]); },
     arc(x, y, r) { ops.push(['arc', x, y, r]); },
@@ -83,6 +84,36 @@ test('바탕을 칠하고 눈금·항로·점·이름을 그린다', () => {
   const labels = ops.filter((o) => o[0] === 'fillText').map((o) => o[1]);
   assert.ok(labels.includes('애틀랜타 3'), '여러 번 갔으면 횟수도 적는다');
   assert.ok(labels.includes('파리'), '한 번 갔으면 이름만');
+});
+
+test('대륙을 먼저 깔고 그 위에 항로를 얹는다', () => {
+  const canvas = fakeCanvas();
+  mapdraw.draw(canvas, { data: DATA, width: 800, height: 500, scale: 1 });
+  const ops = canvas.ops;
+
+  const land = ops.findIndex((o) => o[0] === 'closePath');
+  const route = ops.findIndex((o) => o[0] === 'stroke' && o[2] > 1);
+  assert.ok(land > 0, '대륙 윤곽이 그려진다');
+  assert.ok(land < route, '대륙이 항로보다 먼저 그려져 밑에 깔린다');
+  assert.ok(ops.filter((o) => o[0] === 'closePath').length > 80, '고리가 여럿 그려진다');
+});
+
+test('지도 가운데를 옮겨도 걸친 대륙이 끊기지 않는다', () => {
+  const ring = require('../src/worldmap.js').rings()[0];
+  const box = { width: 1000, height: 600, center: 150 };
+  const path = mapdraw.landPath(ring, box);
+
+  // 이어진 경도로 펴므로, 이웃한 점끼리 지도를 가로지르는 일이 없다
+  for (let i = 1; i < path.length; i++) {
+    assert.ok(Math.abs(path[i].x - path[i - 1].x) < box.width / 2,
+      i + '번째 점에서 지도를 가로질렀습니다');
+  }
+});
+
+test('옅은 색은 밝은 화면이든 어두운 화면이든 따라간다', () => {
+  assert.strictEqual(mapdraw.faded('#221f1a', 0.11), 'rgba(34,31,26,0.11)');
+  assert.strictEqual(mapdraw.faded('rgba(242, 236, 224, 0.62)', 0.2), 'rgba(242,236,224,0.2)');
+  assert.strictEqual(mapdraw.faded('red', 0.2), 'red');
 });
 
 test('많이 다닌 항로일수록 굵고 진하게 긋는다', () => {

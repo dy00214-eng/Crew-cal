@@ -1,0 +1,171 @@
+/**
+ * 세계 육지 윤곽. Natural Earth 1:110m 육지 자료(공공 도메인)를 줄여 담았다.
+ *
+ * 손으로 적은 좌표가 아니라 scripts/make-worldmap.js 가 만들어 낸 것이다.
+ * 고쳐야 할 일이 있으면 그 스크립트를 고치고 `node scripts/make-worldmap.js` 를 다시 돌린다.
+ *
+ * 고리 109개, 점 2373개, 0.1도(적도에서 11km) 격자.
+ * 세계지도 한 장에서 1픽셀도 안 되는 크기라 대륙 모양을 알아보기에는 넉넉하고,
+ * 나라 경계는 담지 않았다. 크루가 보는 건 어느 대륙 어디쯤인지이기 때문이다.
+ */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) {
+    module.exports = factory();
+  } else {
+    root.CrewCal = root.CrewCal || {};
+    root.CrewCal.worldmap = factory();
+  }
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  var PACKED = [
+    "cj@noBb@eBJ@DMODBu@Pg@Jr@P@BFKz@IB?j@EHGCBVHIFJ?_`FFr@^g@LBCb@NhAb@bAMZNr@GHHPCZ`@\\FABUZ@@RNFFGJ`@TFB\\TDPZwAZ[ISQE_@{@iB]O@VPJTr@YNFr@^p@LODhAM?C\\HXB|BtAlC@_@N]IK@UT[PARNv@Hh@d@x@`AJZIVZl@RDTj@J@JSb@U`@FLr@m@FCOOLG\\]KERR~@]UIJ^r@@RHHN[H?BOMUF_@JABZb@d@HSt@a@N?BJPO^F@JfAn@`@v@J`@EFTz@TF?HU?EZd@r@LBjA_Ad@G`@@|@nAKFMEM^_@PGb@OC?PrAP?Mb@Kd@q@rAW@L_@h@iAXe@^JBgAImB^Vb@EVk@A]JSXi@R?PRBEXF@Bd@N?HHLZp@x@F?Ld@lBF@JNFDEDPPNQPmC|@kBPHh@WXGGEDUd@]RD`BKpAYFAHJb@[~@k@Z@h@l@OR[d@KWCBKVBJGAk@m@o@j@GJe@XUd@XBLX@Xn@F?Nx@NB^dAL|@JJ@\\s@P_@Au@b@c@b@o@JKRkAn@?H[Ed@Rm@\\jAa@j@_@NBT[bAKJQh@QdAoALJXe@_@aCZ@jA\\r@b@fCrCh@Tb@FDK`@Bl@YlAEf@XPh@j@r@L@^Qf@@^x@HEr@LnAnATn@?~@Pz@QZYDQE{Az@cBPoAp@m@?m@M]UYA]NKEgAXmA|@sASKFUPHr@g@^Bn@ZlAIr@Px@I\\q@bAgAn@Yb@[@UP[Ug@GkAPs@e@c@Ma@c@AQc@i@YB[I]o@a@SJiA[iAEiCIUBMH?CQHHLEP@HJHA\\aBPITcAMSW?K[d@sCMi@LSGCD_@IO}@[WAIDGGA\\JL@\\INHf@Kh@]XOIIJQUA]MG@e@Qo@?a@T}@Ai@SYKBs@~AS]GHM[RpAJ?B]FBLn@CJGCERKUCDC^G?@R^T@Nl@T\\U@VNVKDAVBVJM@HEXTOBFNSH?CPHE@JPG?LGN]Jg@`@[Ac@dA_@TAJFDO@ANDNXEh@q@?OH?Xs@FBKZJFFMH@PR@FUGSLa@`AW^SDIXXn@Ed@D\\V@Pj@`@TJGf@j@?l@NRST?n@[AGLi@Mk@JM[DyBKIg@C_@b@G\\M@@{@WDHQOm@OEMk@]QGcAIM]L_@GKi@NDFKRXPEBSF?I_@L_@UeAHi@ICE[_@BKIGQNO?O[ECRK@E}AIUIRLfBQ^SCQFKGe@mAG@IZD`@LRJC`@fAZLVa@TPDTr@PAVNJ?VqAp@Vf@BXIZcALKQe@{AaAuAg@wAGkAO]CiAL}@DXJUESNwA^{AL?Nt@KfBL_@\\AHi@GAIJEMJo@EOMJSm@Fe@MIKNKIKLFw@HI@VJ?DMC_@KC[oB@OJRMiBJUKWKTGKFy@ZcBIMOTAVGGUJQc@QM?cAJCNRRSZBJUh@n@@U_@u@IJMGATIBSOOXMc@MBHSRF@UMHGa@?i@Jc@QPS@E}BKNKWQwB@eAIqAQWGo@Da@DZ@m@HCCmAP{@HBTxABgALIIi@NwCMA@iAJ_@JIFJVw@SSF_@AwBQNG[JsDZeAAwBFON@DWCiCPc@EWMNGILaDFb_F",
+    "jInoBBs_FBLG@COGn_FJB",
+    "|s@noBKQFc@G[F]KwAL{@NqDEy@HeCKkBGCEnCKdAWQIBQlAB{BSsAQ|@ErBUv@UDF[@qBQgBOFEECYDKWuDBuHOsBR_@ESNiA@kCGIMVAV]VD{ALw@E{BMQPoAFiAOWPqASqCSc@m@ZWQW@GGm@uAYgBBKPb@Fz@LJLID^\\f@Vq@\\[z@S^fAXzB@bCVeAHrAN@Ts@h@yHN]]gDFkCMg@UsFSTBtBWB_@iCK_CScBKc@GECTOUM}@Ug@Fy@OIJs@EgAFIa@}C@c@NYOs@Fa@IsABk@JUCyAOaBWe@X}AWcAQkBe@mCBe@Xm@Lu@Ku@H_BXOH@Jb@FA?WVVFg@CUk@y@GiAW]UiAAoAQWPa@DyBCmA_@}@XcACoAOcANg@JsAOcADoBKwBQE\\]BQA_DRUHk@HiAEc@RaBRo@BqBPmAf@d@L~@b@p@P@TW@e@HGFfB`@f@\\mAPgBHIJkA@eBB|~E",
+    "mj@pw@R?OYLWLDLS_@a@UABy@HYHAJNHMH@Ld@Cp@b@\\LV@ZFNJ@BTNXTRf@H@]`@QC[f@uBBu@b@CTMR]EOUI]HKLG_@[a@_@NMVUWo@NAuAXo@?c@h@EN_@K]]_@`A_ALF`@yANGHUVAd@tA?~BbA|A]o@QgAHQJPd@KHYCa@USL?FMn@nBALQ@Oc@Bt@DAT|@LJL@LOLhA?c@@h@d@PKJTGVNMCWLRAALDMl@Kh@bAh@j@Z?|@W`@D?NMHg@VW?SVHROX@v@@FPGBRKZ?j@Zv@PN\\EdAN|@_@Ve@Ko@KWa@II_ALEp@RCHf@@JHAmAL_@RC~@Jh@_@BOOc@Rw@OUWCIKA]W_@DMLNl@COMUFGWOE^a@?g@HYIKAo@DNHEH_@NAJ_@VKN[B}@^u@l@OBILANNDE@c@R?KORy@HIJBEWHcAd@w@D_@j@Q`@FpAfA~AJnA^TTFr@\\z@RPv@FpB`BJTAXSj@H@PYLBFMH@XPH\\@|@d@CDJ@n@RADMGIJEP`@\\FJ`@LDPg@PFJVVJNX`@QAXJXPB]lAgALc@]E\\OQa@EFWi@IELXDCJmAUi@FAG}Ac@eA@YK{CM]BQTw@xAsCjAU\\GGSHg@_@IBHFIJUAe@OKWWIWYEFs@?OLO?KZNPJIDPKBKn@M@SZH@EJW?c@f@GCKhAm@dAHd@s@hC_@f@IBSG[Lw@`AO?OTMBU^k@PK`@^AdA}@n@QTYFJe@j@Y@a@v@?IQGSXcAb@SVKh@qBjAq@@u@Ku@NB_@PIe@Bc@zAQJKCIXOBe@t@QBOXQJAp@Y`A[nCBTLCNhA]EEUEDd@bAHMNPLh@Zh@^~B_AmCYMHh@MXF^QACd@M\\K@GL_@]?]Mm@KLGMFrAEZS`@QgA?OH@?i@m@dBIKI{@QYUiBLm@HuEXmCMi@@]M}@FMMSRm@M[NAGw@ZwCHZAkBJSIUGRGKAi@Nc@Fw@C}@KBCQF_@P?OK?OSISl@UAMWJm@T[HPBe@",
+    "es@|ON}BH|EFmCEe@FOHTMsCB{@FKTzC@m@Xf@V?JWF~@He@PC?TPY@j@FWDFBv@LYF?Ap@Nu@NEB`@Qf@JEJV@qA^jBFpAZn@VnBLPXHN^NGb@R@ZQ\\?f@u@`A_@LQZMGGLWSE]WKJr@EVWEB{@Qr@Cb@QUi@r@GXG?Kt@?nCQx@G{AK`CGASuCGGEt@WsBIFGkBDsAIs@LuBIn@GAQcD?eF",
+    "rGwxALEEMNOnASZo@d@Q@STCb@g@NCf@Iv@H~Av@`@DF`@Vf@KZIAPZOz@e@RI\\WALHBPa@UM@f@b@GNe@PUz@LfBNd@PH@jATd@AZO^K?EMa@?mBn@FIQFLOe@Ns@MLAMGUi@SsA]YQAQMPGCIIFIEBIMA[YG[TY@WKBe@WGg@I?ENCKTy@EWHIPR`@Ht@}AEMSGoAGa@O|@U",
+    "}r@xi@HcCTrB?k@`@pBHpB@[BLHOXvAFe@Jt@EpDI@Cc@MHFaAQz@Qy@Sb@CeB?rB[nAOyBFm@KOC}@?wE",
+    "wl@bu@LOOQIs@Ta@JBM{@RgAHAEe@LSFo@Xc@Hb@PmAP]?]LDV`@[v@@XJ@Xw@RKLDSjAb@s@S~AIVEESx@Hx@GPMMCmAED]_@GBWnACMUv@Hl@EfAGjAGNGS?ZSDQOMgAJN",
+    "VyrA^EJUUOKg@j@}B^[J_@HE@PLC~@eAIv@g@d@IXJZNADNC^OPCRD\\UUe@Ne@rAJLOBINKa@?\\Y`@Ie@Na@",
+    "ul@jfAFHEm@HYIWXa@GISL?e@FU`@QReAF@@^FKDDGfALpCIJCj@OVGaBAlBGHGm@E`AU]Ku@BS",
+    "ek@}b@AjAGDEb@I@CSK@Og@CPOo@IDa@sEAg@FMj@nEd@|@PCNe@",
+    "eo@dz@D}@DQFDHc@AaDNYHh@A|CEr@UHGRI~@GG@g@",
+    "nGi^h@E?LVA~Ct@L`@KZy@Lg@Uu@FWGGe@W[QC@Gc@Q^Q",
+    "eVcwAf@LH|@TZELO?LpANS^LHJGHQCSRi@_AA}@c@SHM[g@WMWBKGCUj@IRPT?",
+    "sn@rbAFGCe@HCHJJtBE`@Ii@?tBYm@R}BQZGQ@SHG",
+    "tBcaA?Ta@h@wA`A_@LiA`ADk@|@}@?Uf@i@NFFSVINWv@D",
+    "yp@mJL_AFp@b@d@?VKh@EQWdAONGcCFY",
+    "c@uhAPU@V^DLPp@HE@FTKFGVFVIFA\\Y@URc@?MK@]OCG_@kAiA\\q@j@d@PMH@",
+    "yp@ju@FWR~@@b@Ah@ITKQ?d@O`@Oo@CFAm@R{AJO",
+    "vo@f[HY\\KRnCGhAGCK{@_@m@?eA",
+    "gMxp@D[b@s@F]FfAIMERQJOdACGL~@Yu@Fs@",
+    "qh@`HLBLULXPjAIpAGSIj@Ic@Ch@MKA_@L]K]DYI_@?a@",
+    "sk@hjAHr@Sv@c@g@KR@qCLi@RhALXF?",
+    "fC{bA@e@GEd@aBFTS|BQx@SM@WNY",
+    "yXu]RY@NZLVEL_@A{@g@AENME?LQCAc@URBNN@a@DEV]R@SM?Aa@_@?Ab@Jh@b@n@PQL@`@_@",
+    "gq@{NDg@J\\@x@Cx@Mt@A_D",
+    "r`@ji@Pu@HFE\\LTATS|@a@n@XgAWOGS@MVO",
+    "ip@m}@A`BYjAS}A\\uAPD",
+    "sc@z@RTAi@`@T@SXS@M^QBWPLHGHP@dALj@CJWo@Kd@EUIJMC@]KCKLCVSBHJ]Jc@W?g@",
+    "u^wxA`@UE\\ZJTQL?KNLJcBAQJ[AIQGFCIhAQ",
+    "gn@uyANNBhBMf@KICYH}B",
+    "pXckBFCGOFCh@\\HGD^`@PLXGr@UEi@eAg@_@IMFC",
+    "rUclBRMMATKDOCa@\\HANj@VFNGHOIKDGTMO[Ay@h@Na@PE",
+    "ah@ft@HC\\aBDPMh@Rn@IF@XIOa@I?M",
+    "[gmARNBL?dALBPQOo@H?CHRXbAa@DJEFOI@VGAKLSADLr@AARe@AMLcAWMQFg@Im@",
+    "~p@fd@RJAtAKb@@wAOYFS",
+    "iq@}^HdACTGK?l@AeCBF",
+    "oo@rgAL@FNJvACZ[kAAy@",
+    "u^`b@PLEMBKDDFm@LDCMVINHATS?PV?JIMCR?z@MICFk@c@Qg@PL",
+    "jk@xi@VDDl@?XGIDl@MNIy@a@GK[h@c@",
+    "mKjl@Ds@Ra@FFCf@NLKRAh@GA?i@OHAJEO",
+    "|k@z|@@k@HK?zAK\\?aA",
+    "qJyjA?QZEVN^?Hm@XAUVFBKLAZKGEDF@KH[BFGq@G?K",
+    "cm@v}@?{@DEHRF_@PBDr@U~@E?@i@MTGU",
+    "}o@u`AFpB[u@JaAFD",
+    "}o@p}@FGIlBESCVG@H}AHM",
+    "sZ}xABMGMTCDZRPM^TH?TSBMIAUk@KZe@",
+    "ol@fy@NTATYJM]BoATt@",
+    "i]dlAEj@Wn@ODHs@b@m@",
+    "}n@p|@FOXH@^CTI??^M@GqA",
+    "gD_nAVAPDSFHFV?KVW?GJP\\EBOGMWHEOa@O@HOPC",
+    "}m@e}AFTIdAEEFuA",
+    "ul@tn@F~@KZII@m@Jc@",
+    "tp@nbB@d@Sr@GKBe@Tg@",
+    "u_@fCJb@AZUOSHY{@JSl@T",
+    "ej@vz@DLKdAM_@Rs@",
+    "lB_~ANb@Kd@C]IEHA?KMOK@@OVD",
+    "uo@mNHj@Eb@CMGJCi@Jc@",
+    "|l@vjA?q@J\\Gn@GCBW",
+    "hEwlA@PQIKUEk@Rj@LL",
+    "{Bwq@BPOF[B_@Gl@a@XJ",
+    "wl@wxAChAIk@L]",
+    "qo@zcADd@EZEgADD",
+    "nX{yADSCe@l@FEDLLAPm@XI?@M",
+    "|^pc@FOFDDZGFHPIHMu@",
+    "gMwjANH_@Ja@[DIj@N",
+    "|l@nmAF_@G`A?a@",
+    "{m@ny@FJEr@Me@JY",
+    "{VuH^FSt@ICAy@",
+    "zLmgBBFMV_@\\h@}@",
+    "yo@zz@?l@OHH{@DB",
+    "UmoAN@AHX?e@LWITO",
+    "{f@hjBH{@DNEh@I@",
+    "yDaiAPX{@m@NCXV",
+    "`DykAJ@@x@KODKG_@",
+    "|@qpANEIx@KCDo@",
+    "cp@pcABv@ISDc@",
+    "iUyMFs@F^GVGC",
+    "ub@r~AFROLI]FUHP",
+    "xAu~ADDSFU`@CCLYXQ",
+    "{l@h`AJPM\\@o@",
+    "sFmmAVEENPEDH[H@KG?OJFW",
+    "uk@noBBo@Hn@M?",
+    "`DuhAJWDn@QW",
+    "uJ}cAHNENQ@Mk@FCRL",
+    "a\\xf@@a@FPM\\EGHE",
+    "iUsTT^ILKm@",
+    "wXwDLKX@DPi@JCS",
+    "iTcsAPFEFNNEJUI?a@",
+    "mEolAXRMJWI?KJBQOP@",
+    "eJ`o@EZC[HM?L",
+    "}h@ln@?TIBIG@a@PN",
+    "ef@dr@HVEPGOBY",
+    "w`@|qAASTFNQWd@O@BI",
+    "md@nfBEd@Ac@FA",
+    "wa@}FNJSVE]HE",
+    "`^}j@@^WCH_@JB",
+    "jEmjAK`@CQNO",
+    "fCm`BEL[L`@[",
+    "kJ~g@D^I?B_@",
+    "kY_ENFQLMQNC",
+    "mFekADWVT]@",
+    "zBesALH]ENC",
+    "{Mlo@OPKCZM",
+    "eG}jAPBYRFW",
+    "dAonADDKPDW",
+    "}Jd`B?FW?NUFL",
+    "xIonBPC?VOEAM",
+    "dEqcBARKBLW"
+  ];
+
+  var cache = null;
+
+  /** 눌러 담은 글을 좌표로 푼다. 처음 부를 때 한 번만 푼다. */
+  function decode(line) {
+    var points = [];
+    var lat = 0, lon = 0, i = 0;
+    while (i < line.length) {
+      var shift = 0, result = 0, byte;
+      do {
+        byte = line.charCodeAt(i++) - 63;
+        result |= (byte & 0x1f) << shift;
+        shift += 5;
+      } while (byte >= 0x20);
+      lat += (result & 1) ? ~(result >> 1) : (result >> 1);
+
+      shift = 0; result = 0;
+      do {
+        byte = line.charCodeAt(i++) - 63;
+        result |= (byte & 0x1f) << shift;
+        shift += 5;
+      } while (byte >= 0x20);
+      lon += (result & 1) ? ~(result >> 1) : (result >> 1);
+
+      points.push({ lat: lat / 10, lon: lon / 10 });
+    }
+    return points;
+  }
+
+  /** 육지 고리 목록. 큰 것부터 온다. */
+  function rings() {
+    if (!cache) cache = PACKED.map(decode);
+    return cache;
+  }
+
+  return {
+    rings: rings,
+    count: PACKED.length
+  };
+});

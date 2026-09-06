@@ -1,23 +1,38 @@
 /**
  * 다녀온 곳을 세계지도 위에 그린다.
  *
- * 대륙 모양을 그리지 않고 항공사 노선도처럼 그린다. 나라 경계 자료를 지어낼 수는
- * 없고, 크루가 보는 건 결국 "어디에서 어디로 얼마나" 이기 때문이다.
- * 위·경도 눈금과 대권 항로, 도시 점만으로도 어디쯤인지 읽힌다.
+ * 대륙은 src/worldmap.js 의 윤곽(Natural Earth 공공 도메인)을 옅게 깔고, 그 위에
+ * 대권 항로와 도시 점을 얹는다. 나라 경계는 담지 않았다. 크루가 보는 건 결국
+ * "어디에서 어디로 얼마나" 라서, 대륙 모양이면 어디쯤인지 읽히기 때문이다.
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
-    module.exports = factory(require('./geo.js'));
+    module.exports = factory(require('./geo.js'), require('./worldmap.js'));
   } else {
     root.CrewCal = root.CrewCal || {};
-    root.CrewCal.mapdraw = factory(root.CrewCal.geo);
+    root.CrewCal.mapdraw = factory(root.CrewCal.geo, root.CrewCal.worldmap);
   }
-})(typeof self !== 'undefined' ? self : this, function (geo) {
+})(typeof self !== 'undefined' ? self : this, function (geo, worldmap) {
   'use strict';
 
   var FONT = '-apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif';
 
   /** 점 크기: 많이 간 곳일수록 크게, 다만 한없이 커지지는 않게. */
+  /** 글자색을 옅게 만든다. 화면이 밝든 어둡든 바탕에 맞춰 따라간다. */
+  function faded(color, alpha) {
+    var hex = /^#([0-9a-f]{6})$/i.exec(String(color).trim());
+    if (hex) {
+      var n = parseInt(hex[1], 16);
+      return 'rgba(' + (n >> 16 & 255) + ',' + (n >> 8 & 255) + ',' + (n & 255) + ',' + alpha + ')';
+    }
+    var rgb = /rgba?\(([^)]+)\)/i.exec(String(color));
+    if (rgb) {
+      var parts = rgb[1].split(',');
+      return 'rgba(' + parts[0].trim() + ',' + parts[1].trim() + ',' + parts[2].trim() + ',' + alpha + ')';
+    }
+    return color;
+  }
+
   function dotRadius(count, max) {
     var base = 3.2;
     if (!count) return base;
@@ -28,6 +43,64 @@
   /** 이름을 붙일 도시. 너무 많으면 지도가 글자로 덮인다. */
   function labelled(places, limit) {
     return places.slice(0, limit || 14);
+  }
+
+  /**
+   * 육지 고리 하나를 화면 자리로 편다.
+   *
+   * 지도 한가운데를 옮겨 두면 어떤 대륙은 지도 양 끝에 걸친다. 경도를 접지 않고
+   * 이어진 값으로 편 뒤 지도 너비만큼 좌우로 밀어 세 번 그리면, 걸친 대륙도
+   * 끊기지 않고 양쪽에 제대로 나온다.
+   */
+  function landPath(ring, box) {
+    var top = box.top == null ? 80 : box.top;
+    var bottom = box.bottom == null ? -52 : box.bottom;
+    var center = box.center || 0;
+    var points = [];
+    var prev = null;
+    for (var i = 0; i < ring.length; i++) {
+      var lon = ring[i].lon - center;
+      if (prev !== null) {
+        while (lon - prev > 180) lon -= 360;
+        while (prev - lon > 180) lon += 360;
+      }
+      prev = lon;
+      points.push({
+        x: ((lon + 180) / 360) * box.width,
+        y: ((top - ring[i].lat) / (top - bottom)) * box.height
+      });
+    }
+    return points;
+  }
+
+  /** 대륙을 옅게 깔아 어디쯤인지 알아보게 한다. */
+  function drawLand(ctx, box, fill, edge) {
+    if (!worldmap) return 0;
+    var drawn = 0;
+    worldmap.rings().forEach(function (ring) {
+      var points = landPath(ring, box);
+      var minX = Infinity, maxX = -Infinity;
+      points.forEach(function (p) {
+        if (p.x < minX) minX = p.x;
+        if (p.x > maxX) maxX = p.x;
+      });
+      [-box.width, 0, box.width].forEach(function (shift) {
+        if (maxX + shift < 0 || minX + shift > box.width) return;   // 화면 밖
+        ctx.beginPath();
+        points.forEach(function (p, i) {
+          if (i === 0) ctx.moveTo(p.x + shift, p.y);
+          else ctx.lineTo(p.x + shift, p.y);
+        });
+        ctx.closePath();
+        ctx.fillStyle = fill;
+        ctx.fill();
+        ctx.strokeStyle = edge;
+        ctx.lineWidth = 0.8;
+        ctx.stroke();
+        drawn++;
+      });
+    });
+    return drawn;
   }
 
   function overlaps(a, b) {
@@ -87,6 +160,12 @@
     var head = [];
     if (opts.title) head.push({ text: opts.title, font: '700 26px ' + FONT, color: ink, y: 30 });
     if (opts.subtitle) head.push({ text: opts.subtitle, font: '500 17px ' + FONT, color: color.muted || faint, y: 56 });
+
+    // 대륙
+    ctx.save();
+    ctx.globalAlpha = 1;
+    drawLand(ctx, box, color.land || faded(ink, 0.11), color.landEdge || faded(ink, 0.22));
+    ctx.restore();
 
     // 위·경도 눈금
     ctx.strokeStyle = line;
@@ -223,6 +302,8 @@
     draw: draw,
     dotRadius: dotRadius,
     labelled: labelled,
-    freeSpot: freeSpot
+    freeSpot: freeSpot,
+    landPath: landPath,
+    faded: faded
   };
 });
