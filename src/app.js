@@ -8,6 +8,7 @@
   var calendar = CrewCal.calendar;
   var vision = CrewCal.vision;
   var feedback = CrewCal.feedback;
+  var ics = CrewCal.ics;
 
   var $ = function (id) { return document.getElementById(id); };
 
@@ -911,8 +912,42 @@
     });
   }
 
-  function saveViaLink(filename, text) {
-    var blob = new Blob([text], { type: 'application/json' });
+  /**
+   * 보고 있는 달의 일정을 폰 캘린더가 읽는 파일로 내보낸다.
+   * 아이폰은 이 파일을 열면 "캘린더에 추가" 가 뜬다.
+   */
+  function exportIcs() {
+    var last = calendar.daysInMonth(state.year, state.month);
+    var from = state.year + '-' + calendar.pad2(state.month) + '-01';
+    var to = state.year + '-' + calendar.pad2(state.month) + '-' + calendar.pad2(last);
+    var made = ics.build(store.getAll(), { from: from, to: to });
+    if (!made.count) {
+      toast('이 달에 내보낼 일정이 없습니다.');
+      return;
+    }
+    var name = ics.filename(from, to);
+
+    if (downloadsReady) {
+      downloadsReady.then(function (api) {
+        if (!api) {
+          toast('이 화면에서는 파일 저장을 지원하지 않습니다.');
+          return;
+        }
+        return api.save({ filename: name, data: made.text }).then(function (result) {
+          if (!result || result.status === 'saved') toast(made.count + '건을 캘린더 파일로 저장했습니다.');
+        }, function (err) {
+          if (err && err.code === 'declined') return;
+          toast('저장하지 못했습니다.');
+        });
+      });
+      return;
+    }
+    saveViaLink(name, made.text, 'text/calendar;charset=utf-8');
+    toast(made.count + '건 · 받은 파일을 열면 캘린더에 추가됩니다.');
+  }
+
+  function saveViaLink(filename, text, type) {
+    var blob = new Blob([text], { type: type || 'application/json' });
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
     a.href = url;
@@ -996,6 +1031,7 @@
     });
 
     $('exportBtn').addEventListener('click', exportBackup);
+    $('icsBtn').addEventListener('click', exportIcs);
 
     $('importBtn').addEventListener('click', function () { $('importInput').click(); });
     $('importInput').addEventListener('change', function () {
