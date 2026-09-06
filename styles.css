@@ -1,6 +1,7 @@
 /* ==========================================================================
-   Crew-cal — iOS 감성으로 맞춘 스타일
-   색·간격·모서리·글자 크기를 iOS 시스템 값에 맞춘다.
+   Crew-cal 스타일
+   간격·모서리·글자 크기는 iOS 값을 따르되, 색은 채도를 낮춘 따뜻한 계열로 쓴다.
+   쨍한 시스템 색을 옅게 깔면 파스텔이 튀어 촌스러워 보인다는 이야기가 있었다.
    토큰은 :root 에 모아 두고, 다크 모드는 토큰만 바꿔 끼운다.
    ========================================================================== */
 
@@ -10,51 +11,51 @@
   color-scheme: light;
 
   /* 바탕과 면 */
-  --bg: #f2f2f7;                        /* systemGroupedBackground */
+  --bg: #f7f5f1;                        /* 따뜻한 흰색 */
   --surface: #ffffff;                   /* secondarySystemGroupedBackground */
-  --surface-alt: #f2f2f7;               /* 카드 안의 한 단계 아래 면 */
-  --fill: rgba(120, 120, 128, 0.12);    /* secondarySystemFill */
-  --fill-strong: rgba(120, 120, 128, 0.2);
-  --input-bg: rgba(120, 120, 128, 0.12);
-  --separator: rgba(60, 60, 67, 0.29);
-  --line: rgba(60, 60, 67, 0.18);
+  --surface-alt: #f7f5f1;               /* 카드 안의 한 단계 아래 면 */
+  --fill: rgba(122, 112, 94, 0.10);    /* secondarySystemFill */
+  --fill-strong: rgba(122, 112, 94, 0.18);
+  --input-bg: rgba(122, 112, 94, 0.10);
+  --separator: rgba(72, 66, 54, 0.20);
+  --line: rgba(72, 66, 54, 0.15);
 
   /* 글자 */
-  --text: #000000;
-  --muted: rgba(60, 60, 67, 0.6);       /* secondaryLabel */
-  --faint: rgba(60, 60, 67, 0.3);       /* tertiaryLabel */
-  --cal-sub: rgba(28, 28, 30, 0.88);    /* 달력 칸의 도시·시각 — 작아서 진하게 쓴다 */
+  --text: #221f1a;
+  --muted: rgba(72, 66, 54, 0.62);       /* secondaryLabel */
+  --faint: rgba(72, 66, 54, 0.34);       /* tertiaryLabel */
+  --cal-sub: rgba(46, 42, 35, 0.86);    /* 달력 칸의 도시·시각 — 작아서 진하게 쓴다 */
 
   /* 강조 */
-  --accent: #007aff;                    /* systemBlue */
+  --accent: #4a63a8;                    /* 차분한 남색 */
   --accent-ink: #ffffff;
-  --accent-soft: rgba(0, 122, 255, 0.12);
-  --accent-weak: rgba(120, 120, 128, 0.16);
-  --accent-weak-ink: rgba(60, 60, 67, 0.35);
+  --accent-soft: rgba(74, 99, 168, 0.11);
+  --accent-weak: rgba(122, 112, 94, 0.14);
+  --accent-weak-ink: rgba(72, 66, 54, 0.35);
 
-  --danger: #ff3b30;
-  --danger-soft: rgba(255, 59, 48, 0.12);
-  --sun: #ff3b30;
-  --sat: #007aff;
-  --ok: #34c759;
+  --danger: #b0524a;
+  --danger-soft: rgba(176, 82, 74, 0.11);
+  --sun: #b0524a;
+  --sat: #4a63a8;
+  --ok: #5f8055;
 
-  --warn-bg: rgba(255, 149, 0, 0.12);
-  --warn-line: rgba(255, 149, 0, 0.28);
-  --warn-text: #a05a00;
-  --unknown-row: rgba(255, 59, 48, 0.07);
+  --warn-bg: rgba(161, 121, 74, 0.13);
+  --warn-line: rgba(161, 121, 74, 0.26);
+  --warn-text: #8a6338;
+  --unknown-row: rgba(168, 90, 74, 0.07);
 
-  --toast-bg: rgba(28, 28, 30, 0.92);
+  --toast-bg: rgba(40, 36, 30, 0.93);
   --toast-ink: #ffffff;
 
-  /* 근무 분류 — iOS 시스템 컬러 */
-  --cat-flight: #007aff;
-  --cat-layover: #af52de;
-  --cat-standby: #ff9500;
-  --cat-off: #34c759;
-  --cat-training: #30b0c7;
-  --cat-other: #8e8e93;
-  --cat-unknown: #ff3b30;
-  --chip-tint: 0.14;                    /* 칩 배경에 쓰는 색의 농도 */
+  /* 근무 분류 — 채도를 낮춘 색. 비행·체류는 남색, 쉬는 날은 세이지, 대기는 카라멜 */
+  --cat-flight: #4a63a8;
+  --cat-layover: #7a6bab;
+  --cat-standby: #a1794a;
+  --cat-off: #5f8055;
+  --cat-training: #4f7f88;
+  --cat-other: #8a8378;
+  --cat-unknown: #b0524a;
+  --chip-tint: 0.16;                    /* 칩 배경에 쓰는 색의 농도 */
 
   /* 모서리 */
   --r-card: 16px;
@@ -66,47 +67,47 @@
   :root:not([data-theme="light"]) {
     color-scheme: dark;
 
-    --bg: #000000;
-    --surface: #1c1c1e;
-    --surface-alt: #2c2c2e;
-    --fill: rgba(120, 120, 128, 0.24);
-    --fill-strong: rgba(120, 120, 128, 0.36);
-    --input-bg: rgba(120, 120, 128, 0.24);
-    --separator: rgba(84, 84, 88, 0.65);
-    --line: rgba(84, 84, 88, 0.45);
+    --bg: #141310;
+    --surface: #201d18;
+    --surface-alt: #2b2822;
+    --fill: rgba(168, 156, 134, 0.15);
+    --fill-strong: rgba(168, 156, 134, 0.25);
+    --input-bg: rgba(168, 156, 134, 0.15);
+    --separator: rgba(160, 148, 126, 0.28);
+    --line: rgba(160, 148, 126, 0.20);
 
-    --text: #ffffff;
-    --muted: rgba(235, 235, 245, 0.6);
-    --faint: rgba(235, 235, 245, 0.3);
-    --cal-sub: rgba(235, 235, 245, 0.85);
+    --text: #f2eee6;
+    --muted: rgba(242, 236, 224, 0.62);
+    --faint: rgba(242, 236, 224, 0.32);
+    --cal-sub: rgba(242, 236, 224, 0.86);
 
-    --accent: #0a84ff;
+    --accent: #8ea5e0;
     --accent-ink: #ffffff;
-    --accent-soft: rgba(10, 132, 255, 0.24);
-    --accent-weak: rgba(120, 120, 128, 0.24);
-    --accent-weak-ink: rgba(235, 235, 245, 0.3);
+    --accent-soft: rgba(142, 165, 224, 0.20);
+    --accent-weak: rgba(168, 156, 134, 0.15);
+    --accent-weak-ink: rgba(242, 236, 224, 0.32);
 
-    --danger: #ff453a;
-    --danger-soft: rgba(255, 69, 58, 0.22);
-    --sun: #ff453a;
-    --sat: #0a84ff;
-    --ok: #30d158;
+    --danger: #e0877a;
+    --danger-soft: rgba(224, 135, 122, 0.20);
+    --sun: #e0877a;
+    --sat: #8ea5e0;
+    --ok: #9cc78d;
 
-    --warn-bg: rgba(255, 159, 10, 0.18);
-    --warn-line: rgba(255, 159, 10, 0.35);
-    --warn-text: #ffd60a;
-    --unknown-row: rgba(255, 69, 58, 0.12);
+    --warn-bg: rgba(215, 171, 114, 0.16);
+    --warn-line: rgba(215, 171, 114, 0.30);
+    --warn-text: #e6c489;
+    --unknown-row: rgba(224, 135, 122, 0.12);
 
-    --toast-bg: rgba(58, 58, 60, 0.94);
+    --toast-bg: rgba(48, 44, 38, 0.94);
     --toast-ink: #ffffff;
 
-    --cat-flight: #0a84ff;
-    --cat-layover: #bf5af2;
-    --cat-standby: #ff9f0a;
-    --cat-off: #30d158;
-    --cat-training: #64d2ff;
-    --cat-other: #98989d;
-    --cat-unknown: #ff453a;
+    --cat-flight: #8ea5e0;
+    --cat-layover: #b09ad8;
+    --cat-standby: #d7ab72;
+    --cat-off: #9cc78d;
+    --cat-training: #86c0cb;
+    --cat-other: #a59d8e;
+    --cat-unknown: #e0877a;
     --chip-tint: 0.26;
   }
 }
@@ -114,47 +115,47 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
 
-  --bg: #000000;
-  --surface: #1c1c1e;
-  --surface-alt: #2c2c2e;
-  --fill: rgba(120, 120, 128, 0.24);
-  --fill-strong: rgba(120, 120, 128, 0.36);
-  --input-bg: rgba(120, 120, 128, 0.24);
-  --separator: rgba(84, 84, 88, 0.65);
-  --line: rgba(84, 84, 88, 0.45);
+  --bg: #141310;
+  --surface: #201d18;
+  --surface-alt: #2b2822;
+  --fill: rgba(168, 156, 134, 0.15);
+  --fill-strong: rgba(168, 156, 134, 0.25);
+  --input-bg: rgba(168, 156, 134, 0.15);
+  --separator: rgba(160, 148, 126, 0.28);
+  --line: rgba(160, 148, 126, 0.20);
 
-  --text: #ffffff;
-  --muted: rgba(235, 235, 245, 0.6);
-  --faint: rgba(235, 235, 245, 0.3);
-  --cal-sub: rgba(235, 235, 245, 0.85);
+  --text: #f2eee6;
+  --muted: rgba(242, 236, 224, 0.62);
+  --faint: rgba(242, 236, 224, 0.32);
+  --cal-sub: rgba(242, 236, 224, 0.86);
 
-  --accent: #0a84ff;
+  --accent: #8ea5e0;
   --accent-ink: #ffffff;
-  --accent-soft: rgba(10, 132, 255, 0.24);
-  --accent-weak: rgba(120, 120, 128, 0.24);
-  --accent-weak-ink: rgba(235, 235, 245, 0.3);
+  --accent-soft: rgba(142, 165, 224, 0.20);
+  --accent-weak: rgba(168, 156, 134, 0.15);
+  --accent-weak-ink: rgba(242, 236, 224, 0.32);
 
-  --danger: #ff453a;
-  --danger-soft: rgba(255, 69, 58, 0.22);
-  --sun: #ff453a;
-  --sat: #0a84ff;
-  --ok: #30d158;
+  --danger: #e0877a;
+  --danger-soft: rgba(224, 135, 122, 0.20);
+  --sun: #e0877a;
+  --sat: #8ea5e0;
+  --ok: #9cc78d;
 
-  --warn-bg: rgba(255, 159, 10, 0.18);
-  --warn-line: rgba(255, 159, 10, 0.35);
-  --warn-text: #ffd60a;
-  --unknown-row: rgba(255, 69, 58, 0.12);
+  --warn-bg: rgba(215, 171, 114, 0.16);
+  --warn-line: rgba(215, 171, 114, 0.30);
+  --warn-text: #e6c489;
+  --unknown-row: rgba(224, 135, 122, 0.12);
 
-  --toast-bg: rgba(58, 58, 60, 0.94);
+  --toast-bg: rgba(48, 44, 38, 0.94);
   --toast-ink: #ffffff;
 
-  --cat-flight: #0a84ff;
-  --cat-layover: #bf5af2;
-  --cat-standby: #ff9f0a;
-  --cat-off: #30d158;
-  --cat-training: #64d2ff;
-  --cat-other: #98989d;
-  --cat-unknown: #ff453a;
+  --cat-flight: #8ea5e0;
+  --cat-layover: #b09ad8;
+  --cat-standby: #d7ab72;
+  --cat-off: #9cc78d;
+  --cat-training: #86c0cb;
+  --cat-other: #a59d8e;
+  --cat-unknown: #e0877a;
   --chip-tint: 0.26;
 }
 
