@@ -136,10 +136,11 @@
 
     // 일정이 없는 달에도 알려야 하므로 요약보다 먼저 붙인다
     if (!holidays.covered(state.year)) {
+      var range = holidays.coveredRange();
       var note = document.createElement('div');
       note.className = 'sum-cities';
-      note.textContent = state.year + '년은 설날·추석 같은 음력 공휴일이 아직 안 들어 있습니다 ' +
-        '(' + holidays.coveredYears().join(', ') + '년만 들어 있음).';
+      note.textContent = state.year + '년은 설날·추석 같은 음력 공휴일이 안 들어 있습니다' +
+        (range ? ' (' + range.from + '~' + range.to + '년만 들어 있음).' : '.');
       box.appendChild(note);
     }
 

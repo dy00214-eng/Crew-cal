@@ -6,6 +6,7 @@
   "scripts": {
     "test": "node --test \"test/**/*.test.js\"",
     "build": "node build.js",
+    "holidays": "node scripts/make-holidays.js",
     "start": "node --run serve",
     "serve": "python3 -m http.server 8000"
   },
