@@ -88,3 +88,25 @@ test('표에 없는 홀수 편은 뒤 짝수 편의 나가는 구간으로 본�
   assert.strictEqual(schedule.lookup('KE0601').route, 'ICN/CEB');
   assert.strictEqual(schedule.lookup('KE0479').route, 'ICN/SGN');
 });
+
+test('김포 출발·도착편도 표에 있다', () => {
+  const out = schedule.lookup('KE2101');
+  assert.strictEqual(out.route, 'GMP/HND');
+  assert.strictEqual(out.start, '09:00');
+
+  const back = schedule.lookup('KE2102');
+  assert.strictEqual(back.route, 'HND/GMP');
+  assert.strictEqual(back.end, '14:55');
+});
+
+test('김포 국내선도 구간을 갖는다', () => {
+  assert.strictEqual(schedule.lookup('KE1121').route, 'GMP/CJU');
+  assert.strictEqual(schedule.lookup('KE1803').route, 'GMP/PUS');
+  assert.strictEqual(schedule.lookup('KE1843').route, 'GMP/USN');
+});
+
+test('짝 편명 추정은 김포에도 적용된다', () => {
+  const back = schedule.lookup('KE1122');
+  assert.strictEqual(back.route, 'CJU/GMP');
+  assert.strictEqual(back.derived, true);
+});

@@ -112,12 +112,45 @@
     '1408': ['PUS', '11:50', 0], '1410': ['PUS', '17:40', 0], '1432': ['TAE', '09:00', 0]
   };
 
+  /* 김포에서 나가는 편: 편명 -> [도착 공항, 출발 시각] */
+  var GMP_OUT = {
+    '1007': ['CJU', '06:35'], '1017': ['CJU', '07:05'], '1019': ['CJU', '07:10'],
+    '1023': ['CJU', '07:20'], '1045': ['CJU', '08:20'], '1073': ['CJU', '10:10'],
+    '1075': ['CJU', '10:40'], '1079': ['CJU', '10:35'], '1081': ['CJU', '11:10'],
+    '1107': ['CJU', '12:45'], '1113': ['CJU', '13:15'], '1121': ['CJU', '13:25'],
+    '1141': ['CJU', '14:00'], '1143': ['CJU', '14:55'], '1165': ['CJU', '16:35'],
+    '1177': ['CJU', '17:30'], '1185': ['CJU', '17:45'], '1195': ['CJU', '18:15'],
+    '1205': ['CJU', '18:45'],
+    '1803': ['PUS', '07:00'], '1807': ['PUS', '08:05'], '1811': ['PUS', '10:30'],
+    '1819': ['PUS', '14:00'], '1827': ['PUS', '17:35'],
+    '1843': ['USN', '07:20'], '1847': ['USN', '18:55'],
+    '2051': ['PEK', '09:05'], '2057': ['PVG', '16:00'],
+    '2101': ['HND', '09:00'], '2103': ['HND', '16:20'], '2105': ['HND', '18:40'],
+    '2117': ['KIX', '09:15'], '2119': ['KIX', '16:30']
+  };
+
+  /* 김포로 들어오는 편: 편명 -> [출발 공항, 김포 도착 시각] */
+  var GMP_IN = {
+    '1118': ['CJU', '08:15'], '1136': ['CJU', '09:50'], '1150': ['CJU', '10:15'],
+    '1174': ['CJU', '11:40'], '1178': ['CJU', '12:05'], '1188': ['CJU', '12:35'],
+    '1206': ['CJU', '13:20'], '1214': ['CJU', '14:20'], '1238': ['CJU', '15:55'],
+    '1244': ['CJU', '16:35'], '1246': ['CJU', '16:50'], '1264': ['CJU', '17:20'],
+    '1268': ['CJU', '18:05'], '1272': ['CJU', '18:15'], '1294': ['CJU', '19:30'],
+    '1806': ['PUS', '09:50'], '1814': ['PUS', '13:20'], '1822': ['PUS', '16:55'],
+    '1844': ['USN', '10:00'],
+    '2052': ['PEK', '15:00'], '2102': ['HND', '14:55'], '2106': ['HND', '11:45'],
+    '2118': ['KIX', '14:20']
+  };
+
   /* 국내선이나 한국을 거치지 않는 편처럼 양쪽 시각을 다 아는 편 */
   var FULL = {
     '1402': ['PUS/ICN', '07:00', '08:10', 0],
     '2071': ['PUS/PVG', '08:35', '09:30', 0],
     '2072': ['PVG/PUS', '11:00', '13:17', 0]
   };
+
+  // 짝 편명으로 구간을 뒤집을 때 기준이 되는 국내 출발지
+  var KR_HUBS = { ICN: true, GMP: true, PUS: true, CJU: true, TAE: true, KWJ: true, USN: true };
 
   var TABLE = {};
 
@@ -126,6 +159,12 @@
   });
   Object.keys(IN).forEach(function (num) {
     TABLE['KE' + num] = { route: IN[num][0] + '/ICN', start: null, end: IN[num][1], endOffset: IN[num][2] || 0 };
+  });
+  Object.keys(GMP_OUT).forEach(function (num) {
+    TABLE['KE' + num] = { route: 'GMP/' + GMP_OUT[num][0], start: GMP_OUT[num][1], end: null, endOffset: 0 };
+  });
+  Object.keys(GMP_IN).forEach(function (num) {
+    TABLE['KE' + num] = { route: GMP_IN[num][0] + '/GMP', start: null, end: GMP_IN[num][1], endOffset: 0 };
   });
   Object.keys(FULL).forEach(function (num) {
     TABLE['KE' + num] = { route: FULL[num][0], start: FULL[num][1], end: FULL[num][2], endOffset: FULL[num][3] || 0 };
@@ -154,8 +193,8 @@
     if (!outbound || !outbound.route) return null;
 
     var parts = outbound.route.split('/');
-    if (parts.length !== 2 || parts[0] !== 'ICN') return null;
-    return { route: parts[1] + '/ICN', start: null, end: null, endOffset: 0, derived: true };
+    if (parts.length !== 2 || !KR_HUBS[parts[0]]) return null;
+    return { route: parts[1] + '/' + parts[0], start: null, end: null, endOffset: 0, derived: true };
   }
 
   /**
@@ -172,8 +211,8 @@
     if (!inbound || !inbound.route) return null;
 
     var parts = inbound.route.split('/');
-    if (parts.length !== 2 || parts[1] !== 'ICN') return null;
-    return { route: 'ICN/' + parts[0], start: null, end: null, endOffset: 0, derived: true };
+    if (parts.length !== 2 || !KR_HUBS[parts[1]]) return null;
+    return { route: parts[1] + '/' + parts[0], start: null, end: null, endOffset: 0, derived: true };
   }
 
   function lookup(code) {
