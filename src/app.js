@@ -445,6 +445,13 @@
       (s.firstDate ? ' · ' + s.firstDate + ' ~ ' + s.lastDate : '') +
       (result.warnings.length ? ' · 확인 필요 ' + result.warnings.length + '건' : '');
 
+    // 한국 쪽 시각을 모르는 편을 짚어준다. 등록해두면 다음부터 자동으로 붙는다.
+    var noTime = {};
+    result.entries.forEach(function (e) {
+      if (e.type === 'flight' && !calendar.formatTimeRange(e)) noTime[e.code] = true;
+    });
+    var noTimeList = Object.keys(noTime).sort();
+
     var memoBox = $('previewMemo');
     if (autoFilled) {
       memoBox.textContent = '편명으로 구간·시각을 ' + autoFilled + '건 채웠습니다(기본 시간표와 등록해둔 값). ' +
@@ -452,6 +459,15 @@
       memoBox.hidden = false;
     } else {
       memoBox.hidden = true;
+    }
+
+    var gapBox = $('previewGaps');
+    if (noTimeList.length) {
+      gapBox.textContent = '시각을 모르는 편: ' + noTimeList.join(', ') +
+        ' — 아래 "편명 시각"에 한 줄씩 등록하면 다음부터 자동으로 붙습니다.';
+      gapBox.hidden = false;
+    } else {
+      gapBox.hidden = true;
     }
 
     var warnBox = $('previewWarnings');
@@ -547,6 +563,7 @@
     $('preview').hidden = true;
     $('previewBody').innerHTML = '';
     $('previewSkipped').hidden = true;
+    $('previewGaps').hidden = true;
   }
 
   function selectedPreviewEntries() {

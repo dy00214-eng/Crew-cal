@@ -79,14 +79,19 @@ test('되돌아오는 편 추정은 인천에서 나가는 편에만 적용한�
 });
 
 test('표에 없는 홀수 편은 뒤 짝수 편의 나가는 구간으로 본다', () => {
-  const out = schedule.lookup('KE0085');   // KE0086 JFK/ICN 이 표에 있다
-  assert.strictEqual(out.route, 'ICN/JFK');
+  const out = schedule.lookup('KE0623');   // KE0624 MNL/ICN 이 표에 있다
+  assert.strictEqual(out.route, 'ICN/MNL');
   assert.strictEqual(out.derived, true);
   assert.strictEqual(out.start, null);
+});
 
-  assert.strictEqual(schedule.lookup('KE0741').route, 'ICN/NGO');
-  assert.strictEqual(schedule.lookup('KE0601').route, 'ICN/CEB');
-  assert.strictEqual(schedule.lookup('KE0479').route, 'ICN/SGN');
+test('따로 확인한 편은 한국 쪽 시각을 갖는다', () => {
+  assert.strictEqual(schedule.lookup('KE0085').start, '19:30');
+  assert.strictEqual(schedule.lookup('KE0741').start, '10:35');
+  assert.strictEqual(schedule.lookup('KE0601').start, '18:50');
+  assert.strictEqual(schedule.lookup('KE0479').start, '19:35');
+  assert.strictEqual(schedule.lookup('KE0498').end, '05:20');
+  assert.strictEqual(schedule.lookup('KE0498').endOffset, 1);
 });
 
 test('김포 출발·도착편도 표에 있다', () => {

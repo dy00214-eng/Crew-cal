@@ -206,6 +206,11 @@
    * [편명, 구간, 출발, 도착]
    */
   var LOCAL = [
+    // 그날 전광판에 뜨지 않아 따로 확인한 편 (요일별로 뜨는 편들)
+    ['0475', 'ICN/SGN', '18:50', null], ['0479', 'ICN/SGN', '19:35', null],
+    ['0863', 'ICN/PEK', '20:00', null], ['0085', 'ICN/JFK', '19:30', null],
+    ['0741', 'ICN/NGO', '10:35', null], ['0601', 'ICN/CEB', '18:50', null],
+
     ['1431', 'ICN/TAE', null, '19:55'], ['1432', 'TAE/ICN', '07:55', null],
     ['1569', 'TAE/CJU', '11:05', null], ['1575', 'TAE/CJU', '18:40', null],
     ['1570', 'CJU/TAE', null, '10:20'], ['1576', 'CJU/TAE', null, '17:45'],
@@ -223,6 +228,12 @@
     ['1595', 'USN/CJU', '15:00', null], ['1596', 'CJU/USN', null, '14:15'],
     ['1847', 'GMP/USN', null, '19:55'],
     ['1585', 'HIN/CJU', '15:25', null], ['1586', 'CJU/HIN', null, '14:25']
+  ];
+
+  /* 익일 도착까지 확인한 편 */
+  var LOCAL_NEXTDAY = [
+    ['0498', 'DEL/ICN', '05:20', 1],
+    ['2198', 'KIJ/ICN', '22:55', 0]
   ];
 
   /* 국내선이나 한국을 거치지 않는 편처럼 양쪽 시각을 다 아는 편 */
@@ -262,6 +273,7 @@
   Object.keys(CJU_OUT).forEach(function (n) { put(n, 'CJU/' + CJU_OUT[n][0], CJU_OUT[n][1], null, 0); });
   Object.keys(CJU_IN).forEach(function (n) { put(n, CJU_IN[n][0] + '/CJU', null, CJU_IN[n][1], 0); });
   LOCAL.forEach(function (row) { put(row[0], row[1], row[2], row[3], 0); });
+  LOCAL_NEXTDAY.forEach(function (row) { put(row[0], row[1], null, row[2], row[3]); });
   Object.keys(FULL).forEach(function (n) {
     TABLE['KE' + n] = { route: FULL[n][0], start: FULL[n][1], end: FULL[n][2], endOffset: FULL[n][3] || 0 };
   });
