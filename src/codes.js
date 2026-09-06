@@ -12,12 +12,13 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  // category: flight | layover | standby | off | training | other
+  // category: flight | layover | standby | off | vacation | training | other
   var CATEGORY_LABELS = {
     flight: '비행',
     layover: '체류',
     standby: '대기',
     off: '휴무',
+    vacation: '휴가',
     training: '훈련',
     other: '기타',
     unknown: '미확인'
@@ -32,13 +33,13 @@
     ADO: { label: '휴무', category: 'off' },
     GDO: { label: '보장 휴무', category: 'off' },
     CDO: { label: '보상 휴무', category: 'off' },
-    VAC: { label: '휴가', category: 'off' },
-    YVS: { label: '휴가', category: 'off' },
+    VAC: { label: '휴가', category: 'vacation' },
+    YVS: { label: '휴가', category: 'vacation' },
     PDO: { label: '휴무', category: 'off' },
-    ANL: { label: '연차 휴가', category: 'off' },
-    AL: { label: '연차 휴가', category: 'off' },
-    PL: { label: '개인 휴가', category: 'off' },
-    UL: { label: '무급 휴가', category: 'off' },
+    ANL: { label: '연차 휴가', category: 'vacation' },
+    AL: { label: '연차 휴가', category: 'vacation' },
+    PL: { label: '개인 휴가', category: 'vacation' },
+    UL: { label: '무급 휴가', category: 'vacation' },
 
     // 대기 계열
     STBY: { label: '대기', category: 'standby' },

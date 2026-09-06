@@ -624,7 +624,7 @@
 
   function summarize(entries) {
     var byDate = {};
-    var counts = { flight: 0, layover: 0, standby: 0, off: 0, training: 0, other: 0, unknown: 0 };
+    var counts = { flight: 0, layover: 0, standby: 0, off: 0, vacation: 0, training: 0, other: 0, unknown: 0 };
     entries.forEach(function (e) {
       byDate[e.date] = true;
       if (counts[e.category] == null) counts[e.category] = 0;

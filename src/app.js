@@ -150,7 +150,7 @@
     var bits = [];
     // 비행은 몇 편인지가, 나머지는 며칠인지가 궁금한 값이다
     if (s.flights) bits.push(['비행', s.flights + '편']);
-    ['layover', 'standby', 'off', 'training', 'other', 'unknown'].forEach(function (key) {
+    ['layover', 'standby', 'training', 'vacation', 'off', 'other', 'unknown'].forEach(function (key) {
       if (s.dayCounts[key]) bits.push([codes.CATEGORY_LABELS[key], s.dayCounts[key] + '일']);
     });
     bits.push(['일정 있는 날', s.days + '일']);

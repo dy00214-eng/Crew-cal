@@ -27,17 +27,17 @@
   --cal-sub: rgba(46, 42, 35, 0.86);    /* 달력 칸의 도시·시각 — 작아서 진하게 쓴다 */
 
   /* 강조 */
-  --accent: #4a63a8;                    /* 차분한 남색 */
+  --accent: #33456e;                    /* 차분한 남색 */
   --accent-ink: #ffffff;
-  --accent-soft: rgba(74, 99, 168, 0.11);
+  --accent-soft: rgba(51, 69, 110, 0.10);
   --accent-weak: rgba(122, 112, 94, 0.14);
   --accent-weak-ink: rgba(72, 66, 54, 0.35);
 
-  --danger: #b0524a;
+  --danger: #a2554a;
   --danger-soft: rgba(176, 82, 74, 0.11);
-  --sun: #b0524a;
-  --sat: #4a63a8;
-  --ok: #5f8055;
+  --sun: #a2554a;
+  --sat: #33456e;
+  --ok: #6f7a55;
 
   --warn-bg: rgba(161, 121, 74, 0.13);
   --warn-line: rgba(161, 121, 74, 0.26);
@@ -48,13 +48,14 @@
   --toast-ink: #ffffff;
 
   /* 근무 분류 — 채도를 낮춘 색. 비행·체류는 남색, 쉬는 날은 세이지, 대기는 카라멜 */
-  --cat-flight: #4a63a8;
-  --cat-layover: #7a6bab;
-  --cat-standby: #a1794a;
-  --cat-off: #5f8055;
-  --cat-training: #4f7f88;
-  --cat-other: #8a8378;
-  --cat-unknown: #b0524a;
+  --cat-flight: #33456e;      /* 네이비 — 비행·체류 */
+  --cat-layover: #33456e;     /* 비행과 한 색 */
+  --cat-standby: #b18a3a;     /* 머스타드 — 대기 */
+  --cat-off: #8d8067;         /* 에토프 베이지 — 휴무 */
+  --cat-vacation: #6b7a45;    /* 올리브 — 휴가 */
+  --cat-training: #a2603f;    /* 테라코타 — 교육 */
+  --cat-other: #97907f;
+  --cat-unknown: #8f3f3a;     /* 딥 브릭 — 미확인 */
   --chip-tint: 0.16;                    /* 칩 배경에 쓰는 색의 농도 */
 
   /* 모서리 */
@@ -81,17 +82,17 @@
     --faint: rgba(242, 236, 224, 0.32);
     --cal-sub: rgba(242, 236, 224, 0.86);
 
-    --accent: #8ea5e0;
+    --accent: #94a6cf;
     --accent-ink: #ffffff;
-    --accent-soft: rgba(142, 165, 224, 0.20);
+    --accent-soft: rgba(148, 166, 207, 0.20);
     --accent-weak: rgba(168, 156, 134, 0.15);
     --accent-weak-ink: rgba(242, 236, 224, 0.32);
 
     --danger: #e0877a;
     --danger-soft: rgba(224, 135, 122, 0.20);
     --sun: #e0877a;
-    --sat: #8ea5e0;
-    --ok: #9cc78d;
+    --sat: #94a6cf;
+    --ok: #a3b083;
 
     --warn-bg: rgba(215, 171, 114, 0.16);
     --warn-line: rgba(215, 171, 114, 0.30);
@@ -101,13 +102,14 @@
     --toast-bg: rgba(48, 44, 38, 0.94);
     --toast-ink: #ffffff;
 
-    --cat-flight: #8ea5e0;
-    --cat-layover: #b09ad8;
-    --cat-standby: #d7ab72;
-    --cat-off: #9cc78d;
-    --cat-training: #86c0cb;
+    --cat-flight: #94a6cf;
+    --cat-layover: #94a6cf;
+    --cat-standby: #d3b06a;
+    --cat-off: #b0a99b;
+    --cat-vacation: #a8b57e;
+    --cat-training: #cf9370;
     --cat-other: #a59d8e;
-    --cat-unknown: #e0877a;
+    --cat-unknown: #d98a7f;
     --chip-tint: 0.26;
   }
 }
@@ -129,17 +131,17 @@
   --faint: rgba(242, 236, 224, 0.32);
   --cal-sub: rgba(242, 236, 224, 0.86);
 
-  --accent: #8ea5e0;
+  --accent: #94a6cf;
   --accent-ink: #ffffff;
-  --accent-soft: rgba(142, 165, 224, 0.20);
+  --accent-soft: rgba(148, 166, 207, 0.20);
   --accent-weak: rgba(168, 156, 134, 0.15);
   --accent-weak-ink: rgba(242, 236, 224, 0.32);
 
   --danger: #e0877a;
   --danger-soft: rgba(224, 135, 122, 0.20);
   --sun: #e0877a;
-  --sat: #8ea5e0;
-  --ok: #9cc78d;
+  --sat: #94a6cf;
+  --ok: #a3b083;
 
   --warn-bg: rgba(215, 171, 114, 0.16);
   --warn-line: rgba(215, 171, 114, 0.30);
@@ -149,13 +151,14 @@
   --toast-bg: rgba(48, 44, 38, 0.94);
   --toast-ink: #ffffff;
 
-  --cat-flight: #8ea5e0;
-  --cat-layover: #b09ad8;
-  --cat-standby: #d7ab72;
-  --cat-off: #9cc78d;
-  --cat-training: #86c0cb;
+  --cat-flight: #94a6cf;
+  --cat-layover: #94a6cf;
+  --cat-standby: #d3b06a;
+  --cat-off: #b0a99b;
+  --cat-vacation: #a8b57e;
+  --cat-training: #cf9370;
   --cat-other: #a59d8e;
-  --cat-unknown: #e0877a;
+  --cat-unknown: #d98a7f;
   --chip-tint: 0.26;
 }
 
@@ -314,12 +317,12 @@ body {
 
 /* 훑어봤을 때 쉬는 날과 비행 날이 바로 갈리도록 칸 전체를 옅게 칠한다.
    칩만으로는 크기가 다 비슷해 한눈에 구분되지 않는다는 이야기가 있었다. */
-.cal-cell.day-flight { background: color-mix(in srgb, var(--cat-flight) 10%, transparent); }
-.cal-cell.day-layover { background: color-mix(in srgb, var(--cat-flight) 10%, transparent); }
-.cal-cell.day-standby { background: color-mix(in srgb, var(--cat-standby) 12%, transparent); }
-.cal-cell.day-training { background: color-mix(in srgb, var(--cat-training) 12%, transparent); }
-.cal-cell.day-off { background: color-mix(in srgb, var(--cat-off) 14%, transparent); }
-.cal-cell.day-unknown { background: color-mix(in srgb, var(--cat-unknown) 10%, transparent); }
+.cal-cell.day-flight, .cal-cell.day-layover { background: color-mix(in srgb, var(--cat-flight) 13%, transparent); }
+.cal-cell.day-standby { background: color-mix(in srgb, var(--cat-standby) 17%, transparent); }
+.cal-cell.day-training { background: color-mix(in srgb, var(--cat-training) 16%, transparent); }
+.cal-cell.day-vacation { background: color-mix(in srgb, var(--cat-vacation) 18%, transparent); }
+.cal-cell.day-off { background: color-mix(in srgb, var(--cat-off) 17%, transparent); }
+.cal-cell.day-unknown { background: color-mix(in srgb, var(--cat-unknown) 13%, transparent); }
 .cal-cell.outside { opacity: 0.7; }
 
 .cal-chips { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
@@ -345,6 +348,7 @@ body {
 .cat-standby { color: var(--cat-standby); background: color-mix(in srgb, var(--cat-standby) calc(var(--chip-tint) * 100%), transparent); }
 .cat-off { color: var(--cat-off); background: color-mix(in srgb, var(--cat-off) calc(var(--chip-tint) * 100%), transparent); }
 .cat-training { color: var(--cat-training); background: color-mix(in srgb, var(--cat-training) calc(var(--chip-tint) * 100%), transparent); }
+.cat-vacation { color: var(--cat-vacation); background: color-mix(in srgb, var(--cat-vacation) calc(var(--chip-tint) * 100%), transparent); }
 .cat-other { color: var(--cat-other); background: color-mix(in srgb, var(--cat-other) calc(var(--chip-tint) * 100%), transparent); }
 .cat-unknown { color: var(--cat-unknown); background: color-mix(in srgb, var(--cat-unknown) calc(var(--chip-tint) * 100%), transparent); }
 
@@ -365,6 +369,7 @@ body {
 .cal-title.cat-off { color: var(--cat-off); }
 .cal-title.cat-standby { color: var(--cat-standby); }
 .cal-title.cat-training { color: var(--cat-training); }
+.cal-title.cat-vacation { color: var(--cat-vacation); }
 .cal-title.cat-unknown { color: var(--cat-unknown); }
 .cal-time {
   font-size: 10.5px;
@@ -418,6 +423,7 @@ body {
 .dot.cat-standby { background: var(--cat-standby); }
 .dot.cat-off { background: var(--cat-off); }
 .dot.cat-training { background: var(--cat-training); }
+.dot.cat-vacation { background: var(--cat-vacation); }
 .dot.cat-unknown { background: var(--cat-unknown); }
 
 /* ---------- 세그먼티드 컨트롤 ---------- */
@@ -472,6 +478,7 @@ body {
 .agenda-row.day-layover { border-left-color: var(--cat-flight); }
 .agenda-row.day-standby { border-left-color: var(--cat-standby); }
 .agenda-row.day-training { border-left-color: var(--cat-training); }
+.agenda-row.day-vacation { border-left-color: var(--cat-vacation); }
 .agenda-row.day-off { border-left-color: var(--cat-off); }
 .agenda-row.day-unknown { border-left-color: var(--cat-unknown); }
 .agenda-row.selected { background: var(--fill); border-radius: 10px; }

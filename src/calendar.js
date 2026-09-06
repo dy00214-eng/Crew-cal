@@ -135,7 +135,7 @@
    * 하루에 여러 개가 있으면 무거운 쪽을 따른다. 비행이 하나라도 있으면 비행하는 날이고,
    * 아무 근무도 없이 휴무만 있어야 쉬는 날이다.
    */
-  var DAY_ORDER = ['flight', 'standby', 'training', 'layover', 'other', 'unknown', 'off'];
+  var DAY_ORDER = ['flight', 'standby', 'training', 'layover', 'other', 'unknown', 'vacation', 'off'];
 
   function dayCategory(list) {
     if (!list || !list.length) return null;
@@ -571,7 +571,7 @@
 
   function summarize(entriesByDate, year, month) {
     var prefix = year + '-' + pad2(month);
-    var counts = { flight: 0, layover: 0, standby: 0, off: 0, training: 0, other: 0, unknown: 0 };
+    var counts = { flight: 0, layover: 0, standby: 0, off: 0, vacation: 0, training: 0, other: 0, unknown: 0 };
     var dayCounts = {};
     var days = 0;
     var flightCodes = {};
