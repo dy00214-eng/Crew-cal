@@ -11,6 +11,23 @@
 
 [hidden] { display: none !important; }
 
+/* 다른 화면으로 가는 링크. 옆의 작은 버튼들과 같은 모양으로 맞춘다. */
+a.ghost {
+  display: inline-flex;
+  align-items: center;
+  background: var(--fill);
+  border-radius: var(--r-control);
+  padding: 12px 16px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--accent);
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+a.ghost:active { opacity: 0.6; }
+a.ghost.small { padding: 8px 13px; font-size: 14px; border-radius: 10px; }
+
 :root {
   color-scheme: light;
 
@@ -1473,6 +1490,7 @@ button.ghost.danger { color: var(--danger); }
       <button type="button" id="importBtn" class="ghost small">백업 불러오기</button>
       <input type="file" id="importInput" accept="application/json" hidden>
       <button type="button" id="clearAllBtn" class="ghost small danger">전체 삭제</button>
+      <a id="mapLink" class="ghost small map-link" href="map/" hidden>가본 도시 지도</a>
       <button type="button" id="shareBtn" class="ghost small" hidden>동료에게 링크 보내기</button>
     </div>
   </section>
@@ -7338,6 +7356,13 @@ button.ghost.danger { color: var(--danger); }
     showWelcome(false);
   }
 
+  /** 가본 도시 지도. 따로 있는 화면이라 주소로 연 웹 버전에서만 보여준다. */
+  function initMapLink() {
+    var link = $('mapLink');
+    if (!link || !isWebBuild()) return;
+    link.hidden = false;
+  }
+
   /** 같이 타는 동료에게 이 앱 주소를 넘겨준다. 주소가 없는 아티팩트에서는 감춘다. */
   function initShare() {
     var btn = $('shareBtn');
@@ -7394,6 +7419,7 @@ button.ghost.danger { color: var(--danger); }
     initClockTick();
     initFeedback();
     initShare();
+    initMapLink();
     initOffline();
     refresh();
   }

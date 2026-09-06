@@ -7,6 +7,23 @@
 
 [hidden] { display: none !important; }
 
+/* 다른 화면으로 가는 링크. 옆의 작은 버튼들과 같은 모양으로 맞춘다. */
+a.ghost {
+  display: inline-flex;
+  align-items: center;
+  background: var(--fill);
+  border-radius: var(--r-control);
+  padding: 12px 16px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--accent);
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+a.ghost:active { opacity: 0.6; }
+a.ghost.small { padding: 8px 13px; font-size: 14px; border-radius: 10px; }
+
 :root {
   color-scheme: light;
 

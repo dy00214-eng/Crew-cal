@@ -1659,6 +1659,13 @@
     showWelcome(false);
   }
 
+  /** 가본 도시 지도. 따로 있는 화면이라 주소로 연 웹 버전에서만 보여준다. */
+  function initMapLink() {
+    var link = $('mapLink');
+    if (!link || !isWebBuild()) return;
+    link.hidden = false;
+  }
+
   /** 같이 타는 동료에게 이 앱 주소를 넘겨준다. 주소가 없는 아티팩트에서는 감춘다. */
   function initShare() {
     var btn = $('shareBtn');
@@ -1715,6 +1722,7 @@
     initClockTick();
     initFeedback();
     initShare();
+    initMapLink();
     initOffline();
     refresh();
   }
