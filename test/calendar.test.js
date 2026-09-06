@@ -108,3 +108,36 @@ test('다음날에 같은 편이 없으면 시각을 감추지 않는다', () =>
   assert.deepStrictEqual(calendar.suppressedTimes({}), {});
   assert.deepStrictEqual(calendar.suppressedTimes(), {});
 });
+
+test('다음 일정은 오늘 것부터, 하루에 여럿이면 비행을 앞세운다', () => {
+  const byDate = {
+    '2026-09-01': [{ type: 'duty', code: 'PDO' }],
+    '2026-09-08': [
+      { type: 'duty', category: 'standby', code: 'STBY' },
+      { type: 'flight', code: 'KE0035', route: 'ICN/ATL', start: '10:35' }
+    ],
+    '2026-09-20': [{ type: 'flight', code: 'KE0081' }]
+  };
+  const next = calendar.upcoming(byDate, '2026-09-06');
+  assert.strictEqual(next.date, '2026-09-08');
+  assert.strictEqual(next.entry.code, 'KE0035');
+  assert.strictEqual(next.days, 2);
+  assert.strictEqual(next.all.length, 2);
+
+  // 오늘 것이 있으면 오늘을 준다
+  assert.strictEqual(calendar.upcoming(byDate, '2026-09-08').days, 0);
+  // 앞으로 아무것도 없으면 null
+  assert.strictEqual(calendar.upcoming(byDate, '2026-10-01'), null);
+  assert.strictEqual(calendar.upcoming({}, '2026-09-06'), null);
+});
+
+test('빈 날짜는 건너뛴다', () => {
+  const byDate = { '2026-09-07': [], '2026-09-09': [{ type: 'duty', code: 'LO' }] };
+  assert.strictEqual(calendar.upcoming(byDate, '2026-09-06').date, '2026-09-09');
+});
+
+test('날짜 사이 일수', () => {
+  assert.strictEqual(calendar.daysBetween('2026-09-06', '2026-09-06'), 0);
+  assert.strictEqual(calendar.daysBetween('2026-12-31', '2027-01-02'), 2);
+  assert.strictEqual(calendar.daysBetween('2026-02-28', '2026-03-01'), 1);
+});

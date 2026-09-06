@@ -825,6 +825,42 @@ button.ghost.danger { color: var(--danger); }
 .ios-only { display: none; }
 .is-ios .ios-only { display: inline; }
 
+/* ---------- 다음 근무 띠 ---------- */
+.next-duty {
+  max-width: 1280px;
+  margin: 14px auto 0;
+  padding: 12px 16px;
+  background: var(--surface);
+  border-radius: var(--r-card);
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  cursor: pointer;
+  font-size: 15px;
+}
+.next-duty:hover { background: var(--surface-alt); }
+.next-duty .nd-tag {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: var(--r-chip);
+  padding: 3px 8px;
+}
+.next-duty .nd-when { font-weight: 600; }
+.next-duty .nd-what { color: var(--cal-sub); }
+.next-duty .nd-away { margin-left: auto; color: var(--muted); font-size: 13px; }
+@media (max-width: 900px) { .next-duty { margin: 12px 16px 0; } }
+
+/* ---------- 체류지 현재 시각 ---------- */
+.local-clock {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--cal-sub);
+}
+.local-clock b { font-weight: 600; }
+
 /* ---------- 아래에서 올라오는 창 (의견 보내기) ---------- */
 .sheet { position: fixed; inset: 0; z-index: 60; display: flex; align-items: flex-end; justify-content: center; }
 .sheet-backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.4); }
@@ -935,6 +971,8 @@ button.ghost.danger { color: var(--danger); }
   </div>
 </header>
 
+<div class="next-duty" id="nextDuty" hidden role="button" tabindex="0"></div>
+
 <main class="layout">
   <section class="card welcome-card" id="welcome" hidden>
     <button type="button" class="welcome-close" id="welcomeClose" aria-label="안내 닫기">✕</button>
@@ -963,6 +1001,7 @@ button.ghost.danger { color: var(--danger); }
     </div>
     <div id="calendar" class="calendar"></div>
     <div id="listView" class="list-view" hidden></div>
+    <p class="local-clock" id="localClock" hidden></p>
     <div id="monthSummary" class="month-summary"></div>
     <ul class="legend">
       <li><i class="dot cat-flight"></i>비행</li>
@@ -1433,6 +1472,73 @@ button.ghost.danger { color: var(--danger); }
     KE: 'NBO MBA', ET: 'ADD', NG: 'LOS ABV', TZ: 'JRO DAR', MU: 'MRU', SC: 'SEZ'
   };
 
+  /**
+   * 나라별 기준 시간대(IANA). 브라우저가 이 이름으로 서머타임까지 알아서 맞춘다.
+   * 한 나라 안에서 시간대가 갈리는 곳은 아래 TZ_BY_AIRPORT 로 덮어쓴다.
+   */
+  var TZ_BY_COUNTRY = {
+    KR: 'Asia/Seoul', JP: 'Asia/Tokyo', CN: 'Asia/Shanghai', HK: 'Asia/Hong_Kong',
+    MO: 'Asia/Macau', TW: 'Asia/Taipei', MN: 'Asia/Ulaanbaatar', TH: 'Asia/Bangkok',
+    VN: 'Asia/Ho_Chi_Minh', PH: 'Asia/Manila', SG: 'Asia/Singapore', MY: 'Asia/Kuala_Lumpur',
+    ID: 'Asia/Jakarta', MM: 'Asia/Yangon', KH: 'Asia/Phnom_Penh', LA: 'Asia/Vientiane',
+    BN: 'Asia/Brunei', TL: 'Asia/Dili', IN: 'Asia/Kolkata', LK: 'Asia/Colombo',
+    NP: 'Asia/Kathmandu', BD: 'Asia/Dhaka', MV: 'Indian/Maldives', PK: 'Asia/Karachi',
+    BT: 'Asia/Thimphu', AE: 'Asia/Dubai', QA: 'Asia/Qatar', SA: 'Asia/Riyadh',
+    KW: 'Asia/Kuwait', BH: 'Asia/Bahrain', OM: 'Asia/Muscat', IL: 'Asia/Jerusalem',
+    JO: 'Asia/Amman', IQ: 'Asia/Baghdad', IR: 'Asia/Tehran', TR: 'Europe/Istanbul',
+    CY: 'Asia/Nicosia', GE: 'Asia/Tbilisi', AM: 'Asia/Yerevan', AZ: 'Asia/Baku',
+    UZ: 'Asia/Tashkent', KZ: 'Asia/Almaty', KG: 'Asia/Bishkek', RU: 'Europe/Moscow',
+    GB: 'Europe/London', IE: 'Europe/Dublin', FR: 'Europe/Paris', DE: 'Europe/Berlin',
+    NL: 'Europe/Amsterdam', BE: 'Europe/Brussels', LU: 'Europe/Luxembourg',
+    CH: 'Europe/Zurich', AT: 'Europe/Vienna', IT: 'Europe/Rome', ES: 'Europe/Madrid',
+    PT: 'Europe/Lisbon', GR: 'Europe/Athens', MT: 'Europe/Malta', CZ: 'Europe/Prague',
+    HU: 'Europe/Budapest', PL: 'Europe/Warsaw', SK: 'Europe/Bratislava',
+    SI: 'Europe/Ljubljana', HR: 'Europe/Zagreb', RS: 'Europe/Belgrade',
+    RO: 'Europe/Bucharest', BG: 'Europe/Sofia', SE: 'Europe/Stockholm',
+    DK: 'Europe/Copenhagen', NO: 'Europe/Oslo', FI: 'Europe/Helsinki',
+    IS: 'Atlantic/Reykjavik', EE: 'Europe/Tallinn', LV: 'Europe/Riga',
+    LT: 'Europe/Vilnius', UA: 'Europe/Kyiv', BY: 'Europe/Minsk',
+    US: 'America/New_York', CA: 'America/Toronto', MX: 'America/Mexico_City',
+    GU: 'Pacific/Guam', MP: 'Pacific/Saipan', PW: 'Pacific/Palau',
+    BR: 'America/Sao_Paulo', AR: 'America/Argentina/Buenos_Aires', CL: 'America/Santiago',
+    PE: 'America/Lima', CO: 'America/Bogota', EC: 'America/Guayaquil',
+    PA: 'America/Panama', CR: 'America/Costa_Rica', DO: 'America/Santo_Domingo',
+    CU: 'America/Havana', AU: 'Australia/Sydney', NZ: 'Pacific/Auckland',
+    FJ: 'Pacific/Fiji', PF: 'Pacific/Tahiti', NC: 'Pacific/Noumea', WS: 'Pacific/Apia',
+    PG: 'Pacific/Port_Moresby', EG: 'Africa/Cairo', MA: 'Africa/Casablanca',
+    TN: 'Africa/Tunis', ZA: 'Africa/Johannesburg', KE: 'Africa/Nairobi',
+    ET: 'Africa/Addis_Ababa', NG: 'Africa/Lagos', TZ: 'Africa/Dar_es_Salaam',
+    MU: 'Indian/Mauritius', SC: 'Indian/Mahe'
+  };
+
+  // 한 나라 안에서 시간대가 갈리는 공항들. 미국·캐나다·러시아처럼 넓은 나라가 대부분이다.
+  var TZ_BY_AIRPORT = {
+    ORD: 'America/Chicago', DFW: 'America/Chicago', IAH: 'America/Chicago',
+    AUS: 'America/Chicago', MSY: 'America/Chicago', MSP: 'America/Chicago',
+    STL: 'America/Chicago', MCI: 'America/Chicago', BNA: 'America/Chicago',
+    MEM: 'America/Chicago', OMA: 'America/Chicago',
+    DEN: 'America/Denver', SLC: 'America/Denver', ABQ: 'America/Denver',
+    BOI: 'America/Boise', PHX: 'America/Phoenix', TUS: 'America/Phoenix',
+    LAX: 'America/Los_Angeles', SFO: 'America/Los_Angeles', SJC: 'America/Los_Angeles',
+    SAN: 'America/Los_Angeles', SMF: 'America/Los_Angeles', SEA: 'America/Los_Angeles',
+    PDX: 'America/Los_Angeles', LAS: 'America/Los_Angeles', OAK: 'America/Los_Angeles',
+    SNA: 'America/Los_Angeles', ONT: 'America/Los_Angeles', BUR: 'America/Los_Angeles',
+    ANC: 'America/Anchorage',
+    HNL: 'Pacific/Honolulu', OGG: 'Pacific/Honolulu', KOA: 'Pacific/Honolulu',
+    LIH: 'Pacific/Honolulu',
+    YVR: 'America/Vancouver', YYC: 'America/Edmonton', YEG: 'America/Edmonton',
+    YWG: 'America/Winnipeg', YHZ: 'America/Halifax',
+    LED: 'Europe/Moscow', KZN: 'Europe/Moscow', OVB: 'Asia/Novosibirsk',
+    IKT: 'Asia/Irkutsk', VVO: 'Asia/Vladivostok', KHV: 'Asia/Vladivostok',
+    UUS: 'Asia/Sakhalin',
+    DPS: 'Asia/Makassar', UPG: 'Asia/Makassar',
+    PER: 'Australia/Perth', DRW: 'Australia/Darwin', ADL: 'Australia/Adelaide',
+    BNE: 'Australia/Brisbane', CNS: 'Australia/Brisbane', OOL: 'Australia/Brisbane',
+    CUN: 'America/Cancun', SJD: 'America/Mazatlan', PVR: 'America/Mazatlan',
+    MTY: 'America/Monterrey', GDL: 'America/Mexico_City',
+    FNC: 'Atlantic/Madeira', NQZ: 'Asia/Almaty', TSE: 'Asia/Almaty'
+  };
+
   var COUNTRY_NAMES = {
     KR: '대한민국', JP: '일본', CN: '중국', HK: '홍콩', MO: '마카오', TW: '대만', MN: '몽골',
     TH: '태국', VN: '베트남', PH: '필리핀', SG: '싱가포르', MY: '말레이시아', ID: '인도네시아',
@@ -1668,8 +1774,23 @@ button.ghost.danger { color: var(--danger); }
     return out;
   }
 
+  /**
+   * 그 공항이 쓰는 시간대 이름. 브라우저에 넘기면 서머타임까지 알아서 맞춰 준다.
+   * 모르는 공항은 null 을 준다. 이때는 화면에 현지 시각을 아예 안 쓴다.
+   */
+  function zoneOf(iata) {
+    if (!iata) return null;
+    var code = String(iata).toUpperCase();
+    if (TZ_BY_AIRPORT[code]) return TZ_BY_AIRPORT[code];
+    var country = countryOf(code);
+    return (country && TZ_BY_COUNTRY[country]) || null;
+  }
+
   return {
     AIRPORT_COUNTRY: AIRPORT_COUNTRY,
+    TZ_BY_COUNTRY: TZ_BY_COUNTRY,
+    TZ_BY_AIRPORT: TZ_BY_AIRPORT,
+    zoneOf: zoneOf,
     COUNTRY_NAMES: COUNTRY_NAMES,
     CITY_NAMES: CITY_NAMES,
     cityOf: cityOf,
@@ -3238,6 +3359,35 @@ button.ghost.danger { color: var(--danger); }
     return out;
   }
 
+  /**
+   * 오늘(또는 준 날짜)로부터 가장 가까운 앞으로의 일정.
+   * 하루에 여러 건이면 비행을 앞세운다. 앱을 열자마자 "다음에 뭐였지" 를 없애려는 것.
+   */
+  function upcoming(entriesByDate, fromIso) {
+    var byDate = entriesByDate || {};
+    var from = fromIso || todayIso();
+    var dates = Object.keys(byDate).filter(function (date) {
+      return date >= from && (byDate[date] || []).length;
+    }).sort();
+    if (!dates.length) return null;
+
+    var date = dates[0];
+    var list = byDate[date];
+    var pick = null;
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].type === 'flight') { pick = list[i]; break; }
+    }
+    return { date: date, entry: pick || list[0], all: list, days: daysBetween(from, date) };
+  }
+
+  function daysBetween(fromIso, toIso) {
+    var a = fromIso.split('-');
+    var b = toIso.split('-');
+    var one = Date.UTC(+a[0], +a[1] - 1, +a[2]);
+    var two = Date.UTC(+b[0], +b[1] - 1, +b[2]);
+    return Math.round((two - one) / 86400000);
+  }
+
   function render(container, options) {
     var year = options.year;
     var month = options.month;
@@ -3481,6 +3631,8 @@ button.ghost.danger { color: var(--danger); }
     renderList: renderList,
     gridDates: gridDates,
     suppressedTimes: suppressedTimes,
+    upcoming: upcoming,
+    daysBetween: daysBetween,
     summarize: summarize,
     formatTimeRange: formatTimeRange,
     describeTimes: describeTimes,
@@ -4293,6 +4445,7 @@ button.ghost.danger { color: var(--danger); }
   var vision = CrewCal.vision;
   var feedback = CrewCal.feedback;
   var ics = CrewCal.ics;
+  var airports = CrewCal.airports;
 
   var $ = function (id) { return document.getElementById(id); };
 
@@ -4402,6 +4555,7 @@ button.ghost.danger { color: var(--danger); }
     else calendar.render($('calendar'), viewOptions);
 
     renderMonthSummary(entriesByDate);
+    renderNextDuty(entriesByDate);
     renderDayDetail();
   }
 
@@ -4421,6 +4575,7 @@ button.ghost.danger { color: var(--danger); }
     var date = state.selectedDate;
     var list = store.getByDate(date);
     $('dayTitle').textContent = date + ' (' + calendar.weekdayOf(date) + ') · ' + list.length + '건';
+    renderLocalClock(date);
 
     var ul = $('dayList');
     ul.innerHTML = '';
@@ -5344,6 +5499,114 @@ button.ghost.danger { color: var(--danger); }
   }
 
   /* ---------------- 시작 ---------------- */
+
+  /* ---------------- 다음 근무 · 체류지 시각 ---------------- */
+
+  /** "다음 · 9/8(화) KE0035 인천 → 애틀랜타 10:35 · 이틀 뒤" */
+  function renderNextDuty(entriesByDate) {
+    var box = $('nextDuty');
+    if (!box) return;
+    var next = calendar.upcoming(entriesByDate, calendar.todayIso());
+    if (!next) {
+      box.hidden = true;
+      return;
+    }
+
+    var when = (+next.date.slice(5, 7)) + '/' + (+next.date.slice(8, 10)) +
+      '(' + calendar.weekdayOf(next.date) + ')';
+    var what = [];
+    if (next.entry.type === 'flight') {
+      what.push(next.entry.code);
+      var place = calendar.placeLabel(next.entry);
+      if (place) what.push(place);
+      var time = calendar.formatTimeRange(next.entry);
+      if (time) what.push(time);
+    } else {
+      what.push(next.entry.label || next.entry.code);
+    }
+    if (next.all.length > 1) what.push('외 ' + (next.all.length - 1) + '건');
+
+    var away = next.days === 0 ? '오늘' : next.days === 1 ? '내일'
+      : next.days === 2 ? '모레' : next.days + '일 뒤';
+
+    box.innerHTML = '';
+    [['nd-tag', '다음'], ['nd-when', when], ['nd-what', what.join(' ')], ['nd-away', away]]
+      .forEach(function (pair) {
+        var span = document.createElement('span');
+        span.className = pair[0];
+        span.textContent = pair[1];
+        box.appendChild(span);
+      });
+    box.hidden = false;
+    box.onclick = function () { goToDate(next.date); };
+    box.onkeydown = function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); goToDate(next.date); }
+    };
+  }
+
+  function goToDate(date) {
+    state.year = +date.slice(0, 4);
+    state.month = +date.slice(5, 7);
+    state.selectedDate = date;
+    $('singleDate').value = date;
+    syncPasteBase();
+    refresh();
+  }
+
+  /**
+   * 그날 머무는 곳이 지금 몇 시인지. 브라우저가 서머타임까지 맞춰 주므로 표만 있으면 된다.
+   * 집에 전화 걸기 전에 보라고 만든 줄이다.
+   */
+  function renderLocalClock(date) {
+    var box = $('localClock');
+    if (!box) return;
+    var list = store.getByDate(date);
+    var place = null;
+    for (var i = 0; i < list.length && !place; i++) {
+      place = airports.tripPlace(list[i]);
+    }
+    var zone = place && airports.zoneOf(place.iata);
+    if (!zone || zone === 'Asia/Seoul') {
+      box.hidden = true;
+      return;
+    }
+
+    var now = new Date();
+    var there = localTime(now, zone);
+    var here = localTime(now, 'Asia/Seoul');
+    if (!there || !here) {
+      box.hidden = true;
+      return;
+    }
+    var gap = Math.round((there.minutes - here.minutes) / 30) / 2;
+    var gapText = gap === 0 ? '한국과 같음'
+      : '한국보다 ' + Math.abs(gap) + '시간 ' + (gap > 0 ? '빠름' : '느림');
+
+    box.innerHTML = '';
+    var strong = document.createElement('b');
+    strong.textContent = (place.flag ? place.flag + ' ' : '') + place.city + ' 지금 ' + there.text;
+    box.appendChild(strong);
+    box.appendChild(document.createTextNode(' · ' + gapText));
+    box.hidden = false;
+  }
+
+  /** 어떤 시간대에서 지금 몇 시인지. { text: '01:33', minutes: 자정부터의 분 } */
+  function localTime(now, zone) {
+    try {
+      var parts = new Intl.DateTimeFormat('en-GB', {
+        timeZone: zone, hour: '2-digit', minute: '2-digit', hour12: false
+      }).formatToParts(now);
+      var hour = 0;
+      var minute = 0;
+      parts.forEach(function (part) {
+        if (part.type === 'hour') hour = +part.value % 24;
+        if (part.type === 'minute') minute = +part.value;
+      });
+      return { text: calendar.pad2(hour) + ':' + calendar.pad2(minute), minutes: hour * 60 + minute };
+    } catch (e) {
+      return null; // 시간대를 모르는 낡은 브라우저
+    }
+  }
 
   /* ---------------- 동료가 보내는 의견 ---------------- */
 

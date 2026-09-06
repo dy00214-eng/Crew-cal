@@ -821,6 +821,42 @@ button.ghost.danger { color: var(--danger); }
 .ios-only { display: none; }
 .is-ios .ios-only { display: inline; }
 
+/* ---------- 다음 근무 띠 ---------- */
+.next-duty {
+  max-width: 1280px;
+  margin: 14px auto 0;
+  padding: 12px 16px;
+  background: var(--surface);
+  border-radius: var(--r-card);
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  cursor: pointer;
+  font-size: 15px;
+}
+.next-duty:hover { background: var(--surface-alt); }
+.next-duty .nd-tag {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: var(--r-chip);
+  padding: 3px 8px;
+}
+.next-duty .nd-when { font-weight: 600; }
+.next-duty .nd-what { color: var(--cal-sub); }
+.next-duty .nd-away { margin-left: auto; color: var(--muted); font-size: 13px; }
+@media (max-width: 900px) { .next-duty { margin: 12px 16px 0; } }
+
+/* ---------- 체류지 현재 시각 ---------- */
+.local-clock {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--cal-sub);
+}
+.local-clock b { font-weight: 600; }
+
 /* ---------- 아래에서 올라오는 창 (의견 보내기) ---------- */
 .sheet { position: fixed; inset: 0; z-index: 60; display: flex; align-items: flex-end; justify-content: center; }
 .sheet-backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.4); }

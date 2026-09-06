@@ -9,6 +9,7 @@
   var vision = CrewCal.vision;
   var feedback = CrewCal.feedback;
   var ics = CrewCal.ics;
+  var airports = CrewCal.airports;
 
   var $ = function (id) { return document.getElementById(id); };
 
@@ -118,6 +119,7 @@
     else calendar.render($('calendar'), viewOptions);
 
     renderMonthSummary(entriesByDate);
+    renderNextDuty(entriesByDate);
     renderDayDetail();
   }
 
@@ -137,6 +139,7 @@
     var date = state.selectedDate;
     var list = store.getByDate(date);
     $('dayTitle').textContent = date + ' (' + calendar.weekdayOf(date) + ') · ' + list.length + '건';
+    renderLocalClock(date);
 
     var ul = $('dayList');
     ul.innerHTML = '';
@@ -1060,6 +1063,114 @@
   }
 
   /* ---------------- 시작 ---------------- */
+
+  /* ---------------- 다음 근무 · 체류지 시각 ---------------- */
+
+  /** "다음 · 9/8(화) KE0035 인천 → 애틀랜타 10:35 · 이틀 뒤" */
+  function renderNextDuty(entriesByDate) {
+    var box = $('nextDuty');
+    if (!box) return;
+    var next = calendar.upcoming(entriesByDate, calendar.todayIso());
+    if (!next) {
+      box.hidden = true;
+      return;
+    }
+
+    var when = (+next.date.slice(5, 7)) + '/' + (+next.date.slice(8, 10)) +
+      '(' + calendar.weekdayOf(next.date) + ')';
+    var what = [];
+    if (next.entry.type === 'flight') {
+      what.push(next.entry.code);
+      var place = calendar.placeLabel(next.entry);
+      if (place) what.push(place);
+      var time = calendar.formatTimeRange(next.entry);
+      if (time) what.push(time);
+    } else {
+      what.push(next.entry.label || next.entry.code);
+    }
+    if (next.all.length > 1) what.push('외 ' + (next.all.length - 1) + '건');
+
+    var away = next.days === 0 ? '오늘' : next.days === 1 ? '내일'
+      : next.days === 2 ? '모레' : next.days + '일 뒤';
+
+    box.innerHTML = '';
+    [['nd-tag', '다음'], ['nd-when', when], ['nd-what', what.join(' ')], ['nd-away', away]]
+      .forEach(function (pair) {
+        var span = document.createElement('span');
+        span.className = pair[0];
+        span.textContent = pair[1];
+        box.appendChild(span);
+      });
+    box.hidden = false;
+    box.onclick = function () { goToDate(next.date); };
+    box.onkeydown = function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); goToDate(next.date); }
+    };
+  }
+
+  function goToDate(date) {
+    state.year = +date.slice(0, 4);
+    state.month = +date.slice(5, 7);
+    state.selectedDate = date;
+    $('singleDate').value = date;
+    syncPasteBase();
+    refresh();
+  }
+
+  /**
+   * 그날 머무는 곳이 지금 몇 시인지. 브라우저가 서머타임까지 맞춰 주므로 표만 있으면 된다.
+   * 집에 전화 걸기 전에 보라고 만든 줄이다.
+   */
+  function renderLocalClock(date) {
+    var box = $('localClock');
+    if (!box) return;
+    var list = store.getByDate(date);
+    var place = null;
+    for (var i = 0; i < list.length && !place; i++) {
+      place = airports.tripPlace(list[i]);
+    }
+    var zone = place && airports.zoneOf(place.iata);
+    if (!zone || zone === 'Asia/Seoul') {
+      box.hidden = true;
+      return;
+    }
+
+    var now = new Date();
+    var there = localTime(now, zone);
+    var here = localTime(now, 'Asia/Seoul');
+    if (!there || !here) {
+      box.hidden = true;
+      return;
+    }
+    var gap = Math.round((there.minutes - here.minutes) / 30) / 2;
+    var gapText = gap === 0 ? '한국과 같음'
+      : '한국보다 ' + Math.abs(gap) + '시간 ' + (gap > 0 ? '빠름' : '느림');
+
+    box.innerHTML = '';
+    var strong = document.createElement('b');
+    strong.textContent = (place.flag ? place.flag + ' ' : '') + place.city + ' 지금 ' + there.text;
+    box.appendChild(strong);
+    box.appendChild(document.createTextNode(' · ' + gapText));
+    box.hidden = false;
+  }
+
+  /** 어떤 시간대에서 지금 몇 시인지. { text: '01:33', minutes: 자정부터의 분 } */
+  function localTime(now, zone) {
+    try {
+      var parts = new Intl.DateTimeFormat('en-GB', {
+        timeZone: zone, hour: '2-digit', minute: '2-digit', hour12: false
+      }).formatToParts(now);
+      var hour = 0;
+      var minute = 0;
+      parts.forEach(function (part) {
+        if (part.type === 'hour') hour = +part.value % 24;
+        if (part.type === 'minute') minute = +part.value;
+      });
+      return { text: calendar.pad2(hour) + ':' + calendar.pad2(minute), minutes: hour * 60 + minute };
+    } catch (e) {
+      return null; // 시간대를 모르는 낡은 브라우저
+    }
+  }
 
   /* ---------------- 동료가 보내는 의견 ---------------- */
 

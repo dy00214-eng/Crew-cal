@@ -49,6 +49,73 @@
     KE: 'NBO MBA', ET: 'ADD', NG: 'LOS ABV', TZ: 'JRO DAR', MU: 'MRU', SC: 'SEZ'
   };
 
+  /**
+   * 나라별 기준 시간대(IANA). 브라우저가 이 이름으로 서머타임까지 알아서 맞춘다.
+   * 한 나라 안에서 시간대가 갈리는 곳은 아래 TZ_BY_AIRPORT 로 덮어쓴다.
+   */
+  var TZ_BY_COUNTRY = {
+    KR: 'Asia/Seoul', JP: 'Asia/Tokyo', CN: 'Asia/Shanghai', HK: 'Asia/Hong_Kong',
+    MO: 'Asia/Macau', TW: 'Asia/Taipei', MN: 'Asia/Ulaanbaatar', TH: 'Asia/Bangkok',
+    VN: 'Asia/Ho_Chi_Minh', PH: 'Asia/Manila', SG: 'Asia/Singapore', MY: 'Asia/Kuala_Lumpur',
+    ID: 'Asia/Jakarta', MM: 'Asia/Yangon', KH: 'Asia/Phnom_Penh', LA: 'Asia/Vientiane',
+    BN: 'Asia/Brunei', TL: 'Asia/Dili', IN: 'Asia/Kolkata', LK: 'Asia/Colombo',
+    NP: 'Asia/Kathmandu', BD: 'Asia/Dhaka', MV: 'Indian/Maldives', PK: 'Asia/Karachi',
+    BT: 'Asia/Thimphu', AE: 'Asia/Dubai', QA: 'Asia/Qatar', SA: 'Asia/Riyadh',
+    KW: 'Asia/Kuwait', BH: 'Asia/Bahrain', OM: 'Asia/Muscat', IL: 'Asia/Jerusalem',
+    JO: 'Asia/Amman', IQ: 'Asia/Baghdad', IR: 'Asia/Tehran', TR: 'Europe/Istanbul',
+    CY: 'Asia/Nicosia', GE: 'Asia/Tbilisi', AM: 'Asia/Yerevan', AZ: 'Asia/Baku',
+    UZ: 'Asia/Tashkent', KZ: 'Asia/Almaty', KG: 'Asia/Bishkek', RU: 'Europe/Moscow',
+    GB: 'Europe/London', IE: 'Europe/Dublin', FR: 'Europe/Paris', DE: 'Europe/Berlin',
+    NL: 'Europe/Amsterdam', BE: 'Europe/Brussels', LU: 'Europe/Luxembourg',
+    CH: 'Europe/Zurich', AT: 'Europe/Vienna', IT: 'Europe/Rome', ES: 'Europe/Madrid',
+    PT: 'Europe/Lisbon', GR: 'Europe/Athens', MT: 'Europe/Malta', CZ: 'Europe/Prague',
+    HU: 'Europe/Budapest', PL: 'Europe/Warsaw', SK: 'Europe/Bratislava',
+    SI: 'Europe/Ljubljana', HR: 'Europe/Zagreb', RS: 'Europe/Belgrade',
+    RO: 'Europe/Bucharest', BG: 'Europe/Sofia', SE: 'Europe/Stockholm',
+    DK: 'Europe/Copenhagen', NO: 'Europe/Oslo', FI: 'Europe/Helsinki',
+    IS: 'Atlantic/Reykjavik', EE: 'Europe/Tallinn', LV: 'Europe/Riga',
+    LT: 'Europe/Vilnius', UA: 'Europe/Kyiv', BY: 'Europe/Minsk',
+    US: 'America/New_York', CA: 'America/Toronto', MX: 'America/Mexico_City',
+    GU: 'Pacific/Guam', MP: 'Pacific/Saipan', PW: 'Pacific/Palau',
+    BR: 'America/Sao_Paulo', AR: 'America/Argentina/Buenos_Aires', CL: 'America/Santiago',
+    PE: 'America/Lima', CO: 'America/Bogota', EC: 'America/Guayaquil',
+    PA: 'America/Panama', CR: 'America/Costa_Rica', DO: 'America/Santo_Domingo',
+    CU: 'America/Havana', AU: 'Australia/Sydney', NZ: 'Pacific/Auckland',
+    FJ: 'Pacific/Fiji', PF: 'Pacific/Tahiti', NC: 'Pacific/Noumea', WS: 'Pacific/Apia',
+    PG: 'Pacific/Port_Moresby', EG: 'Africa/Cairo', MA: 'Africa/Casablanca',
+    TN: 'Africa/Tunis', ZA: 'Africa/Johannesburg', KE: 'Africa/Nairobi',
+    ET: 'Africa/Addis_Ababa', NG: 'Africa/Lagos', TZ: 'Africa/Dar_es_Salaam',
+    MU: 'Indian/Mauritius', SC: 'Indian/Mahe'
+  };
+
+  // 한 나라 안에서 시간대가 갈리는 공항들. 미국·캐나다·러시아처럼 넓은 나라가 대부분이다.
+  var TZ_BY_AIRPORT = {
+    ORD: 'America/Chicago', DFW: 'America/Chicago', IAH: 'America/Chicago',
+    AUS: 'America/Chicago', MSY: 'America/Chicago', MSP: 'America/Chicago',
+    STL: 'America/Chicago', MCI: 'America/Chicago', BNA: 'America/Chicago',
+    MEM: 'America/Chicago', OMA: 'America/Chicago',
+    DEN: 'America/Denver', SLC: 'America/Denver', ABQ: 'America/Denver',
+    BOI: 'America/Boise', PHX: 'America/Phoenix', TUS: 'America/Phoenix',
+    LAX: 'America/Los_Angeles', SFO: 'America/Los_Angeles', SJC: 'America/Los_Angeles',
+    SAN: 'America/Los_Angeles', SMF: 'America/Los_Angeles', SEA: 'America/Los_Angeles',
+    PDX: 'America/Los_Angeles', LAS: 'America/Los_Angeles', OAK: 'America/Los_Angeles',
+    SNA: 'America/Los_Angeles', ONT: 'America/Los_Angeles', BUR: 'America/Los_Angeles',
+    ANC: 'America/Anchorage',
+    HNL: 'Pacific/Honolulu', OGG: 'Pacific/Honolulu', KOA: 'Pacific/Honolulu',
+    LIH: 'Pacific/Honolulu',
+    YVR: 'America/Vancouver', YYC: 'America/Edmonton', YEG: 'America/Edmonton',
+    YWG: 'America/Winnipeg', YHZ: 'America/Halifax',
+    LED: 'Europe/Moscow', KZN: 'Europe/Moscow', OVB: 'Asia/Novosibirsk',
+    IKT: 'Asia/Irkutsk', VVO: 'Asia/Vladivostok', KHV: 'Asia/Vladivostok',
+    UUS: 'Asia/Sakhalin',
+    DPS: 'Asia/Makassar', UPG: 'Asia/Makassar',
+    PER: 'Australia/Perth', DRW: 'Australia/Darwin', ADL: 'Australia/Adelaide',
+    BNE: 'Australia/Brisbane', CNS: 'Australia/Brisbane', OOL: 'Australia/Brisbane',
+    CUN: 'America/Cancun', SJD: 'America/Mazatlan', PVR: 'America/Mazatlan',
+    MTY: 'America/Monterrey', GDL: 'America/Mexico_City',
+    FNC: 'Atlantic/Madeira', NQZ: 'Asia/Almaty', TSE: 'Asia/Almaty'
+  };
+
   var COUNTRY_NAMES = {
     KR: '대한민국', JP: '일본', CN: '중국', HK: '홍콩', MO: '마카오', TW: '대만', MN: '몽골',
     TH: '태국', VN: '베트남', PH: '필리핀', SG: '싱가포르', MY: '말레이시아', ID: '인도네시아',
@@ -284,8 +351,23 @@
     return out;
   }
 
+  /**
+   * 그 공항이 쓰는 시간대 이름. 브라우저에 넘기면 서머타임까지 알아서 맞춰 준다.
+   * 모르는 공항은 null 을 준다. 이때는 화면에 현지 시각을 아예 안 쓴다.
+   */
+  function zoneOf(iata) {
+    if (!iata) return null;
+    var code = String(iata).toUpperCase();
+    if (TZ_BY_AIRPORT[code]) return TZ_BY_AIRPORT[code];
+    var country = countryOf(code);
+    return (country && TZ_BY_COUNTRY[country]) || null;
+  }
+
   return {
     AIRPORT_COUNTRY: AIRPORT_COUNTRY,
+    TZ_BY_COUNTRY: TZ_BY_COUNTRY,
+    TZ_BY_AIRPORT: TZ_BY_AIRPORT,
+    zoneOf: zoneOf,
     COUNTRY_NAMES: COUNTRY_NAMES,
     CITY_NAMES: CITY_NAMES,
     cityOf: cityOf,

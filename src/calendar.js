@@ -150,6 +150,35 @@
     return out;
   }
 
+  /**
+   * 오늘(또는 준 날짜)로부터 가장 가까운 앞으로의 일정.
+   * 하루에 여러 건이면 비행을 앞세운다. 앱을 열자마자 "다음에 뭐였지" 를 없애려는 것.
+   */
+  function upcoming(entriesByDate, fromIso) {
+    var byDate = entriesByDate || {};
+    var from = fromIso || todayIso();
+    var dates = Object.keys(byDate).filter(function (date) {
+      return date >= from && (byDate[date] || []).length;
+    }).sort();
+    if (!dates.length) return null;
+
+    var date = dates[0];
+    var list = byDate[date];
+    var pick = null;
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].type === 'flight') { pick = list[i]; break; }
+    }
+    return { date: date, entry: pick || list[0], all: list, days: daysBetween(from, date) };
+  }
+
+  function daysBetween(fromIso, toIso) {
+    var a = fromIso.split('-');
+    var b = toIso.split('-');
+    var one = Date.UTC(+a[0], +a[1] - 1, +a[2]);
+    var two = Date.UTC(+b[0], +b[1] - 1, +b[2]);
+    return Math.round((two - one) / 86400000);
+  }
+
   function render(container, options) {
     var year = options.year;
     var month = options.month;
@@ -393,6 +422,8 @@
     renderList: renderList,
     gridDates: gridDates,
     suppressedTimes: suppressedTimes,
+    upcoming: upcoming,
+    daysBetween: daysBetween,
     summarize: summarize,
     formatTimeRange: formatTimeRange,
     describeTimes: describeTimes,
