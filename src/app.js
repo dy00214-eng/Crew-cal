@@ -17,6 +17,7 @@
     preview: null,
     imageFile: null,
     view: 'calendar',
+    hideTimes: {},
     cleaning: false,
     cleanupAbort: null,
     backend: null,
@@ -67,11 +68,12 @@
 
   function pad2(n) { return (n < 10 ? '0' : '') + n; }
 
-  function detailText(entry) {
+  function detailText(entry, date) {
     var bits = [];
     var place = calendar.placeLabel(entry);
     if (place) bits.push(place);
-    var times = calendar.describeTimes(entry);
+    var hidden = date && state.hideTimes[date + '|' + entry.code];
+    var times = hidden ? '' : calendar.describeTimes(entry);
     if (times) bits.push(times);
     if (entry.memo) bits.push(entry.memo);
     return bits.join(' · ');
@@ -96,11 +98,14 @@
     var entriesByDate = store.getAll();
     $('monthLabel').textContent = monthLabel(state.year, state.month);
 
+    state.hideTimes = calendar.suppressedTimes(entriesByDate);
+
     var viewOptions = {
       year: state.year,
       month: state.month,
       entriesByDate: entriesByDate,
       selectedDate: state.selectedDate,
+      hideTimes: state.hideTimes,
       onSelect: selectDate
     };
 
@@ -152,7 +157,7 @@
       var main = document.createElement('span');
       main.className = 'entry-main';
       main.textContent = entry.label || '';
-      var detail = detailText(entry);
+      var detail = detailText(entry, date);
       if (detail) {
         var sub = document.createElement('span');
         sub.className = 'entry-sub';

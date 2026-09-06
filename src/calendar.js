@@ -123,12 +123,40 @@
     return entry.code.replace(/^[A-Z]{2}(?=\d)/, '');
   }
 
+  function nextDay(date) {
+    var d = new Date(date + 'T00:00:00Z');
+    if (isNaN(d)) return null;
+    d.setUTCDate(d.getUTCDate() + 1);
+    return d.toISOString().slice(0, 10);
+  }
+
+  /**
+   * 체류하는 날에 붙는 시각을 걸러낸다.
+   * 크루넷은 익일 도착하는 편을 출발일과 도착일 두 칸에 모두 적는다. 출발일에는 아직
+   * 한국에 오지 않았으므로(그날은 체류 중이다) 그 칸의 시각은 빼고 도착일에만 남긴다.
+   * 결과는 '날짜|편명' 을 키로 하는 표.
+   */
+  function suppressedTimes(entriesByDate) {
+    var out = {};
+    Object.keys(entriesByDate || {}).forEach(function (date) {
+      var after = nextDay(date);
+      var later = (entriesByDate[after] || []);
+      entriesByDate[date].forEach(function (e) {
+        if (e.type !== 'flight' || !e.endOffset) return;
+        var repeats = later.some(function (x) { return x.code === e.code; });
+        if (repeats) out[date + '|' + e.code] = true;
+      });
+    });
+    return out;
+  }
+
   function render(container, options) {
     var year = options.year;
     var month = options.month;
     var entriesByDate = options.entriesByDate || {};
     var selected = options.selectedDate;
     var onSelect = options.onSelect || function () {};
+    var hideTimes = options.hideTimes || {};
 
     container.innerHTML = '';
 
@@ -198,7 +226,7 @@
             item.appendChild(place);
           }
 
-          var timeText = formatTimeRange(e);
+          var timeText = hideTimes[date + '|' + e.code] ? '' : formatTimeRange(e);
           if (timeText) {
             var time = document.createElement('span');
             time.className = 'cal-time';
@@ -327,7 +355,8 @@
 
         var text = document.createElement('span');
         text.className = 'agenda-text';
-        text.textContent = [placeLabel(e), describeTimes(e), e.memo || '']
+        var times = hideTimes[date + '|' + e.code] ? '' : describeTimes(e);
+        text.textContent = [placeLabel(e), times, e.memo || '']
           .filter(Boolean).join(' · ') || (e.label || '');
         text.title = [airports ? airports.describeRoute(e.route) : '', e.label || '']
           .filter(Boolean).join(' · ');
@@ -363,6 +392,7 @@
     render: render,
     renderList: renderList,
     gridDates: gridDates,
+    suppressedTimes: suppressedTimes,
     summarize: summarize,
     formatTimeRange: formatTimeRange,
     describeTimes: describeTimes,

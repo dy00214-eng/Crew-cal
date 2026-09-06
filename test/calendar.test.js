@@ -75,3 +75,36 @@ test('체류가 아닌 근무는 시각을 그대로 쓴다', () => {
   assert.strictEqual(calendar.formatTimeRange(stby), '09:00→​17:00');
   assert.strictEqual(calendar.describeTimes(stby), '시작 09:00 → 종료 17:00');
 });
+
+test('다음날 도착하는 편은 체류하는 전날 칸에서 시각을 감춘다', () => {
+  const entriesByDate = {
+    '2026-09-02': [
+      { type: 'flight', code: 'KE0035', route: 'ICN/ATL', start: '10:35' },
+      { type: 'duty', category: 'layover', code: 'LO' }
+    ],
+    '2026-09-04': [
+      { type: 'duty', category: 'layover', code: 'LO' },
+      { type: 'flight', code: 'KE0036', route: 'ATL/ICN', end: '17:50', endOffset: 1 }
+    ],
+    '2026-09-05': [
+      { type: 'flight', code: 'KE0036', route: 'ATL/ICN', end: '17:50', endOffset: 1 }
+    ]
+  };
+  const hidden = calendar.suppressedTimes(entriesByDate);
+  assert.deepStrictEqual(hidden, { '2026-09-04|KE0036': true });
+});
+
+test('다음날에 같은 편이 없으면 시각을 감추지 않는다', () => {
+  const entriesByDate = {
+    '2026-09-17': [
+      { type: 'duty', category: 'layover', code: 'LO' },
+      { type: 'flight', code: 'KE0472', route: 'CDG/ICN', end: '21:25' }
+    ],
+    '2026-09-20': [
+      { type: 'flight', code: 'KE0902', route: 'CDG/ICN', end: '17:20', endOffset: 1 }
+    ]
+  };
+  assert.deepStrictEqual(calendar.suppressedTimes(entriesByDate), {});
+  assert.deepStrictEqual(calendar.suppressedTimes({}), {});
+  assert.deepStrictEqual(calendar.suppressedTimes(), {});
+});
