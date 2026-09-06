@@ -7,6 +7,7 @@
   var store = CrewCal.store;
   var calendar = CrewCal.calendar;
   var vision = CrewCal.vision;
+  var feedback = CrewCal.feedback;
 
   var $ = function (id) { return document.getElementById(id); };
 
@@ -1024,6 +1025,116 @@
 
   /* ---------------- 시작 ---------------- */
 
+  /* ---------------- 동료가 보내는 의견 ---------------- */
+
+  var APP_VERSION = '2026-09-06';
+
+  function feedbackContext() {
+    var now = new Date();
+    var at = now.getFullYear() + '-' + calendar.pad2(now.getMonth() + 1) + '-' + calendar.pad2(now.getDate()) +
+      ' ' + calendar.pad2(now.getHours()) + ':' + calendar.pad2(now.getMinutes());
+    var entries = 0;
+    var byDate = store.getAll();
+    Object.keys(byDate).forEach(function (date) { entries += byDate[date].length; });
+    return {
+      at: at,
+      version: APP_VERSION,
+      entries: entries,
+      screen: window.innerWidth + 'x' + window.innerHeight,
+      standalone: !!(window.navigator.standalone ||
+        (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)),
+      ua: navigator.userAgent
+    };
+  }
+
+  function currentFeedback() {
+    var kind = $('feedbackKind').value;
+    var withSchedule = $('feedbackSchedule').checked && !$('feedbackScheduleField').hidden;
+    return {
+      kind: kind,
+      message: $('feedbackMessage').value,
+      schedule: withSchedule ? $('pasteInput').value : '',
+      context: feedbackContext()
+    };
+  }
+
+  /** 안 읽히는 문제일 때만, 그리고 붙여넣은 글이 있을 때만 원문 첨부를 권한다. */
+  function syncFeedbackSchedule() {
+    var kind = $('feedbackKind').value;
+    var has = !!$('pasteInput').value.trim();
+    var show = has && feedback.suggestsSchedule(kind);
+    $('feedbackScheduleField').hidden = !show;
+    if (show) $('feedbackSchedule').checked = true;
+  }
+
+  function openFeedback() {
+    $('feedbackStatus').textContent = '';
+    syncFeedbackSchedule();
+    $('feedbackSheet').hidden = false;
+    $('feedbackMessage').focus();
+  }
+
+  function closeFeedback() {
+    $('feedbackSheet').hidden = true;
+  }
+
+  function sendFeedback(copyOnly) {
+    var data = currentFeedback();
+    if (!feedback.isSendable(data)) {
+      $('feedbackStatus').textContent = '내용을 한 줄이라도 적어 주세요.';
+      $('feedbackStatus').className = 'status error';
+      $('feedbackMessage').focus();
+      return;
+    }
+    var text = feedback.compose(data);
+
+    function copied() {
+      $('feedbackStatus').textContent = '글을 복사했습니다. 카톡이나 메시지에 붙여넣어 보내주세요.';
+      $('feedbackStatus').className = 'status ok';
+      $('feedbackMessage').value = '';
+    }
+
+    if (!copyOnly && navigator.share) {
+      navigator.share({ title: '크루캘 의견', text: text }).then(function () {
+        $('feedbackMessage').value = '';
+        closeFeedback();
+        toast('의견을 보냈습니다. 고맙습니다!');
+      }, function () { /* 공유창을 닫은 경우 */ });
+      return;
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(copied, function () {
+        $('feedbackStatus').textContent = '복사가 막혀 있습니다. 아래 글을 직접 복사해 주세요.';
+        $('feedbackStatus').className = 'status error';
+        $('feedbackMessage').value = text;
+      });
+      return;
+    }
+    $('feedbackMessage').value = text;
+    $('feedbackStatus').textContent = '이 글을 복사해 보내주세요.';
+    $('feedbackStatus').className = 'status';
+  }
+
+  function initFeedback() {
+    var select = $('feedbackKind');
+    if (!select) return;
+    feedback.KINDS.forEach(function (kind) {
+      var option = document.createElement('option');
+      option.value = kind.value;
+      option.textContent = kind.label;
+      select.appendChild(option);
+    });
+    select.addEventListener('change', syncFeedbackSchedule);
+    $('feedbackBtn').addEventListener('click', openFeedback);
+    $('feedbackClose').addEventListener('click', closeFeedback);
+    $('feedbackBackdrop').addEventListener('click', closeFeedback);
+    $('feedbackSend').addEventListener('click', function () { sendFeedback(false); });
+    $('feedbackCopy').addEventListener('click', function () { sendFeedback(true); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !$('feedbackSheet').hidden) closeFeedback();
+    });
+  }
+
   /* ---------------- 처음 온 사람 · 공유 · 오프라인 ---------------- */
 
   var WELCOME_KEY = 'crew-cal.welcome.v1';
@@ -1128,6 +1239,7 @@
     initImage();
     initDataTools();
     initWelcome();
+    initFeedback();
     initShare();
     initOffline();
     refresh();

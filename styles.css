@@ -4,6 +4,8 @@
    토큰은 :root 에 모아 두고, 다크 모드는 토큰만 바꿔 끼운다.
    ========================================================================== */
 
+[hidden] { display: none !important; }
+
 :root {
   color-scheme: light;
 
@@ -523,6 +525,7 @@ textarea {
   cursor: pointer;
 }
 .check-field input { width: auto; accent-color: var(--accent); transform: scale(1.15); }
+.check-field em { font-style: normal; font-size: 13px; color: var(--muted); }
 .check-field input:disabled + span { color: var(--faint); }
 
 .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; align-items: center; }
@@ -817,6 +820,40 @@ button.ghost.danger { color: var(--danger); }
 .welcome-close:hover { background: var(--fill-strong); }
 .ios-only { display: none; }
 .is-ios .ios-only { display: inline; }
+
+/* ---------- 아래에서 올라오는 창 (의견 보내기) ---------- */
+.sheet { position: fixed; inset: 0; z-index: 60; display: flex; align-items: flex-end; justify-content: center; }
+.sheet-backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.4); }
+.sheet-panel {
+  position: relative;
+  width: min(520px, 100%);
+  max-height: 92vh;
+  overflow-y: auto;
+  background: var(--surface);
+  border-radius: 20px 20px 0 0;
+  padding: 20px 20px calc(20px + env(safe-area-inset-bottom));
+  box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.18);
+  animation: sheet-up 0.24s ease;
+}
+@keyframes sheet-up { from { transform: translateY(16px); opacity: 0; } to { transform: none; opacity: 1; } }
+.sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.sheet-head h2 { margin: 0; font-size: 19px; font-weight: 700; letter-spacing: -0.4px; }
+.sheet-head .welcome-close { position: static; }
+.sheet-panel .hint { margin-bottom: 14px; }
+.sheet-panel select {
+  width: 100%;
+  font: inherit;
+  color: var(--text);
+  background: var(--input-bg);
+  border: 0;
+  border-radius: var(--r-control);
+  padding: 11px 12px;
+}
+.small-note { font-size: 12px; line-height: 1.5; margin: 10px 0 0; }
+@media (min-width: 641px) {
+  .sheet { align-items: center; }
+  .sheet-panel { border-radius: 20px; }
+}
 
 /* ---------- 바닥글 ---------- */
 .app-footer {

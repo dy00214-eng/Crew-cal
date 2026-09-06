@@ -280,8 +280,47 @@
 
 <footer class="app-footer">
   <p>일정은 이 기기에만 저장됩니다 · 비행 시각은 참고용이니 실제 로스터를 따르세요</p>
-  <p><button type="button" id="helpBtn" class="linky">사용법 다시 보기</button></p>
+  <p>
+    <button type="button" id="helpBtn" class="linky">사용법 다시 보기</button>
+    <span aria-hidden="true"> · </span>
+    <button type="button" id="feedbackBtn" class="linky">의견 보내기</button>
+  </p>
 </footer>
+
+<div id="feedbackSheet" class="sheet" hidden>
+  <div class="sheet-backdrop" id="feedbackBackdrop"></div>
+  <div class="sheet-panel" role="dialog" aria-modal="true" aria-labelledby="feedbackTitle">
+    <div class="sheet-head">
+      <h2 id="feedbackTitle">의견 보내기</h2>
+      <button type="button" class="welcome-close" id="feedbackClose" aria-label="닫기">✕</button>
+    </div>
+    <p class="hint">
+      쓰다가 이상한 점이 있으면 적어 주세요. 보내기를 누르면 폰의 공유창이 열리니,
+      거기서 만든 사람에게 카톡이나 메시지로 넘기면 됩니다.
+    </p>
+    <label class="field">
+      <span>어떤 이야기인가요</span>
+      <select id="feedbackKind"></select>
+    </label>
+    <label class="field">
+      <span>내용</span>
+      <textarea id="feedbackMessage" rows="5" spellcheck="false"
+        placeholder="예) 7월 6일이 비어서 나와요 / KE0081 도착 시각이 한 시간 빨라요 / 월별 비행시간 합계도 보고 싶어요"></textarea>
+    </label>
+    <label class="check-field" id="feedbackScheduleField" hidden>
+      <input type="checkbox" id="feedbackSchedule">
+      <span>붙여넣기 탭에 있는 스케줄 원문도 같이 보내기 <em>(안 읽히는 문제는 이게 있어야 고칠 수 있습니다)</em></span>
+    </label>
+    <p class="muted small-note">
+      보내는 사람이 누구인지는 담기지 않습니다. 위에 적은 내용과 브라우저 종류·화면 크기만 들어갑니다.
+    </p>
+    <div class="actions">
+      <button type="button" id="feedbackSend" class="primary">보내기</button>
+      <button type="button" id="feedbackCopy" class="ghost">글만 복사</button>
+    </div>
+    <p id="feedbackStatus" class="status" role="status"></p>
+  </div>
+</div>
 
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
@@ -292,6 +331,7 @@
 <script src="src/store.js"></script>
 <script src="src/calendar.js"></script>
 <script src="src/vision.js"></script>
+<script src="src/feedback.js"></script>
 <script src="src/app.js"></script>
 </body>
 </html>

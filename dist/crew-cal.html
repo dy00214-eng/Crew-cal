@@ -8,6 +8,8 @@
    토큰은 :root 에 모아 두고, 다크 모드는 토큰만 바꿔 끼운다.
    ========================================================================== */
 
+[hidden] { display: none !important; }
+
 :root {
   color-scheme: light;
 
@@ -527,6 +529,7 @@ textarea {
   cursor: pointer;
 }
 .check-field input { width: auto; accent-color: var(--accent); transform: scale(1.15); }
+.check-field em { font-style: normal; font-size: 13px; color: var(--muted); }
 .check-field input:disabled + span { color: var(--faint); }
 
 .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; align-items: center; }
@@ -821,6 +824,40 @@ button.ghost.danger { color: var(--danger); }
 .welcome-close:hover { background: var(--fill-strong); }
 .ios-only { display: none; }
 .is-ios .ios-only { display: inline; }
+
+/* ---------- 아래에서 올라오는 창 (의견 보내기) ---------- */
+.sheet { position: fixed; inset: 0; z-index: 60; display: flex; align-items: flex-end; justify-content: center; }
+.sheet-backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.4); }
+.sheet-panel {
+  position: relative;
+  width: min(520px, 100%);
+  max-height: 92vh;
+  overflow-y: auto;
+  background: var(--surface);
+  border-radius: 20px 20px 0 0;
+  padding: 20px 20px calc(20px + env(safe-area-inset-bottom));
+  box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.18);
+  animation: sheet-up 0.24s ease;
+}
+@keyframes sheet-up { from { transform: translateY(16px); opacity: 0; } to { transform: none; opacity: 1; } }
+.sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.sheet-head h2 { margin: 0; font-size: 19px; font-weight: 700; letter-spacing: -0.4px; }
+.sheet-head .welcome-close { position: static; }
+.sheet-panel .hint { margin-bottom: 14px; }
+.sheet-panel select {
+  width: 100%;
+  font: inherit;
+  color: var(--text);
+  background: var(--input-bg);
+  border: 0;
+  border-radius: var(--r-control);
+  padding: 11px 12px;
+}
+.small-note { font-size: 12px; line-height: 1.5; margin: 10px 0 0; }
+@media (min-width: 641px) {
+  .sheet { align-items: center; }
+  .sheet-panel { border-radius: 20px; }
+}
 
 /* ---------- 바닥글 ---------- */
 .app-footer {
@@ -1151,8 +1188,47 @@ button.ghost.danger { color: var(--danger); }
 
 <footer class="app-footer">
   <p>일정은 이 기기에만 저장됩니다 · 비행 시각은 참고용이니 실제 로스터를 따르세요</p>
-  <p><button type="button" id="helpBtn" class="linky">사용법 다시 보기</button></p>
+  <p>
+    <button type="button" id="helpBtn" class="linky">사용법 다시 보기</button>
+    <span aria-hidden="true"> · </span>
+    <button type="button" id="feedbackBtn" class="linky">의견 보내기</button>
+  </p>
 </footer>
+
+<div id="feedbackSheet" class="sheet" hidden>
+  <div class="sheet-backdrop" id="feedbackBackdrop"></div>
+  <div class="sheet-panel" role="dialog" aria-modal="true" aria-labelledby="feedbackTitle">
+    <div class="sheet-head">
+      <h2 id="feedbackTitle">의견 보내기</h2>
+      <button type="button" class="welcome-close" id="feedbackClose" aria-label="닫기">✕</button>
+    </div>
+    <p class="hint">
+      쓰다가 이상한 점이 있으면 적어 주세요. 보내기를 누르면 폰의 공유창이 열리니,
+      거기서 만든 사람에게 카톡이나 메시지로 넘기면 됩니다.
+    </p>
+    <label class="field">
+      <span>어떤 이야기인가요</span>
+      <select id="feedbackKind"></select>
+    </label>
+    <label class="field">
+      <span>내용</span>
+      <textarea id="feedbackMessage" rows="5" spellcheck="false"
+        placeholder="예) 7월 6일이 비어서 나와요 / KE0081 도착 시각이 한 시간 빨라요 / 월별 비행시간 합계도 보고 싶어요"></textarea>
+    </label>
+    <label class="check-field" id="feedbackScheduleField" hidden>
+      <input type="checkbox" id="feedbackSchedule">
+      <span>붙여넣기 탭에 있는 스케줄 원문도 같이 보내기 <em>(안 읽히는 문제는 이게 있어야 고칠 수 있습니다)</em></span>
+    </label>
+    <p class="muted small-note">
+      보내는 사람이 누구인지는 담기지 않습니다. 위에 적은 내용과 브라우저 종류·화면 크기만 들어갑니다.
+    </p>
+    <div class="actions">
+      <button type="button" id="feedbackSend" class="primary">보내기</button>
+      <button type="button" id="feedbackCopy" class="ghost">글만 복사</button>
+    </div>
+    <p id="feedbackStatus" class="status" role="status"></p>
+  </div>
+</div>
 
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 <script>
@@ -3832,6 +3908,117 @@ button.ghost.danger { color: var(--danger); }
 });
 </script>
 <script>
+/**
+ * 동료가 보내는 의견을 한 덩어리 글로 만든다.
+ *
+ * 서버가 없는 앱이라 보내는 길은 폰이 이미 갖고 있는 공유 시트(카톡 등)를 쓴다.
+ * 여기서는 "무엇을 적어 보낼지"만 만들고, 실제로 넘기는 일은 app.js 가 한다.
+ * 화면 정보와 앱 버전을 같이 붙여야 "저는 되는데요" 를 줄일 수 있다.
+ */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) {
+    module.exports = factory();
+  } else {
+    root.CrewCal = root.CrewCal || {};
+    root.CrewCal.feedback = factory();
+  }
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  var KINDS = [
+    { value: 'parse', label: '스케줄이 제대로 안 읽혀요', needsSchedule: true },
+    { value: 'time', label: '편명 시각·구간이 틀려요', needsSchedule: false },
+    { value: 'idea', label: '이런 게 있으면 좋겠어요', needsSchedule: false },
+    { value: 'bug', label: '화면이 이상해요', needsSchedule: false },
+    { value: 'etc', label: '그 밖에', needsSchedule: false }
+  ];
+
+  function kindLabel(value) {
+    for (var i = 0; i < KINDS.length; i++) {
+      if (KINDS[i].value === value) return KINDS[i].label;
+    }
+    return KINDS[KINDS.length - 1].label;
+  }
+
+  /** 종류에 따라 스케줄 원문을 같이 보내자고 권할지. */
+  function suggestsSchedule(value) {
+    for (var i = 0; i < KINDS.length; i++) {
+      if (KINDS[i].value === value) return KINDS[i].needsSchedule;
+    }
+    return false;
+  }
+
+  function trim(text, limit) {
+    var value = String(text == null ? '' : text).trim();
+    if (!limit || value.length <= limit) return value;
+    return value.slice(0, limit) + '\n…(' + (value.length - limit) + '자 줄임)';
+  }
+
+  /**
+   * 보낼 글을 만든다.
+   *
+   *   compose({
+   *     kind: 'parse',
+   *     message: '7월 6일이 비어요',
+   *     schedule: '크루넷에서 복사한 원문',   // 넣기로 했을 때만
+   *     context: { version, ua, screen, entries, at }
+   *   })
+   *
+   * 빈 칸은 알아서 빠지고, 없는 정보는 줄 자체를 넣지 않는다.
+   */
+  function compose(input) {
+    var data = input || {};
+    var context = data.context || {};
+    var lines = ['[크루캘 의견]', ''];
+
+    lines.push('종류: ' + kindLabel(data.kind));
+
+    var message = trim(data.message, 2000);
+    if (message) {
+      lines.push('');
+      lines.push(message);
+    }
+
+    var schedule = trim(data.schedule, 2000);
+    if (schedule) {
+      lines.push('');
+      lines.push('--- 안 읽힌 스케줄 원문 ---');
+      lines.push(schedule);
+      lines.push('--- 여기까지 ---');
+    }
+
+    var facts = [];
+    if (context.at) facts.push('보낸 때: ' + context.at);
+    if (context.version) facts.push('버전: ' + context.version);
+    if (context.entries != null) facts.push('저장된 일정: ' + context.entries + '건');
+    if (context.screen) facts.push('화면: ' + context.screen);
+    if (context.standalone) facts.push('홈 화면 앱으로 열었음');
+    if (context.ua) facts.push('브라우저: ' + trim(context.ua, 200));
+    if (facts.length) {
+      lines.push('');
+      lines.push('— 참고 —');
+      facts.forEach(function (fact) { lines.push(fact); });
+    }
+
+    return lines.join('\n').trim() + '\n';
+  }
+
+  /** 보낼 만한 내용인지. 고른 종류만 있고 아무 말도 없으면 받아도 알 수가 없다. */
+  function isSendable(input) {
+    var data = input || {};
+    return !!(trim(data.message) || trim(data.schedule));
+  }
+
+  return {
+    KINDS: KINDS,
+    kindLabel: kindLabel,
+    suggestsSchedule: suggestsSchedule,
+    compose: compose,
+    isSendable: isSendable
+  };
+});
+</script>
+<script>
 /** 화면 조립: 캘린더 + 3가지 입력 방식(직접 입력 / 붙여넣기 / 스크린샷) */
 (function () {
   'use strict';
@@ -3841,6 +4028,7 @@ button.ghost.danger { color: var(--danger); }
   var store = CrewCal.store;
   var calendar = CrewCal.calendar;
   var vision = CrewCal.vision;
+  var feedback = CrewCal.feedback;
 
   var $ = function (id) { return document.getElementById(id); };
 
@@ -4858,6 +5046,116 @@ button.ghost.danger { color: var(--danger); }
 
   /* ---------------- 시작 ---------------- */
 
+  /* ---------------- 동료가 보내는 의견 ---------------- */
+
+  var APP_VERSION = '2026-09-06';
+
+  function feedbackContext() {
+    var now = new Date();
+    var at = now.getFullYear() + '-' + calendar.pad2(now.getMonth() + 1) + '-' + calendar.pad2(now.getDate()) +
+      ' ' + calendar.pad2(now.getHours()) + ':' + calendar.pad2(now.getMinutes());
+    var entries = 0;
+    var byDate = store.getAll();
+    Object.keys(byDate).forEach(function (date) { entries += byDate[date].length; });
+    return {
+      at: at,
+      version: APP_VERSION,
+      entries: entries,
+      screen: window.innerWidth + 'x' + window.innerHeight,
+      standalone: !!(window.navigator.standalone ||
+        (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)),
+      ua: navigator.userAgent
+    };
+  }
+
+  function currentFeedback() {
+    var kind = $('feedbackKind').value;
+    var withSchedule = $('feedbackSchedule').checked && !$('feedbackScheduleField').hidden;
+    return {
+      kind: kind,
+      message: $('feedbackMessage').value,
+      schedule: withSchedule ? $('pasteInput').value : '',
+      context: feedbackContext()
+    };
+  }
+
+  /** 안 읽히는 문제일 때만, 그리고 붙여넣은 글이 있을 때만 원문 첨부를 권한다. */
+  function syncFeedbackSchedule() {
+    var kind = $('feedbackKind').value;
+    var has = !!$('pasteInput').value.trim();
+    var show = has && feedback.suggestsSchedule(kind);
+    $('feedbackScheduleField').hidden = !show;
+    if (show) $('feedbackSchedule').checked = true;
+  }
+
+  function openFeedback() {
+    $('feedbackStatus').textContent = '';
+    syncFeedbackSchedule();
+    $('feedbackSheet').hidden = false;
+    $('feedbackMessage').focus();
+  }
+
+  function closeFeedback() {
+    $('feedbackSheet').hidden = true;
+  }
+
+  function sendFeedback(copyOnly) {
+    var data = currentFeedback();
+    if (!feedback.isSendable(data)) {
+      $('feedbackStatus').textContent = '내용을 한 줄이라도 적어 주세요.';
+      $('feedbackStatus').className = 'status error';
+      $('feedbackMessage').focus();
+      return;
+    }
+    var text = feedback.compose(data);
+
+    function copied() {
+      $('feedbackStatus').textContent = '글을 복사했습니다. 카톡이나 메시지에 붙여넣어 보내주세요.';
+      $('feedbackStatus').className = 'status ok';
+      $('feedbackMessage').value = '';
+    }
+
+    if (!copyOnly && navigator.share) {
+      navigator.share({ title: '크루캘 의견', text: text }).then(function () {
+        $('feedbackMessage').value = '';
+        closeFeedback();
+        toast('의견을 보냈습니다. 고맙습니다!');
+      }, function () { /* 공유창을 닫은 경우 */ });
+      return;
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(copied, function () {
+        $('feedbackStatus').textContent = '복사가 막혀 있습니다. 아래 글을 직접 복사해 주세요.';
+        $('feedbackStatus').className = 'status error';
+        $('feedbackMessage').value = text;
+      });
+      return;
+    }
+    $('feedbackMessage').value = text;
+    $('feedbackStatus').textContent = '이 글을 복사해 보내주세요.';
+    $('feedbackStatus').className = 'status';
+  }
+
+  function initFeedback() {
+    var select = $('feedbackKind');
+    if (!select) return;
+    feedback.KINDS.forEach(function (kind) {
+      var option = document.createElement('option');
+      option.value = kind.value;
+      option.textContent = kind.label;
+      select.appendChild(option);
+    });
+    select.addEventListener('change', syncFeedbackSchedule);
+    $('feedbackBtn').addEventListener('click', openFeedback);
+    $('feedbackClose').addEventListener('click', closeFeedback);
+    $('feedbackBackdrop').addEventListener('click', closeFeedback);
+    $('feedbackSend').addEventListener('click', function () { sendFeedback(false); });
+    $('feedbackCopy').addEventListener('click', function () { sendFeedback(true); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !$('feedbackSheet').hidden) closeFeedback();
+    });
+  }
+
   /* ---------------- 처음 온 사람 · 공유 · 오프라인 ---------------- */
 
   var WELCOME_KEY = 'crew-cal.welcome.v1';
@@ -4962,6 +5260,7 @@ button.ghost.danger { color: var(--danger); }
     initImage();
     initDataTools();
     initWelcome();
+    initFeedback();
     initShare();
     initOffline();
     refresh();
