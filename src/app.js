@@ -614,18 +614,66 @@
 
   /* ---------------- 백업 도구 ---------------- */
 
-  function initDataTools() {
-    $('exportBtn').addEventListener('click', function () {
-      var blob = new Blob([store.exportJson()], { type: 'application/json' });
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement('a');
-      a.href = url;
-      a.download = 'crew-cal-' + calendar.todayIso() + '.json';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  /**
+   * 백업 파일 저장.
+   * 아티팩트로 열렸을 때는 뷰어가 저장을 중개하므로 링크 클릭이 동작하지 않는다.
+   * 그래서 뷰어가 있으면 뷰어에 맡기고, 파일이나 서버로 직접 열었을 때만 링크로 내려받는다.
+   */
+  var downloadsReady = null;
+
+  function initDownloads() {
+    if (!window.claude || typeof window.claude.use !== 'function') return;
+    downloadsReady = window.claude.use('downloads').then(function (api) {
+      if (!api) $('exportBtn').hidden = true;
+      return api;
+    }, function () {
+      $('exportBtn').hidden = true;
+      return null;
     });
+  }
+
+  function exportBackup() {
+    var filename = 'crew-cal-' + calendar.todayIso() + '.json';
+    var json = store.exportJson();
+
+    if (!downloadsReady) {
+      saveViaLink(filename, json);
+      return;
+    }
+
+    downloadsReady.then(function (api) {
+      if (!api) {
+        toast('이 화면에서는 백업 저장을 지원하지 않습니다.');
+        return;
+      }
+      return api.save({ filename: filename, data: json }).then(function (result) {
+        if (!result || result.status === 'saved') toast('백업을 저장했습니다.');
+      }, function (err) {
+        var code = err && err.code;
+        if (code === 'declined') return;
+        if (code === 'rate_limited') {
+          toast('저장 창이 이미 열려 있습니다. 잠시 후 다시 눌러주세요.');
+          return;
+        }
+        toast('백업을 저장하지 못했습니다.');
+      });
+    });
+  }
+
+  function saveViaLink(filename, text) {
+    var blob = new Blob([text], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+
+  function initDataTools() {
+    $('exportBtn').addEventListener('click', exportBackup);
 
     $('importBtn').addEventListener('click', function () { $('importInput').click(); });
     $('importInput').addEventListener('change', function () {
@@ -668,6 +716,7 @@
       refresh();
     });
 
+    initDownloads();
     initTabs();
     initSingleForm();
     initPaste();

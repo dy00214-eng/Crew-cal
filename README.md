@@ -84,6 +84,16 @@ POST {endpoint}
 python3 -m http.server 8000   # http://localhost:8000
 ```
 
+## 한 파일로 묶기
+
+```bash
+npm run build     # dist/crew-cal.html
+```
+
+`index.html` + `styles.css` + `src/*.js` 를 한 파일로 인라인한다. 아티팩트로 올리거나
+파일 하나만 옮겨 쓸 때 쓴다. 백업 내보내기는 아티팩트 뷰어에서 열렸을 때는 뷰어의
+저장 기능을 거치고, 파일이나 서버로 직접 열었을 때는 브라우저 내려받기로 동작한다.
+
 ## 테스트
 
 ```bash

@@ -1,0 +1,2647 @@
+<meta charset="utf-8">
+<title>Crew-cal</title>
+<style>
+:root {
+  color-scheme: light;
+
+  --bg: #f4f6fa;
+  --surface: #ffffff;
+  --surface-alt: #f8fafd;
+  --input-bg: #ffffff;
+  --line: #e2e6ee;
+  --text: #1c2333;
+  --muted: #6b7488;
+
+  --accent: #2f6fed;
+  --accent-ink: #ffffff;
+  --accent-soft: #e8f0ff;
+  --accent-weak: #b9c6e4;
+  --accent-weak-ink: #ffffff;
+
+  --danger: #d64545;
+  --danger-soft: #fdecec;
+  --sun: #d64545;
+  --sat: #2f6fed;
+  --ok: #1c8a5c;
+
+  --warn-bg: #fff7e8;
+  --warn-line: #f0dcb0;
+  --warn-text: #7a5a12;
+  --unknown-row: #fff5f7;
+
+  --toast-bg: #1c2333;
+  --toast-ink: #ffffff;
+
+  /* 근무 분류 색은 두 테마에서 같은 값을 쓴다 (칩 위 흰 글씨 기준으로 고른 색) */
+  --cat-flight: #2f6fed;
+  --cat-layover: #8b5cf6;
+  --cat-standby: #c9781a;
+  --cat-off: #1c8a5c;
+  --cat-training: #0e8b97;
+  --cat-other: #6b7488;
+  --cat-unknown: #b0294a;
+  --chip-ink: #ffffff;
+}
+
+/* 뷰어가 다크를 쓰는 경우. 라이트를 명시적으로 고른 경우는 제외한다. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --bg: #12161f;
+    --surface: #1b2030;
+    --surface-alt: #222839;
+    --input-bg: #141926;
+    --line: #2c3346;
+    --text: #e6e9f2;
+    --muted: #99a2b8;
+
+    --accent: #6f9dff;
+    --accent-ink: #0d1220;
+    --accent-soft: #24304a;
+    --accent-weak: #33405c;
+    --accent-weak-ink: #8b96ad;
+
+    --danger: #ff8080;
+    --danger-soft: #3a2226;
+    --sun: #ff8080;
+    --sat: #7aa2ff;
+    --ok: #4fc38c;
+
+    --warn-bg: #33290f;
+    --warn-line: #5a4a1c;
+    --warn-text: #f0d99a;
+    --unknown-row: #351f2a;
+
+    --toast-bg: #2c3346;
+    --toast-ink: #e6e9f2;
+  }
+}
+
+/* 다크를 명시적으로 고른 경우 */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #12161f;
+  --surface: #1b2030;
+  --surface-alt: #222839;
+  --input-bg: #141926;
+  --line: #2c3346;
+  --text: #e6e9f2;
+  --muted: #99a2b8;
+
+  --accent: #6f9dff;
+  --accent-ink: #0d1220;
+  --accent-soft: #24304a;
+  --accent-weak: #33405c;
+  --accent-weak-ink: #8b96ad;
+
+  --danger: #ff8080;
+  --danger-soft: #3a2226;
+  --sun: #ff8080;
+  --sat: #7aa2ff;
+  --ok: #4fc38c;
+
+  --warn-bg: #33290f;
+  --warn-line: #5a4a1c;
+  --warn-text: #f0d99a;
+  --unknown-row: #351f2a;
+
+  --toast-bg: #2c3346;
+  --toast-ink: #e6e9f2;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo",
+    "Noto Sans KR", Roboto, "Malgun Gothic", sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 14px 20px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+.app-header h1 { font-size: 19px; margin: 0; letter-spacing: -0.01em; }
+
+.month-nav { display: flex; align-items: center; gap: 8px; }
+.month-nav span { min-width: 122px; text-align: center; font-weight: 600; }
+.month-nav button {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 8px;
+  width: 34px; height: 34px;
+  font-size: 17px;
+  cursor: pointer;
+}
+.month-nav button.ghost { width: auto; padding: 0 12px; font-size: 14px; }
+.month-nav button:hover { background: var(--accent-soft); }
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(340px, 1fr);
+  gap: 16px;
+  padding: 16px 20px 48px;
+  max-width: 1280px;
+  margin: 0 auto;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; padding: 12px; }
+}
+/* 칸이 좁아지면 시각은 접는다. 아래 일정 목록과 툴팁에는 그대로 남는다. */
+@media (max-width: 560px) {
+  .cal-time { display: none; }
+  .cal-cell { min-height: 72px; }
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px;
+}
+
+/* ---------- 캘린더 ---------- */
+.cal-head, .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.cal-head { margin-bottom: 6px; }
+.cal-head-cell { text-align: center; font-size: 12px; color: var(--muted); font-weight: 600; padding: 4px 0; }
+.cal-head-cell.sun { color: var(--sun); }
+.cal-head-cell.sat { color: var(--sat); }
+
+.cal-cell {
+  min-height: 92px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  padding: 6px;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow: hidden;
+}
+.cal-cell.blank { border: none; background: transparent; cursor: default; min-height: 0; }
+.cal-cell:hover:not(.blank) { border-color: var(--accent); }
+.cal-cell.today { box-shadow: inset 0 0 0 2px var(--accent-soft); }
+.cal-cell.selected { border-color: var(--accent); background: var(--accent-soft); }
+.cal-day { font-size: 13px; font-weight: 600; color: var(--muted); }
+.cal-cell.sun .cal-day { color: var(--sun); }
+.cal-cell.sat .cal-day { color: var(--sat); }
+.cal-cell.today .cal-day { color: var(--accent); }
+
+.cal-chips { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.cal-item { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.cal-time {
+  font-size: 9.5px;
+  letter-spacing: -0.2px;
+  line-height: 1.3;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-left: 1px;
+}
+.chip {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 5px;
+  border-radius: 5px;
+  color: var(--chip-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: var(--cat-other);
+}
+.chip.more { background: transparent; color: var(--muted); padding-left: 2px; }
+.cat-flight { background: var(--cat-flight); }
+.cat-layover { background: var(--cat-layover); }
+.cat-standby { background: var(--cat-standby); }
+.cat-off { background: var(--cat-off); }
+.cat-training { background: var(--cat-training); }
+.cat-other { background: var(--cat-other); }
+.cat-unknown { background: var(--cat-unknown); }
+
+.month-summary {
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.month-summary b { color: var(--text); }
+
+.legend { list-style: none; display: flex; flex-wrap: wrap; gap: 12px; padding: 12px 0 0; margin: 0; font-size: 12px; color: var(--muted); }
+.legend li { display: flex; align-items: center; gap: 5px; }
+.dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+/* ---------- 탭 ---------- */
+.tabs { display: flex; gap: 6px; border-bottom: 1px solid var(--line); margin-bottom: 14px; }
+.tab {
+  border: none;
+  background: transparent;
+  padding: 9px 12px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+.panel { display: none; }
+.panel.active { display: block; }
+
+/* ---------- 폼 ---------- */
+.form-grid { display: flex; flex-direction: column; gap: 10px; }
+.field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); flex: 1; min-width: 0; }
+.field em { font-style: normal; font-weight: 400; opacity: 0.8; }
+.field input, .field select, textarea {
+  font: inherit;
+  color: var(--text);
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--input-bg);
+  width: 100%;
+}
+.field input:focus, textarea:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+.field-row { display: flex; gap: 10px; }
+.check-field {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  color: var(--muted);
+  cursor: pointer;
+}
+.check-field input { width: auto; }
+.check-field input:disabled + span { opacity: 0.5; }
+
+textarea {
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+button.primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border: none;
+  border-radius: 9px;
+  padding: 10px 16px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+button.primary:disabled { background: var(--accent-weak); color: var(--accent-weak-ink); cursor: not-allowed; }
+button.ghost {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 10px 14px;
+  font: inherit;
+  color: var(--text);
+  cursor: pointer;
+}
+button.ghost.small { padding: 6px 10px; font-size: 13px; }
+button.ghost:hover { background: var(--accent-soft); }
+button.ghost.danger { color: var(--danger); }
+
+.hint { font-size: 13px; color: var(--muted); margin: 0 0 12px; }
+
+/* ---------- 날짜 상세 ---------- */
+.day-detail { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 14px; }
+.day-detail h3 { font-size: 14px; margin: 0 0 8px; }
+.entry-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.entry-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 7px 10px;
+  font-size: 13px;
+}
+.entry-list .entry-main { flex: 1; min-width: 0; }
+.entry-list .entry-sub { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.entry-list .empty { color: var(--muted); border: none; padding: 0; }
+.icon-btn {
+  border: none; background: transparent; color: var(--muted);
+  cursor: pointer; font-size: 16px; line-height: 1; padding: 4px 6px; border-radius: 6px;
+}
+.icon-btn:hover { color: var(--danger); background: var(--danger-soft); }
+
+/* ---------- 미리보기 ---------- */
+.preview { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 14px; }
+.preview-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.preview-head h3 { font-size: 15px; margin: 0; }
+.summary { font-size: 13px; color: var(--muted); margin: 0; }
+.warnings {
+  background: var(--warn-bg);
+  border: 1px solid var(--warn-line);
+  border-radius: 9px;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  margin: 10px 0;
+  color: var(--warn-text);
+}
+.warnings ul { margin: 4px 0 0; padding-left: 18px; }
+
+.preview-table-wrap { max-height: 340px; overflow: auto; border: 1px solid var(--line); border-radius: 10px; margin-top: 10px; }
+.preview-table { width: 100%; min-width: 700px; border-collapse: collapse; font-size: 12.5px; }
+.preview-table th, .preview-table td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+.preview-table thead th { position: sticky; top: 0; background: var(--surface-alt); z-index: 1; font-size: 12px; color: var(--muted); }
+.preview-table tr.unknown-row { background: var(--unknown-row); }
+.preview-table .col-check { width: 34px; }
+.preview-table td:nth-child(n+2):nth-child(-n+7) { white-space: nowrap; }
+.preview-table td:nth-child(6),
+.preview-table td:nth-child(7) { font-variant-numeric: tabular-nums; }
+.preview-table .src { color: var(--muted); max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.apply-mode { border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; margin-top: 12px; font-size: 13px; }
+.apply-mode legend { font-size: 12px; color: var(--muted); padding: 0 4px; }
+.apply-mode label { display: block; padding: 3px 0; cursor: pointer; }
+
+.preview .actions { margin-top: 12px; }
+
+/* ---------- 스크린샷 ---------- */
+.drop-zone {
+  border: 2px dashed var(--line);
+  border-radius: 12px;
+  padding: 26px 16px;
+  text-align: center;
+  cursor: pointer;
+  color: var(--muted);
+  background: var(--surface-alt);
+}
+.drop-zone p { margin: 2px 0; font-size: 13px; }
+.drop-zone.dragover, .drop-zone:focus { border-color: var(--accent); background: var(--accent-soft); outline: none; }
+.muted { color: var(--muted); font-size: 12px; }
+
+.image-preview { margin-top: 12px; }
+.image-preview img { max-width: 100%; border-radius: 10px; border: 1px solid var(--line); display: block; }
+.image-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 6px; font-size: 12.5px; color: var(--muted); }
+
+.status { font-size: 13px; margin: 8px 0 0; min-height: 20px; }
+.status.error { color: var(--danger); }
+.status.ok { color: var(--ok); }
+
+.api-config { margin-top: 16px; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.api-config summary { cursor: pointer; font-size: 13px; font-weight: 600; }
+.api-config .field { margin-top: 8px; }
+.api-config code { background: var(--surface-alt); padding: 1px 4px; border-radius: 4px; font-size: 12px; }
+
+.data-tools { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 18px; border-top: 1px solid var(--line); padding-top: 12px; }
+
+/* ---------- 토스트 ---------- */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  background: var(--toast-bg);
+  color: var(--toast-ink);
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  z-index: 50;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+
+/* 키보드 포커스는 항상 보이게 */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+</style>
+<header class="app-header">
+  <h1>Crew-cal</h1>
+  <div class="month-nav">
+    <button type="button" id="prevMonth" aria-label="이전 달">‹</button>
+    <span id="monthLabel">—</span>
+    <button type="button" id="nextMonth" aria-label="다음 달">›</button>
+    <button type="button" id="todayBtn" class="ghost">오늘</button>
+  </div>
+</header>
+
+<main class="layout">
+  <section class="card calendar-card">
+    <div id="calendar" class="calendar"></div>
+    <div id="monthSummary" class="month-summary"></div>
+    <ul class="legend">
+      <li><i class="dot cat-flight"></i>비행</li>
+      <li><i class="dot cat-layover"></i>체류</li>
+      <li><i class="dot cat-standby"></i>대기</li>
+      <li><i class="dot cat-off"></i>휴무</li>
+      <li><i class="dot cat-training"></i>훈련</li>
+      <li><i class="dot cat-unknown"></i>미확인</li>
+    </ul>
+  </section>
+
+  <section class="card input-card">
+    <div class="tabs" role="tablist">
+      <button type="button" class="tab active" role="tab" data-tab="single" aria-selected="true">날짜별 입력</button>
+      <button type="button" class="tab" role="tab" data-tab="paste" aria-selected="false">텍스트 붙여넣기</button>
+      <button type="button" class="tab" role="tab" data-tab="image" aria-selected="false">스크린샷</button>
+    </div>
+
+    <!-- 1) 날짜별 개별 입력 -->
+    <div class="panel active" id="panel-single" role="tabpanel">
+      <form id="singleForm" class="form-grid">
+        <label class="field">
+          <span>날짜</span>
+          <input type="date" id="singleDate" required>
+        </label>
+        <label class="field">
+          <span>코드</span>
+          <input type="text" id="singleCode" list="codeList" placeholder="KE0035, LO, ATDO, STBY…" required autocomplete="off">
+          <datalist id="codeList"></datalist>
+        </label>
+        <label class="field">
+          <span>구간 <em>(선택)</em></span>
+          <input type="text" id="singleRoute" placeholder="ICN/JFK" autocomplete="off">
+        </label>
+        <div class="field-row">
+          <label class="field">
+            <span id="startLabel">출발 시각 <em>(선택)</em></span>
+            <input type="time" id="singleStart">
+          </label>
+          <label class="field">
+            <span id="endLabel">도착 시각 <em>(선택)</em></span>
+            <input type="time" id="singleEnd">
+          </label>
+        </div>
+        <label class="check-field">
+          <input type="checkbox" id="singleNextDay">
+          <span>도착이 익일 (예: 23:50 출발 → 06:20 도착)</span>
+        </label>
+        <label class="field">
+          <span>메모 <em>(선택)</em></span>
+          <input type="text" id="singleMemo" placeholder="비고" autocomplete="off">
+        </label>
+        <div class="actions">
+          <button type="submit" class="primary">일정 추가</button>
+        </div>
+      </form>
+
+      <div class="day-detail">
+        <h3 id="dayTitle">선택한 날짜</h3>
+        <ul id="dayList" class="entry-list"></ul>
+      </div>
+    </div>
+
+    <!-- 2) 텍스트 붙여넣기 -->
+    <div class="panel" id="panel-paste" role="tabpanel">
+      <p class="hint">
+        크루넷에서 복사한 스케줄을 그대로 붙여넣으세요. 날짜와 코드(KE0035, LO, ATDO, STBY 등)에
+        더해 구간과 출발·도착 시각까지 읽어 미리보기로 보여준 뒤, 확인을 누르면 캘린더에 반영합니다.
+      </p>
+      <div class="field-row">
+        <label class="field">
+          <span>기준 연·월 <em>(연도가 없는 표기 해석용)</em></span>
+          <input type="month" id="pasteBase">
+        </label>
+      </div>
+      <textarea id="pasteInput" rows="12" spellcheck="false"
+        placeholder="예)&#10;2026-09-01  KE0035  ICN/JFK  1030-1420&#10;09/02  KE0036  JFK/ICN  2350-0620+1&#10;3  ATDO&#10;9월 4일  STBY  09:00-17:00&#10;05  KE0081  ICN/LAX  STD 1420  STA 0850+1&#10;2026-09-10 ~ 2026-09-12  VAC"></textarea>
+      <div class="actions">
+        <button type="button" id="parseBtn" class="primary">미리보기</button>
+        <button type="button" id="sampleBtn" class="ghost">예시 넣기</button>
+        <button type="button" id="clearPasteBtn" class="ghost">지우기</button>
+      </div>
+
+      <div id="preview" class="preview" hidden>
+        <div class="preview-head">
+          <h3>파싱 결과 미리보기</h3>
+          <p id="previewSummary" class="summary"></p>
+        </div>
+        <div id="previewWarnings" class="warnings" hidden></div>
+        <div class="preview-table-wrap">
+          <table class="preview-table">
+            <thead>
+              <tr>
+                <th class="col-check"><input type="checkbox" id="checkAll" checked aria-label="전체 선택"></th>
+                <th>날짜</th>
+                <th>코드</th>
+                <th>구분</th>
+                <th>구간</th>
+                <th>출발</th>
+                <th>도착</th>
+                <th>원본</th>
+              </tr>
+            </thead>
+            <tbody id="previewBody"></tbody>
+          </table>
+        </div>
+        <fieldset class="apply-mode">
+          <legend>기존 일정 처리</legend>
+          <label><input type="radio" name="applyMode" value="replace" checked> 해당 날짜 기존 일정을 덮어쓰기</label>
+          <label><input type="radio" name="applyMode" value="merge"> 기존 일정에 이어 붙이기</label>
+        </fieldset>
+        <div class="actions">
+          <button type="button" id="applyBtn" class="primary">캘린더에 반영</button>
+          <button type="button" id="cancelPreviewBtn" class="ghost">취소</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3) 스크린샷 업로드 (연동 자리) -->
+    <div class="panel" id="panel-image" role="tabpanel">
+      <p class="hint">
+        스케줄 화면을 캡처해서 올리면 이미지에서 날짜와 코드를 읽어옵니다.
+        <strong>이미지 인식은 다음 단계에서 Claude API 를 붙일 예정</strong>이라 지금은 업로드와 연동 자리만 준비돼 있습니다.
+      </p>
+
+      <div id="dropZone" class="drop-zone" tabindex="0" role="button" aria-label="스크린샷 업로드">
+        <input type="file" id="imageInput" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+        <p><strong>이미지를 끌어다 놓거나 클릭</strong>해서 선택하세요</p>
+        <p class="muted">PNG · JPG · WEBP · GIF / 5MB 이하</p>
+      </div>
+
+      <div id="imagePreview" class="image-preview" hidden>
+        <img id="imageThumb" alt="업로드한 스케줄 스크린샷 미리보기">
+        <div class="image-meta">
+          <span id="imageName"></span>
+          <button type="button" id="removeImageBtn" class="ghost small">제거</button>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="button" id="analyzeBtn" class="primary" disabled>이미지에서 일정 읽기</button>
+      </div>
+      <p id="imageStatus" class="status" role="status"></p>
+
+      <details class="api-config">
+        <summary>이미지 인식 API 연동 설정</summary>
+        <p class="muted">
+          브라우저에 API 키를 두면 그대로 노출됩니다. 키는 서버에 두고, 여기에는 그 서버의
+          엔드포인트 주소만 입력하세요. 서버는 <code>{ image_base64, media_type, prompt }</code> 를 받아
+          <code>{ text }</code> 또는 <code>{ entries }</code> 로 응답하면 됩니다.
+        </p>
+        <label class="field">
+          <span>엔드포인트 URL</span>
+          <input type="url" id="visionEndpoint" placeholder="https://example.com/api/parse-schedule" autocomplete="off">
+        </label>
+        <label class="field">
+          <span>모델</span>
+          <input type="text" id="visionModel" placeholder="claude-opus-5" autocomplete="off">
+        </label>
+        <div class="actions">
+          <button type="button" id="saveVisionConfig" class="ghost small">설정 저장</button>
+        </div>
+      </details>
+    </div>
+
+    <div class="data-tools">
+      <button type="button" id="exportBtn" class="ghost small">백업 내보내기</button>
+      <button type="button" id="importBtn" class="ghost small">백업 불러오기</button>
+      <input type="file" id="importInput" accept="application/json" hidden>
+      <button type="button" id="clearAllBtn" class="ghost small danger">전체 삭제</button>
+    </div>
+  </section>
+</main>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<script>
+/**
+ * 크루 스케줄에서 쓰이는 근무 코드 사전.
+ * 브라우저에서는 window.CrewCal.codes, Node 에서는 require('./codes.js') 로 사용한다.
+ */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) {
+    module.exports = factory();
+  } else {
+    root.CrewCal = root.CrewCal || {};
+    root.CrewCal.codes = factory();
+  }
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  // category: flight | layover | standby | off | training | other
+  var CATEGORY_LABELS = {
+    flight: '비행',
+    layover: '체류',
+    standby: '대기',
+    off: '휴무',
+    training: '훈련',
+    other: '기타',
+    unknown: '미확인'
+  };
+
+  var DUTY_CODES = {
+    // 휴무 계열
+    DO: { label: '휴무', category: 'off' },
+    OFF: { label: '휴무', category: 'off' },
+    X: { label: '휴무', category: 'off' },
+    ATDO: { label: '추가 휴무', category: 'off' },
+    ADO: { label: '추가 휴무', category: 'off' },
+    GDO: { label: '보장 휴무', category: 'off' },
+    CDO: { label: '보상 휴무', category: 'off' },
+    VAC: { label: '휴가', category: 'off' },
+    ANL: { label: '연차 휴가', category: 'off' },
+    AL: { label: '연차 휴가', category: 'off' },
+    PL: { label: '개인 휴가', category: 'off' },
+    UL: { label: '무급 휴가', category: 'off' },
+
+    // 대기 계열
+    STBY: { label: '대기(스탠바이)', category: 'standby' },
+    SBY: { label: '대기(스탠바이)', category: 'standby' },
+    STB: { label: '대기(스탠바이)', category: 'standby' },
+    HSBY: { label: '자택 대기', category: 'standby' },
+    ASBY: { label: '공항 대기', category: 'standby' },
+    RES: { label: '예비', category: 'standby' },
+    RSV: { label: '예비', category: 'standby' },
+
+    // 체류 / 비행 부속
+    LO: { label: '레이오버(체류)', category: 'layover' },
+    LAYOVER: { label: '레이오버(체류)', category: 'layover' },
+    LOFF: { label: '체류지 휴식', category: 'layover' },
+    DH: { label: '데드헤드(탑승 이동)', category: 'flight' },
+    DHD: { label: '데드헤드(탑승 이동)', category: 'flight' },
+    BRF: { label: '브리핑', category: 'flight' },
+    BLK: { label: '블럭', category: 'other' },
+
+    // 훈련 / 교육
+    TRN: { label: '훈련', category: 'training' },
+    GT: { label: '지상 훈련', category: 'training' },
+    SIM: { label: '시뮬레이터', category: 'training' },
+    EDU: { label: '교육', category: 'training' },
+    CBT: { label: '온라인 교육', category: 'training' },
+    OJT: { label: '현장 훈련', category: 'training' },
+    RT: { label: '정기 훈련', category: 'training' },
+
+    // 기타
+    SICK: { label: '병가', category: 'other' },
+    SK: { label: '병가', category: 'other' },
+    ML: { label: '병가/모성 휴가', category: 'other' },
+    MED: { label: '신체검사', category: 'other' },
+    OFC: { label: '사무 근무', category: 'other' },
+    MTG: { label: '회의', category: 'other' }
+  };
+
+  // 코드로 오인하기 쉬운 단어들 (요일/헤더/시간 관련)
+  var IGNORED_TOKENS = {};
+  ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN',
+    'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'SEPT', 'OCT', 'NOV', 'DEC',
+    'AM', 'PM', 'UTC', 'KST', 'LT', 'STD', 'STA', 'ETD', 'ETA', 'ATD', 'ATA',
+    'TO', 'FROM', 'VIA', 'DATE', 'CODE', 'DUTY', 'FLT', 'FLIGHT', 'DEP', 'ARR',
+    'NO', 'AC', 'REG', 'PIC', 'CA', 'FA', 'TOTAL', 'REMARK', 'REMARKS'
+  ].forEach(function (t) { IGNORED_TOKENS[t] = true; });
+
+  // 시각 앞에 붙는 라벨. 파서가 출발/도착 시각을 구분하는 데 쓴다.
+  var TIME_LABELS = {
+    STD: 'start', ETD: 'start', ATD: 'start', DEP: 'start', DEPT: 'start',
+    DEPARTURE: 'start', OUT: 'start', OFFBLK: 'start',
+    '출발': 'start', '출발시각': 'start', '출발시간': 'start', '출': 'start',
+    STA: 'end', ETA: 'end', ATA: 'end', ARR: 'end', ARRV: 'end',
+    ARRIVAL: 'end', IN: 'end', ONBLK: 'end',
+    '도착': 'end', '도착시각': 'end', '도착시간': 'end', '도': 'end'
+  };
+
+  var MONTHS = {
+    JAN: 1, FEB: 2, MAR: 3, APR: 4, MAY: 5, JUN: 6,
+    JUL: 7, AUG: 8, SEP: 9, SEPT: 9, OCT: 10, NOV: 11, DEC: 12
+  };
+
+  function timeLabel(token) {
+    if (!token) return null;
+    var key = String(token).toUpperCase().replace(/[.:\-_]+$/, '');
+    return TIME_LABELS[key] || null;
+  }
+
+  function lookup(code) {
+    if (!code) return null;
+    var key = String(code).toUpperCase().replace(/[^A-Z0-9]/g, '');
+    return DUTY_CODES[key] || null;
+  }
+
+  function describe(code) {
+    var hit = lookup(code);
+    if (hit) return hit;
+    return { label: '미확인 코드', category: 'unknown' };
+  }
+
+  function knownCodeList() {
+    return Object.keys(DUTY_CODES).sort();
+  }
+
+  return {
+    DUTY_CODES: DUTY_CODES,
+    CATEGORY_LABELS: CATEGORY_LABELS,
+    IGNORED_TOKENS: IGNORED_TOKENS,
+    TIME_LABELS: TIME_LABELS,
+    MONTHS: MONTHS,
+    timeLabel: timeLabel,
+    lookup: lookup,
+    describe: describe,
+    knownCodeList: knownCodeList
+  };
+});
+</script>
+<script>
+/**
+ * 크루넷에서 복사한 스케줄 텍스트를 날짜 + 코드 목록으로 파싱한다.
+ *
+ * 설계 원칙
+ *  - 줄 단위로 훑되, 날짜만 있는 줄은 "현재 날짜"를 바꾸고 다음 줄들의 코드를 그 날짜에 붙인다.
+ *  - 공백/탭/쉼표/줄바꿈이 섞여도, 날짜 표기가 여러 형태여도 최대한 받아낸다.
+ *  - 판단이 애매한 토큰은 버리지 않고 경고로 남겨 사용자가 미리보기에서 결정하게 한다.
+ */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) {
+    module.exports = factory(require('./codes.js'));
+  } else {
+    root.CrewCal = root.CrewCal || {};
+    root.CrewCal.parser = factory(root.CrewCal.codes);
+  }
+})(typeof self !== 'undefined' ? self : this, function (codes) {
+  'use strict';
+
+  var MONTHS = codes.MONTHS;
+  var MONTH_ALT = Object.keys(MONTHS).join('|');
+
+  var RE = {
+    ymd: /^(\d{4})[-./](\d{1,2})[-./](\d{1,2})\.?$/,
+    md: /^(\d{1,2})[-./](\d{1,2})\.?$/,
+    ymdCompact: /^(\d{4})(\d{2})(\d{2})$/,
+    dayMarker: /^@D(\d{1,2})$/,
+    dMon: new RegExp('^(\\d{1,2})[-\\s]?(' + MONTH_ALT + ')[-\\s]?(\\d{2}|\\d{4})?$'),
+    monD: new RegExp('^(' + MONTH_ALT + ')[-\\s]?(\\d{1,2})$'),
+    bareDay: /^(\d{1,2})$/,
+    flight: /^([A-Z]{2})-?(\d{1,4})([A-Z])?$/,
+    airline: /^[A-Z]{2}$/,
+    digits: /^\d{1,4}$/,
+    route: /^[A-Z]{3}(?:[/\-][A-Z]{3})+$/,
+    clock: /^(\d{1,2}):([0-5]\d)(?:\s*\+(\d))?$/,
+    clockRange: /^(\d{1,2}):([0-5]\d)[-~](\d{1,2}):([0-5]\d)(?:\+(\d))?$/,
+    compactRange: /^(\d{3,4})[-~](\d{3,4})(?:\+(\d))?$/,
+    compactClock: /^(\d{3,4})(?:\+(\d))?$/,
+    dayOffset: /^\+(\d)$/,
+    dutyLike: /^[A-Z]{1,6}$/,
+    rangeSep: /^[~]$/
+  };
+
+  function normalizeText(text) {
+    var s = String(text == null ? '' : text);
+    s = s.replace(/\r\n?/g, '\n');
+    s = s.replace(/[   　]/g, ' ');
+    // 전각 문자 -> 반각
+    s = s.replace(/[！-～]/g, function (ch) {
+      return String.fromCharCode(ch.charCodeAt(0) - 0xFEE0);
+    });
+    s = s.replace(/[‐-―−]/g, '-');
+    s = s.replace(/[〜]/g, '~');
+    return s;
+  }
+
+  function preprocessLine(line) {
+    var s = line;
+    s = s.replace(/(\d{4})\s*년\s*(\d{1,2})\s*월\s*(\d{1,2})\s*일/g, '$1-$2-$3');
+    s = s.replace(/(\d{1,2})\s*월\s*(\d{1,2})\s*일/g, '$1-$2');
+    s = s.replace(/(\d{4})\s*년\s*(\d{1,2})\s*월/g, '$1-$2-1');
+    // 요일 표기 제거: (일) (SUN) [월] 등
+    s = s.replace(/[([](?:일|월|화|수|목|금|토)[)\]]/g, ' ');
+    s = s.replace(/[([](?:SUN|MON|TUE|WED|THU|FRI|SAT)[)\]]/gi, ' ');
+    // 남은 "6일" 형태는 일자 마커로 변환
+    s = s.replace(/(^|[^\d])(\d{1,2})\s*일(?![0-9])/g, '$1 @D$2 ');
+    return s;
+  }
+
+  /** '1030' / '930' -> '10:30' / '09:30'. 시각으로 볼 수 없으면 null. */
+  function toClock(digits) {
+    var raw = String(digits);
+    if (!/^\d{3,4}$/.test(raw)) return null;
+    var s = raw.length === 3 ? '0' + raw : raw;
+    var h = +s.slice(0, 2);
+    var m = +s.slice(2, 4);
+    if (h > 23 || m > 59) return null;
+    return pad2(h) + ':' + pad2(m);
+  }
+
+  /** 'HH:MM' 정규화. 시각이 아니면 null. */
+  function toClockFromParts(hour, minute) {
+    var h = +hour, m = +minute;
+    if (h > 23 || m > 59) return null;
+    return pad2(h) + ':' + pad2(m);
+  }
+
+  /** 라벨 없이 쓰인 시각 토큰 하나를 읽는다. ('10:30', '1030', '0850+1') */
+  function readClockToken(token) {
+    if (!token) return null;
+    var t = String(token).toUpperCase().replace(/[LZ]$/, '');
+    var m = t.match(RE.clock);
+    if (m) {
+      var value = toClockFromParts(m[1], m[2]);
+      return value ? { value: value, offset: m[3] ? +m[3] : 0 } : null;
+    }
+    m = t.match(RE.compactClock);
+    if (m) {
+      var compact = toClock(m[1]);
+      return compact ? { value: compact, offset: m[2] ? +m[2] : 0 } : null;
+    }
+    return null;
+  }
+
+  /** 'STD 1030' / '출발 10:30' / 'ARR14:20' 처럼 라벨이 붙은 시각. */
+  function readLabeledTime(token, nextToken) {
+    var joined = String(token).toUpperCase().match(/^([A-Z가-힣]{1,8})[:\-]?(\d{1,2}:?[0-5]?\d(?:\+\d)?)$/);
+    if (joined) {
+      var which = codes.timeLabel(joined[1]);
+      var parsed = which && readClockToken(joined[2]);
+      if (parsed) return { which: which, time: parsed, consumed: 1 };
+    }
+    var label = codes.timeLabel(token);
+    if (label) {
+      var next = readClockToken(nextToken);
+      if (next) return { which: label, time: next, consumed: 2 };
+    }
+    return null;
+  }
+
+  function tokenize(line) {
+    return line
+      .split(/[\s,;|]+/)
+      .map(function (t) { return t.trim(); })
+      .filter(function (t) { return t.length > 0; });
+  }
+
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+
+  function isoDate(y, m, d) {
+    return y + '-' + pad2(m) + '-' + pad2(d);
+  }
+
+  function isValidDate(y, m, d) {
+    if (!(m >= 1 && m <= 12) || !(d >= 1 && d <= 31)) return false;
+    var dt = new Date(Date.UTC(y, m - 1, d));
+    return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
+  }
+
+  function resolveYear(month, ctx) {
+    // 연도가 안 적힌 경우: 기준 월과 6개월 이상 벌어지면 연도가 넘어간 것으로 본다.
+    var diff = month - ctx.baseMonth;
+    if (diff < -6) return ctx.baseYear + 1;
+    if (diff > 6) return ctx.baseYear - 1;
+    return ctx.baseYear;
+  }
+
+  function normalizeYear(raw, ctx) {
+    var n = parseInt(raw, 10);
+    if (raw.length === 4) return n;
+    return 2000 + n;
+  }
+
+  /** 토큰 하나를 날짜로 해석. 실패하면 null. */
+  function parseDateToken(token, ctx, atLineStart) {
+    var t = token.toUpperCase();
+    var m;
+
+    if ((m = t.match(RE.ymd))) {
+      return build(+m[1], +m[2], +m[3]);
+    }
+    if ((m = t.match(RE.ymdCompact))) {
+      return build(+m[1], +m[2], +m[3]);
+    }
+    if ((m = t.match(RE.md))) {
+      var mo = +m[1], da = +m[2];
+      return build(resolveYear(mo, ctx), mo, da);
+    }
+    if ((m = t.match(RE.dMon))) {
+      var mon = MONTHS[m[2]];
+      var yr = m[3] ? normalizeYear(m[3], ctx) : resolveYear(mon, ctx);
+      return build(yr, mon, +m[1]);
+    }
+    if ((m = t.match(RE.monD))) {
+      var mon2 = MONTHS[m[1]];
+      return build(resolveYear(mon2, ctx), mon2, +m[2]);
+    }
+    if ((m = t.match(RE.dayMarker))) {
+      return buildDayOnly(+m[1]);
+    }
+    if (atLineStart && (m = t.match(RE.bareDay))) {
+      return buildDayOnly(+m[1]);
+    }
+    return null;
+
+    function build(y, mm, dd) {
+      if (!isValidDate(y, mm, dd)) return null;
+      return isoDate(y, mm, dd);
+    }
+    function buildDayOnly(dd) {
+      var y = ctx.currentYear || ctx.baseYear;
+      var mm = ctx.currentMonth || ctx.baseMonth;
+      if (!isValidDate(y, mm, dd)) return null;
+      return isoDate(y, mm, dd);
+    }
+  }
+
+  function expandRange(fromIso, toIso) {
+    var out = [];
+    var start = new Date(fromIso + 'T00:00:00Z');
+    var end = new Date(toIso + 'T00:00:00Z');
+    if (isNaN(start) || isNaN(end) || end < start) return [fromIso];
+    var guard = 0;
+    while (start <= end && guard++ < 400) {
+      out.push(start.toISOString().slice(0, 10));
+      start.setUTCDate(start.getUTCDate() + 1);
+    }
+    return out;
+  }
+
+  function makeFlightItem(airline, number, suffix) {
+    var code = airline + number + (suffix || '');
+    return {
+      code: code,
+      type: 'flight',
+      category: 'flight',
+      label: airline + ' ' + number + '편',
+      airline: airline,
+      flightNumber: number,
+      known: true
+    };
+  }
+
+  function makeDutyItem(code) {
+    var hit = codes.lookup(code);
+    if (hit) {
+      return {
+        code: code.toUpperCase(),
+        type: 'duty',
+        category: hit.category,
+        label: hit.label,
+        known: true
+      };
+    }
+    return {
+      code: code.toUpperCase(),
+      type: 'duty',
+      category: 'unknown',
+      label: '미확인 코드',
+      known: false
+    };
+  }
+
+  function splitSlashCodes(token) {
+    // "LO/STBY" 처럼 슬래시로 붙은 근무 코드 분리 (공항 코드 ICN/NRT 는 제외)
+    if (token.indexOf('/') === -1) return null;
+    var parts = token.split('/').filter(Boolean);
+    if (parts.length < 2) return null;
+    var allKnown = parts.every(function (p) { return codes.lookup(p); });
+    return allKnown ? parts : null;
+  }
+
+  function parse(text, options) {
+    options = options || {};
+    var base = options.baseDate ? new Date(options.baseDate + 'T00:00:00Z') : new Date();
+    var ctx = {
+      baseYear: options.year || (options.baseDate ? base.getUTCFullYear() : base.getFullYear()),
+      baseMonth: options.month || (options.baseDate ? base.getUTCMonth() + 1 : base.getMonth() + 1),
+      currentYear: null,
+      currentMonth: null
+    };
+
+    var entries = [];
+    var warnings = [];
+    var ignoredLines = [];
+    var seen = {};
+    var currentDates = [];
+    var seq = 0;
+
+    var rawLines = normalizeText(text).split('\n');
+
+    rawLines.forEach(function (rawLine, lineIndex) {
+      var trimmed = rawLine.trim();
+      if (!trimmed) return;
+
+      var tokens = tokenize(preprocessLine(trimmed));
+      if (!tokens.length) return;
+
+      var lineDates = [];
+      var items = [];
+      var pendingRange = false;
+      var unknownTokens = [];
+      var lastRoute = null;
+
+      for (var i = 0; i < tokens.length; i++) {
+        var token = tokens[i];
+        var upper = token.toUpperCase();
+
+        // 1) 날짜
+        var atLineStart = (lineDates.length === 0 && items.length === 0 && i <= 1);
+        var asDate = parseDateToken(token, ctx, atLineStart);
+        if (asDate) {
+          if (pendingRange && lineDates.length) {
+            var expanded = expandRange(lineDates[lineDates.length - 1], asDate);
+            expanded.shift();
+            lineDates = lineDates.concat(expanded);
+            pendingRange = false;
+          } else {
+            lineDates.push(asDate);
+          }
+          ctx.currentYear = +asDate.slice(0, 4);
+          ctx.currentMonth = +asDate.slice(5, 7);
+          continue;
+        }
+
+        // 2) 날짜 범위 구분자 (뒤에 날짜가 와야 범위로 본다)
+        if (RE.rangeSep.test(token) || upper === '-' || upper === 'TO') {
+          if (lineDates.length && parseDateToken(tokens[i + 1] || '', ctx, false)) {
+            pendingRange = true;
+            continue;
+          }
+        }
+
+        // 3) 출발/도착 라벨이 붙은 시각 (STD 1030 / 출발 10:30 / ARR14:20)
+        var labeled = readLabeledTime(token, tokens[i + 1]);
+        if (labeled) {
+          applyTime(items, labeled.time, labeled.which);
+          i += labeled.consumed - 1;
+          continue;
+        }
+
+        // 4) 시각 범위 (1030-1420, 09:30-14:20, 2350-0620+1)
+        var range = readTimeRange(upper);
+        if (range) {
+          applyTime(items, range.start, 'start');
+          applyTime(items, range.end, 'end');
+          continue;
+        }
+
+        // 5) 단독 시각. 한 줄에 두 번 나오면 출발 -> 도착 순으로 채운다.
+        var clock = upper.match(RE.clock) ? readClockToken(upper) : null;
+        if (clock) {
+          applyTime(items, clock, 'auto');
+          continue;
+        }
+
+        // 6) '+1' 만 따로 떨어져 있으면 직전 도착 시각을 익일로 표시
+        var offsetOnly = upper.match(RE.dayOffset);
+        if (offsetOnly) {
+          markNextDay(items, +offsetOnly[1]);
+          continue;
+        }
+
+        // 4) 구간(공항 코드)
+        if (RE.route.test(upper)) {
+          lastRoute = upper.replace(/-/g, '/');
+          applyDetail(items, { route: lastRoute });
+          continue;
+        }
+
+        // 5) 항공편 (KE0035 / KE 0035 / KE-035)
+        var fl = upper.match(RE.flight);
+        if (fl && !codes.lookup(upper)) {
+          items.push(makeFlightItem(fl[1], fl[2], fl[3]));
+          continue;
+        }
+        if (RE.airline.test(upper) && !codes.lookup(upper) && i + 1 < tokens.length && RE.digits.test(tokens[i + 1])) {
+          items.push(makeFlightItem(upper, tokens[i + 1]));
+          i++;
+          continue;
+        }
+
+        // 6) 근무 코드
+        var slashed = splitSlashCodes(upper);
+        if (slashed) {
+          slashed.forEach(function (p) { items.push(makeDutyItem(p)); });
+          continue;
+        }
+        if (codes.lookup(upper)) {
+          items.push(makeDutyItem(upper));
+          continue;
+        }
+
+        // 7) 편명이 이미 나온 줄에서 3~4자리 숫자는 출발/도착 시각으로 본다
+        if (/^\d{3,4}(\+\d)?$/.test(upper) && hasFlight(items) && needsTime(items)) {
+          var implicit = readClockToken(upper);
+          if (implicit) {
+            applyTime(items, implicit, 'auto');
+            continue;
+          }
+        }
+
+        // 8) 무시 대상
+        if (codes.IGNORED_TOKENS[upper] || /^\d+$/.test(upper)) continue;
+
+        // 9) 정체불명 코드 후보 -> 사용자에게 판단을 넘긴다
+        if (RE.dutyLike.test(upper) && upper.length >= 2) {
+          var item = makeDutyItem(upper);
+          items.push(item);
+          unknownTokens.push(upper);
+          continue;
+        }
+
+        ignoredLines.push({ line: lineIndex + 1, text: trimmed, token: token });
+      }
+
+      var targetDates = lineDates.length ? lineDates : currentDates;
+      if (lineDates.length) currentDates = lineDates;
+
+      if (!items.length) return;
+
+      if (!targetDates.length) {
+        warnings.push({
+          line: lineIndex + 1,
+          text: trimmed,
+          message: '날짜를 찾지 못해 건너뛴 줄입니다.'
+        });
+        return;
+      }
+
+      if (unknownTokens.length) {
+        warnings.push({
+          line: lineIndex + 1,
+          text: trimmed,
+          message: '알 수 없는 코드: ' + unknownTokens.join(', ') + ' — 확인 후 반영하세요.'
+        });
+      }
+
+      targetDates.forEach(function (date) {
+        items.forEach(function (item) {
+          var key = [date, item.code, item.route || '', item.start || '', item.end || ''].join('|');
+          if (seen[key]) return;
+          seen[key] = true;
+          entries.push({
+            id: 'p' + (++seq),
+            date: date,
+            code: item.code,
+            type: item.type,
+            category: item.category,
+            label: item.label,
+            known: item.known,
+            route: item.route || null,
+            start: item.start || null,
+            end: item.end || null,
+            endOffset: item.endOffset || 0,
+            source: trimmed
+          });
+        });
+      });
+    });
+
+    entries.sort(function (a, b) {
+      if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+      return parseInt(a.id.slice(1), 10) - parseInt(b.id.slice(1), 10);
+    });
+
+    return {
+      entries: entries,
+      warnings: warnings,
+      ignoredLines: ignoredLines,
+      stats: summarize(entries)
+    };
+
+    function timeTarget(list) {
+      if (!list.length) return null;
+      for (var k = list.length - 1; k >= 0; k--) {
+        if (list[k].type === 'flight') return list[k];
+      }
+      return list[list.length - 1];
+    }
+
+    function applyDetail(list, detail) {
+      var target = timeTarget(list);
+      if (!target) return;
+      Object.keys(detail).forEach(function (k) {
+        if (detail[k] != null && target[k] == null) target[k] = detail[k];
+      });
+    }
+
+    /**
+     * 시각을 붙인다.
+     *  which 'start' 출발(시작) / 'end' 도착(종료)
+     *  which 'auto' 한 줄에 시각이 두 번 나오면 출발 -> 도착 순으로 채운다.
+     */
+    function applyTime(list, time, which) {
+      var target = timeTarget(list);
+      if (!target || !time) return;
+      var slot = which;
+      if (slot === 'auto') slot = target.start == null ? 'start' : (target.end == null ? 'end' : null);
+      if (!slot || target[slot] != null) return;
+      target[slot] = time.value;
+      if (slot === 'end' && time.offset) target.endOffset = time.offset;
+    }
+
+    function markNextDay(list, days) {
+      var target = timeTarget(list);
+      if (target && target.end) target.endOffset = days;
+    }
+
+    function hasFlight(list) {
+      return list.some(function (item) { return item.type === 'flight'; });
+    }
+
+    function needsTime(list) {
+      var target = timeTarget(list);
+      return !!target && (target.start == null || target.end == null);
+    }
+  }
+
+  /** '1030-1420', '09:30-14:20', '2350-0620+1' -> { start, end } */
+  function readTimeRange(token) {
+    var m = token.match(RE.clockRange);
+    if (m) {
+      var s1 = toClockFromParts(m[1], m[2]);
+      var e1 = toClockFromParts(m[3], m[4]);
+      if (!s1 || !e1) return null;
+      return { start: { value: s1, offset: 0 }, end: { value: e1, offset: m[5] ? +m[5] : 0 } };
+    }
+    m = token.match(RE.compactRange);
+    if (m) {
+      var s2 = toClock(m[1]);
+      var e2 = toClock(m[2]);
+      if (!s2 || !e2) return null;
+      return { start: { value: s2, offset: 0 }, end: { value: e2, offset: m[3] ? +m[3] : 0 } };
+    }
+    return null;
+  }
+
+  function summarize(entries) {
+    var byDate = {};
+    var counts = { flight: 0, layover: 0, standby: 0, off: 0, training: 0, other: 0, unknown: 0 };
+    entries.forEach(function (e) {
+      byDate[e.date] = true;
+      if (counts[e.category] == null) counts[e.category] = 0;
+      counts[e.category]++;
+    });
+    var dates = Object.keys(byDate).sort();
+    return {
+      dateCount: dates.length,
+      entryCount: entries.length,
+      firstDate: dates[0] || null,
+      lastDate: dates[dates.length - 1] || null,
+      counts: counts
+    };
+  }
+
+  return {
+    parse: parse,
+    normalizeText: normalizeText,
+    preprocessLine: preprocessLine,
+    tokenize: tokenize,
+    expandRange: expandRange,
+    readClockToken: readClockToken,
+    readTimeRange: readTimeRange,
+    isoDate: isoDate,
+    isValidDate: isValidDate
+  };
+});
+</script>
+<script>
+/**
+ * 일정 저장소. localStorage 기반이며, 저장소가 없는 환경에서는 메모리로 동작한다.
+ */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) {
+    module.exports = factory(require('./codes.js'));
+  } else {
+    root.CrewCal = root.CrewCal || {};
+    root.CrewCal.store = factory(root.CrewCal.codes);
+  }
+})(typeof self !== 'undefined' ? self : this, function (codes) {
+  'use strict';
+
+  var KEY = 'crew-cal.schedule.v1';
+  var memory = null;
+  var seq = 0;
+
+  function storage() {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('__crewcal_probe__', '1');
+        localStorage.removeItem('__crewcal_probe__');
+        return localStorage;
+      }
+    } catch (e) { /* 사파리 프라이빗 모드 등 */ }
+    return null;
+  }
+
+  function emptyData() {
+    return { version: 1, entries: {}, updatedAt: null };
+  }
+
+  function load() {
+    var ls = storage();
+    if (!ls) return memory || (memory = emptyData());
+    try {
+      var raw = ls.getItem(KEY);
+      if (!raw) return emptyData();
+      var data = JSON.parse(raw);
+      if (!data || typeof data !== 'object' || !data.entries) return emptyData();
+      return data;
+    } catch (e) {
+      return emptyData();
+    }
+  }
+
+  function save(data) {
+    data.updatedAt = new Date().toISOString();
+    var ls = storage();
+    if (!ls) { memory = data; return data; }
+    try {
+      ls.setItem(KEY, JSON.stringify(data));
+    } catch (e) {
+      memory = data;
+    }
+    return data;
+  }
+
+  function newId() {
+    return 'e' + Date.now().toString(36) + (seq++).toString(36) + Math.random().toString(36).slice(2, 6);
+  }
+
+  function decorate(entry) {
+    var out = {
+      id: entry.id || newId(),
+      date: entry.date,
+      code: String(entry.code || '').toUpperCase(),
+      type: entry.type || null,
+      category: entry.category || null,
+      label: entry.label || null,
+      route: entry.route || null,
+      start: entry.start || entry.dep || null,   // 출발(시작) 시각 HH:MM
+      end: entry.end || entry.arr || null,       // 도착(종료) 시각 HH:MM
+      endOffset: +(entry.endOffset || entry.arrOffset || 0) || 0, // 도착이 익일이면 1
+      memo: entry.memo || null
+    };
+    if (!out.end) out.endOffset = 0;
+    if (!out.type || !out.category || !out.label) {
+      var flight = out.code.match(/^([A-Z]{2})(\d{1,4})([A-Z])?$/);
+      if (flight && !codes.lookup(out.code)) {
+        out.type = out.type || 'flight';
+        out.category = out.category || 'flight';
+        out.label = out.label || flight[1] + ' ' + flight[2] + '편';
+      } else {
+        var hit = codes.describe(out.code);
+        out.type = out.type || 'duty';
+        out.category = out.category || hit.category;
+        out.label = out.label || hit.label;
+      }
+    }
+    return out;
+  }
+
+  /** 하루치 일정을 출발(시작) 시각 순으로. 시각이 없는 건은 뒤로 보낸다. */
+  function sortByTime(list) {
+    return list
+      .map(function (e, i) { return { e: e, i: i }; })
+      .sort(function (a, b) {
+        var at = a.e.start || '99:99';
+        var bt = b.e.start || '99:99';
+        if (at !== bt) return at < bt ? -1 : 1;
+        return a.i - b.i;
+      })
+      .map(function (x) { return x.e; });
+  }
+
+  function getAll() {
+    var all = load().entries;
+    var out = {};
+    Object.keys(all).forEach(function (date) { out[date] = sortByTime(all[date]); });
+    return out;
+  }
+
+  function getByDate(date) {
+    var all = load().entries;
+    return sortByTime((all[date] || []).slice());
+  }
+
+  function getRange(fromIso, toIso) {
+    var all = load().entries;
+    var out = {};
+    Object.keys(all).forEach(function (d) {
+      if (d >= fromIso && d <= toIso) out[d] = sortByTime(all[d].slice());
+    });
+    return out;
+  }
+
+  function addEntry(entry) {
+    var data = load();
+    var e = decorate(entry);
+    if (!e.date) throw new Error('날짜가 필요합니다.');
+    if (!e.code) throw new Error('코드가 필요합니다.');
+    data.entries[e.date] = data.entries[e.date] || [];
+    data.entries[e.date].push(e);
+    save(data);
+    return e;
+  }
+
+  function removeEntry(date, id) {
+    var data = load();
+    var list = data.entries[date];
+    if (!list) return false;
+    var next = list.filter(function (e) { return e.id !== id; });
+    if (next.length === list.length) return false;
+    if (next.length) data.entries[date] = next;
+    else delete data.entries[date];
+    save(data);
+    return true;
+  }
+
+  function clearDate(date) {
+    var data = load();
+    if (!data.entries[date]) return 0;
+    var n = data.entries[date].length;
+    delete data.entries[date];
+    save(data);
+    return n;
+  }
+
+  /**
+   * 파싱 결과를 일괄 반영한다.
+   * mode: 'replace' (해당 날짜의 기존 일정을 지우고 반영) | 'merge' (기존에 이어 붙임)
+   */
+  function applyEntries(entries, mode) {
+    var data = load();
+    var touched = {};
+    var removed = 0;
+    var added = 0;
+
+    if (mode === 'replace') {
+      entries.forEach(function (e) {
+        if (touched[e.date]) return;
+        touched[e.date] = true;
+        if (data.entries[e.date]) {
+          removed += data.entries[e.date].length;
+          delete data.entries[e.date];
+        }
+      });
+    }
+
+    entries.forEach(function (entry) {
+      var e = decorate(entry);
+      e.id = newId();
+      data.entries[e.date] = data.entries[e.date] || [];
+      if (mode !== 'replace') {
+        var dup = data.entries[e.date].some(function (x) {
+          return x.code === e.code && (x.route || '') === (e.route || '') && (x.start || '') === (e.start || '');
+        });
+        if (dup) return;
+      }
+      data.entries[e.date].push(e);
+      added++;
+    });
+
+    save(data);
+    return { added: added, removed: removed, dates: Object.keys(touched).length };
+  }
+
+  function countExisting(entries) {
+    var data = load();
+    var dates = {};
+    entries.forEach(function (e) { dates[e.date] = true; });
+    var n = 0;
+    Object.keys(dates).forEach(function (d) {
+      n += (data.entries[d] || []).length;
+    });
+    return n;
+  }
+
+  function clearAll() {
+    save(emptyData());
+  }
+
+  function exportJson() {
+    return JSON.stringify(load(), null, 2);
+  }
+
+  function importJson(json) {
+    var data = JSON.parse(json);
+    if (!data || !data.entries) throw new Error('올바른 백업 파일이 아닙니다.');
+    save({ version: 1, entries: data.entries, updatedAt: null });
+  }
+
+  return {
+    KEY: KEY,
+    load: load,
+    getAll: getAll,
+    getByDate: getByDate,
+    getRange: getRange,
+    addEntry: addEntry,
+    removeEntry: removeEntry,
+    clearDate: clearDate,
+    applyEntries: applyEntries,
+    countExisting: countExisting,
+    clearAll: clearAll,
+    exportJson: exportJson,
+    importJson: importJson,
+    decorate: decorate,
+    sortByTime: sortByTime,
+    newId: newId
+  };
+});
+</script>
+<script>
+/** 월간 캘린더 렌더러 */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) {
+    module.exports = factory();
+  } else {
+    root.CrewCal = root.CrewCal || {};
+    root.CrewCal.calendar = factory();
+  }
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  var WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
+
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+  function iso(y, m, d) { return y + '-' + pad2(m) + '-' + pad2(d); }
+
+  function todayIso() {
+    var t = new Date();
+    return iso(t.getFullYear(), t.getMonth() + 1, t.getDate());
+  }
+
+  function daysInMonth(year, month) {
+    return new Date(Date.UTC(year, month, 0)).getUTCDate();
+  }
+
+  function firstWeekday(year, month) {
+    return new Date(Date.UTC(year, month - 1, 1)).getUTCDay();
+  }
+
+  function weekdayOf(isoDate) {
+    var d = new Date(isoDate + 'T00:00:00Z');
+    return isNaN(d) ? '' : WEEKDAYS[d.getUTCDay()];
+  }
+
+  /** 달력 칸에 넣을 짧은 시각 표기: '10:30→14:20', '23:50→06:20+1' */
+  function formatTimeRange(entry) {
+    if (!entry) return '';
+    var suffix = entry.endOffset ? '+' + entry.endOffset : '';
+    if (entry.start && entry.end) return entry.start + '\u2192' + entry.end + suffix;
+    if (entry.start) return entry.start + ' 출발';
+    if (entry.end) return entry.end + suffix + ' 도착';
+    return '';
+  }
+
+  /** 목록에 쓸 자세한 시각 표기. 비행이면 출발/도착, 그 밖에는 시작/종료로 읽는다. */
+  function describeTimes(entry) {
+    if (!entry || (!entry.start && !entry.end)) return '';
+    var flight = entry.type === 'flight' || entry.category === 'flight';
+    var startLabel = flight ? '출발' : '시작';
+    var endLabel = flight ? '도착' : '종료';
+    var nextDay = entry.endOffset ? ' (익일)' : '';
+    if (entry.start && entry.end) {
+      return startLabel + ' ' + entry.start + ' \u2192 ' + endLabel + ' ' + entry.end + nextDay;
+    }
+    if (entry.start) return startLabel + ' ' + entry.start;
+    return endLabel + ' ' + entry.end + nextDay;
+  }
+
+  function render(container, options) {
+    var year = options.year;
+    var month = options.month;
+    var entriesByDate = options.entriesByDate || {};
+    var selected = options.selectedDate;
+    var onSelect = options.onSelect || function () {};
+
+    container.innerHTML = '';
+
+    var head = document.createElement('div');
+    head.className = 'cal-head';
+    WEEKDAYS.forEach(function (w, i) {
+      var cell = document.createElement('div');
+      cell.className = 'cal-head-cell' + (i === 0 ? ' sun' : i === 6 ? ' sat' : '');
+      cell.textContent = w;
+      head.appendChild(cell);
+    });
+    container.appendChild(head);
+
+    var grid = document.createElement('div');
+    grid.className = 'cal-grid';
+
+    var lead = firstWeekday(year, month);
+    var total = daysInMonth(year, month);
+    var today = todayIso();
+
+    for (var i = 0; i < lead; i++) {
+      var blank = document.createElement('div');
+      blank.className = 'cal-cell blank';
+      grid.appendChild(blank);
+    }
+
+    for (var day = 1; day <= total; day++) {
+      (function (day) {
+        var date = iso(year, month, day);
+        var list = entriesByDate[date] || [];
+        var weekday = (lead + day - 1) % 7;
+
+        var cell = document.createElement('button');
+        cell.type = 'button';
+        cell.className = 'cal-cell';
+        if (weekday === 0) cell.classList.add('sun');
+        if (weekday === 6) cell.classList.add('sat');
+        if (date === today) cell.classList.add('today');
+        if (date === selected) cell.classList.add('selected');
+        if (list.length) cell.classList.add('has-entry');
+        cell.setAttribute('data-date', date);
+        cell.setAttribute('aria-label', month + '월 ' + day + '일, 일정 ' + list.length + '건');
+
+        var num = document.createElement('span');
+        num.className = 'cal-day';
+        num.textContent = String(day);
+        cell.appendChild(num);
+
+        var chips = document.createElement('span');
+        chips.className = 'cal-chips';
+        list.slice(0, 3).forEach(function (e) {
+          var item = document.createElement('span');
+          item.className = 'cal-item';
+
+          var chip = document.createElement('span');
+          chip.className = 'chip cat-' + (e.category || 'other');
+          chip.textContent = e.code;
+          chip.title = [e.label || '', e.route || '', describeTimes(e)]
+            .filter(Boolean).join(' · ');
+          item.appendChild(chip);
+
+          var timeText = formatTimeRange(e);
+          if (timeText) {
+            var time = document.createElement('span');
+            time.className = 'cal-time';
+            time.textContent = timeText;
+            item.appendChild(time);
+          }
+          chips.appendChild(item);
+        });
+        if (list.length > 3) {
+          var more = document.createElement('span');
+          more.className = 'chip more';
+          more.textContent = '+' + (list.length - 3);
+          chips.appendChild(more);
+        }
+        cell.appendChild(chips);
+
+        cell.addEventListener('click', function () { onSelect(date); });
+        grid.appendChild(cell);
+      })(day);
+    }
+
+    container.appendChild(grid);
+  }
+
+  function summarize(entriesByDate, year, month) {
+    var prefix = year + '-' + pad2(month);
+    var counts = { flight: 0, layover: 0, standby: 0, off: 0, training: 0, other: 0, unknown: 0 };
+    var days = 0;
+    Object.keys(entriesByDate).forEach(function (date) {
+      if (date.indexOf(prefix) !== 0) return;
+      days++;
+      entriesByDate[date].forEach(function (e) {
+        var c = e.category || 'other';
+        if (counts[c] == null) counts[c] = 0;
+        counts[c]++;
+      });
+    });
+    return { days: days, counts: counts };
+  }
+
+  return {
+    WEEKDAYS: WEEKDAYS,
+    render: render,
+    summarize: summarize,
+    formatTimeRange: formatTimeRange,
+    describeTimes: describeTimes,
+    iso: iso,
+    pad2: pad2,
+    todayIso: todayIso,
+    weekdayOf: weekdayOf,
+    daysInMonth: daysInMonth
+  };
+});
+</script>
+<script>
+/**
+ * 스크린샷(이미지) 인식 모드 - 연동 자리만 잡아둔 어댑터.
+ *
+ * 실제 이미지 인식은 Claude API 를 붙여서 처리할 예정이다.
+ * 브라우저에서 API 키를 직접 들고 있으면 그대로 노출되므로,
+ * 키는 반드시 서버(프록시 엔드포인트)에 두고 이 모듈은 그 엔드포인트만 호출한다.
+ *
+ * 서버가 지켜야 할 규약
+ *   POST {endpoint}
+ *   요청  { image_base64, media_type, prompt, hint: { year, month } }
+ *   응답  { text }        -> 텍스트 파서로 넘겨서 처리
+ *      또는 { entries: [{ date, code, route?, start?, end? }] }
+ */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) {
+    module.exports = factory();
+  } else {
+    root.CrewCal = root.CrewCal || {};
+    root.CrewCal.vision = factory();
+  }
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  var CONFIG_KEY = 'crew-cal.vision.v1';
+  var DEFAULT_MODEL = 'claude-opus-5';
+
+  // 나중에 Claude API 로 보낼 프롬프트. 응답을 텍스트 붙여넣기 파서가 그대로 먹을 수 있는
+  // "날짜 + 코드" 한 줄 형식으로 강제한다.
+  var EXTRACTION_PROMPT = [
+    '이 이미지는 항공사 승무원 스케줄표입니다.',
+    '표에 적힌 날짜와 근무 코드를 빠짐없이 읽어 아래 형식으로만 출력하세요.',
+    '',
+    '  YYYY-MM-DD<탭>코드 [코드 ...]',
+    '',
+    '규칙:',
+    '- 한 줄에 하루씩, 날짜 오름차순으로 출력합니다.',
+    '- 코드는 이미지에 적힌 그대로 대문자로 씁니다(KE0035, LO, ATDO, STBY 등).',
+    '- 구간과 시각이 보이면 코드 뒤에 ICN/JFK 1030-1420 형태로 덧붙입니다.',
+    '- 설명, 머리말, 코드블록 없이 데이터 줄만 출력합니다.',
+    '- 읽을 수 없는 칸은 그 줄을 생략합니다.'
+  ].join('\n');
+
+  var MAX_BYTES = 5 * 1024 * 1024;
+  var ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+
+  function loadConfig() {
+    try {
+      var raw = localStorage.getItem(CONFIG_KEY);
+      if (raw) {
+        var parsed = JSON.parse(raw);
+        return {
+          endpoint: parsed.endpoint || '',
+          model: parsed.model || DEFAULT_MODEL
+        };
+      }
+    } catch (e) { /* 무시하고 기본값 */ }
+    return { endpoint: '', model: DEFAULT_MODEL };
+  }
+
+  function saveConfig(config) {
+    var next = {
+      endpoint: (config && config.endpoint ? String(config.endpoint) : '').trim(),
+      model: (config && config.model ? String(config.model) : DEFAULT_MODEL).trim()
+    };
+    try {
+      localStorage.setItem(CONFIG_KEY, JSON.stringify(next));
+    } catch (e) { /* 저장 실패해도 이번 세션에는 반환값으로 동작 */ }
+    return next;
+  }
+
+  function isConfigured() {
+    return !!loadConfig().endpoint;
+  }
+
+  function validateFile(file) {
+    if (!file) return '이미지를 선택하세요.';
+    if (ALLOWED_TYPES.indexOf(file.type) === -1) return 'PNG, JPG, WEBP, GIF 이미지만 올릴 수 있습니다.';
+    if (file.size > MAX_BYTES) return '이미지가 너무 큽니다. 5MB 이하로 올려주세요.';
+    return null;
+  }
+
+  function fileToBase64(file) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onerror = function () { reject(new Error('이미지를 읽지 못했습니다.')); };
+      reader.onload = function () {
+        var result = String(reader.result || '');
+        var comma = result.indexOf(',');
+        resolve({
+          dataUrl: result,
+          base64: comma === -1 ? result : result.slice(comma + 1),
+          mediaType: file.type
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  /**
+   * 서버(프록시)에서 Claude Messages API 로 그대로 넘길 수 있는 요청 본문 형태.
+   * 지금은 참고용이자 서버 구현 규약이다.
+   */
+  function buildClaudeRequest(base64, mediaType, options) {
+    options = options || {};
+    return {
+      model: options.model || DEFAULT_MODEL,
+      max_tokens: 2048,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
+          { type: 'text', text: options.prompt || EXTRACTION_PROMPT }
+        ]
+      }]
+    };
+  }
+
+  /**
+   * 스크린샷 분석. 엔드포인트가 설정돼 있지 않으면 NOT_CONFIGURED 로 거절한다.
+   * 성공하면 { text } 또는 { entries } 를 돌려주고, 호출부에서 미리보기로 넘긴다.
+   */
+  function analyze(file, options) {
+    options = options || {};
+    var config = loadConfig();
+
+    var invalid = validateFile(file);
+    if (invalid) return Promise.reject(new Error(invalid));
+
+    if (!config.endpoint) {
+      var err = new Error('이미지 인식 서버가 아직 연결되지 않았습니다. (다음 단계에서 Claude API 연동 예정)');
+      err.code = 'NOT_CONFIGURED';
+      return Promise.reject(err);
+    }
+
+    return fileToBase64(file).then(function (image) {
+      return fetch(config.endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          image_base64: image.base64,
+          media_type: image.mediaType,
+          prompt: options.prompt || EXTRACTION_PROMPT,
+          model: config.model,
+          hint: { year: options.year || null, month: options.month || null }
+        })
+      });
+    }).then(function (res) {
+      if (!res.ok) throw new Error('이미지 인식 요청이 실패했습니다. (HTTP ' + res.status + ')');
+      return res.json();
+    }).then(function (data) {
+      if (data && typeof data.text === 'string') return { text: data.text, entries: null };
+      if (data && Array.isArray(data.entries)) return { text: null, entries: data.entries };
+      throw new Error('서버 응답 형식을 이해하지 못했습니다. text 또는 entries 가 필요합니다.');
+    });
+  }
+
+  return {
+    CONFIG_KEY: CONFIG_KEY,
+    DEFAULT_MODEL: DEFAULT_MODEL,
+    EXTRACTION_PROMPT: EXTRACTION_PROMPT,
+    loadConfig: loadConfig,
+    saveConfig: saveConfig,
+    isConfigured: isConfigured,
+    validateFile: validateFile,
+    fileToBase64: fileToBase64,
+    buildClaudeRequest: buildClaudeRequest,
+    analyze: analyze
+  };
+});
+</script>
+<script>
+/** 화면 조립: 캘린더 + 3가지 입력 방식(날짜별 / 텍스트 붙여넣기 / 스크린샷) */
+(function () {
+  'use strict';
+
+  var codes = CrewCal.codes;
+  var parser = CrewCal.parser;
+  var store = CrewCal.store;
+  var calendar = CrewCal.calendar;
+  var vision = CrewCal.vision;
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  var state = {
+    year: new Date().getFullYear(),
+    month: new Date().getMonth() + 1,
+    selectedDate: calendar.todayIso(),
+    preview: null,
+    imageFile: null
+  };
+
+  var SAMPLE = [
+    '2026-09-01\tKE0035\tICN/JFK\t1030-1420',
+    '09/02  LO',
+    '3  KE0036  JFK/ICN  2350-0620+1',
+    '9월 4일 (금)  ATDO',
+    '05SEP26  STBY  0900-1700',
+    '2026-09-10 ~ 2026-09-12  VAC',
+    '2026-09-15',
+    '  KE0081  ICN/LAX  STD 1420  STA 0850+1',
+    '  LO'
+  ].join('\n');
+
+  /* ---------------- 공통 ---------------- */
+
+  var toastTimer = null;
+  function toast(message) {
+    var el = $('toast');
+    el.textContent = message;
+    el.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.hidden = true; }, 2600);
+  }
+
+  function monthLabel(year, month) {
+    return year + '년 ' + month + '월';
+  }
+
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+
+  function detailText(entry) {
+    var bits = [];
+    if (entry.route) bits.push(entry.route);
+    var times = calendar.describeTimes(entry);
+    if (times) bits.push(times);
+    if (entry.memo) bits.push(entry.memo);
+    return bits.join(' · ');
+  }
+
+  /** 미리보기 표의 출발/도착 칸 */
+  function timeCellText(entry, which) {
+    if (which === 'start') return entry.start || '';
+    if (!entry.end) return '';
+    return entry.end + (entry.endOffset ? ' (익일)' : '');
+  }
+
+  function looksLikeFlight(code) {
+    return /^[A-Z]{2}\s?-?\d{1,4}[A-Z]?$/.test(String(code || '').trim().toUpperCase())
+      && !codes.lookup(code);
+  }
+
+  /* ---------------- 렌더 ---------------- */
+
+  function refresh() {
+    var entriesByDate = store.getAll();
+    $('monthLabel').textContent = monthLabel(state.year, state.month);
+
+    calendar.render($('calendar'), {
+      year: state.year,
+      month: state.month,
+      entriesByDate: entriesByDate,
+      selectedDate: state.selectedDate,
+      onSelect: selectDate
+    });
+
+    renderMonthSummary(entriesByDate);
+    renderDayDetail();
+  }
+
+  function renderMonthSummary(entriesByDate) {
+    var s = calendar.summarize(entriesByDate, state.year, state.month);
+    var order = ['flight', 'layover', 'standby', 'off', 'training', 'other', 'unknown'];
+    var parts = ['일정 있는 날 <b>' + s.days + '일</b>'];
+    order.forEach(function (key) {
+      if (s.counts[key]) {
+        parts.push(codes.CATEGORY_LABELS[key] + ' <b>' + s.counts[key] + '</b>');
+      }
+    });
+    $('monthSummary').innerHTML = parts.join('<span aria-hidden="true">·</span>');
+  }
+
+  function renderDayDetail() {
+    var date = state.selectedDate;
+    var list = store.getByDate(date);
+    $('dayTitle').textContent = date + ' (' + calendar.weekdayOf(date) + ') · ' + list.length + '건';
+
+    var ul = $('dayList');
+    ul.innerHTML = '';
+    if (!list.length) {
+      var empty = document.createElement('li');
+      empty.className = 'empty';
+      empty.textContent = '등록된 일정이 없습니다.';
+      ul.appendChild(empty);
+      return;
+    }
+
+    list.forEach(function (entry) {
+      var li = document.createElement('li');
+
+      var chip = document.createElement('span');
+      chip.className = 'chip cat-' + (entry.category || 'other');
+      chip.textContent = entry.code;
+      li.appendChild(chip);
+
+      var main = document.createElement('span');
+      main.className = 'entry-main';
+      main.textContent = entry.label || '';
+      var detail = detailText(entry);
+      if (detail) {
+        var sub = document.createElement('span');
+        sub.className = 'entry-sub';
+        sub.textContent = ' ' + detail;
+        main.appendChild(sub);
+      }
+      li.appendChild(main);
+
+      var del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'icon-btn';
+      del.title = '삭제';
+      del.setAttribute('aria-label', entry.code + ' 삭제');
+      del.textContent = '×';
+      del.addEventListener('click', function () {
+        store.removeEntry(date, entry.id);
+        refresh();
+        toast('삭제했습니다.');
+      });
+      li.appendChild(del);
+
+      ul.appendChild(li);
+    });
+  }
+
+  function selectDate(date) {
+    state.selectedDate = date;
+    $('singleDate').value = date;
+    refresh();
+  }
+
+  function goMonth(delta) {
+    var m = state.month + delta;
+    var y = state.year;
+    while (m > 12) { m -= 12; y++; }
+    while (m < 1) { m += 12; y--; }
+    state.year = y;
+    state.month = m;
+    syncPasteBase();
+    refresh();
+  }
+
+  function syncPasteBase() {
+    $('pasteBase').value = state.year + '-' + pad2(state.month);
+  }
+
+  /* ---------------- 탭 ---------------- */
+
+  function initTabs() {
+    var tabs = document.querySelectorAll('.tab');
+    Array.prototype.forEach.call(tabs, function (tab) {
+      tab.addEventListener('click', function () { showTab(tab.getAttribute('data-tab')); });
+    });
+  }
+
+  function showTab(name) {
+    Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (t) {
+      var on = t.getAttribute('data-tab') === name;
+      t.classList.toggle('active', on);
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('.panel'), function (p) {
+      p.classList.toggle('active', p.id === 'panel-' + name);
+    });
+  }
+
+  /* ---------------- 1) 날짜별 개별 입력 ---------------- */
+
+  function initSingleForm() {
+    var datalist = $('codeList');
+    codes.knownCodeList().forEach(function (code) {
+      var opt = document.createElement('option');
+      opt.value = code;
+      opt.label = codes.DUTY_CODES[code].label;
+      datalist.appendChild(opt);
+    });
+
+    $('singleDate').value = state.selectedDate;
+    $('singleDate').addEventListener('change', function () {
+      if (this.value) selectDate(this.value);
+    });
+
+    $('singleCode').addEventListener('input', syncTimeLabels);
+    $('singleEnd').addEventListener('input', syncNextDayBox);
+    syncTimeLabels();
+
+    $('singleForm').addEventListener('submit', function (event) {
+      event.preventDefault();
+      var date = $('singleDate').value;
+      var code = $('singleCode').value.trim().toUpperCase();
+      if (!date || !code) return;
+
+      try {
+        store.addEntry({
+          date: date,
+          code: code,
+          route: $('singleRoute').value.trim().toUpperCase() || null,
+          start: $('singleStart').value || null,
+          end: $('singleEnd').value || null,
+          endOffset: ($('singleEnd').value && $('singleNextDay').checked) ? 1 : 0,
+          memo: $('singleMemo').value.trim() || null
+        });
+      } catch (e) {
+        toast(e.message);
+        return;
+      }
+
+      state.selectedDate = date;
+      state.year = +date.slice(0, 4);
+      state.month = +date.slice(5, 7);
+
+      $('singleCode').value = '';
+      $('singleRoute').value = '';
+      $('singleStart').value = '';
+      $('singleEnd').value = '';
+      $('singleNextDay').checked = false;
+      $('singleMemo').value = '';
+      syncTimeLabels();
+      $('singleCode').focus();
+
+      syncPasteBase();
+      refresh();
+      toast(date + ' 에 ' + code + ' 추가');
+    });
+  }
+
+  /** 편명이면 출발/도착, 그 밖의 근무면 시작/종료로 라벨을 바꾼다. */
+  function syncTimeLabels() {
+    var flight = looksLikeFlight($('singleCode').value);
+    $('startLabel').innerHTML = (flight ? '출발 시각' : '시작 시각') + ' <em>(선택)</em>';
+    $('endLabel').innerHTML = (flight ? '도착 시각' : '종료 시각') + ' <em>(선택)</em>';
+    syncNextDayBox();
+  }
+
+  function syncNextDayBox() {
+    var box = $('singleNextDay');
+    var hasEnd = !!$('singleEnd').value;
+    box.disabled = !hasEnd;
+    if (!hasEnd) box.checked = false;
+  }
+
+  /* ---------------- 2) 텍스트 붙여넣기 ---------------- */
+
+  function initPaste() {
+    syncPasteBase();
+
+    $('sampleBtn').addEventListener('click', function () {
+      $('pasteInput').value = SAMPLE;
+      $('pasteBase').value = '2026-09';
+      runParse();
+    });
+
+    $('clearPasteBtn').addEventListener('click', function () {
+      $('pasteInput').value = '';
+      hidePreview();
+    });
+
+    $('parseBtn').addEventListener('click', runParse);
+    $('cancelPreviewBtn').addEventListener('click', function () {
+      hidePreview();
+      toast('반영을 취소했습니다.');
+    });
+    $('applyBtn').addEventListener('click', applyPreview);
+
+    $('checkAll').addEventListener('change', function () {
+      var on = this.checked;
+      Array.prototype.forEach.call(document.querySelectorAll('#previewBody input[type=checkbox]'), function (cb) {
+        cb.checked = on;
+      });
+      updateApplyButton();
+    });
+  }
+
+  function baseYearMonth() {
+    var raw = $('pasteBase').value;
+    if (/^\d{4}-\d{2}$/.test(raw)) {
+      return { year: +raw.slice(0, 4), month: +raw.slice(5, 7) };
+    }
+    return { year: state.year, month: state.month };
+  }
+
+  function runParse() {
+    var text = $('pasteInput').value;
+    if (!text.trim()) {
+      hidePreview();
+      toast('붙여넣은 내용이 없습니다.');
+      return;
+    }
+    var base = baseYearMonth();
+    var result = parser.parse(text, base);
+    showPreview(result);
+  }
+
+  function showPreview(result) {
+    state.preview = result;
+
+    if (!result.entries.length) {
+      hidePreview();
+      toast('날짜와 코드를 찾지 못했습니다. 형식을 확인해 주세요.');
+      return;
+    }
+
+    var s = result.stats;
+    $('previewSummary').innerHTML =
+      '<b>' + s.dateCount + '일</b> · <b>' + s.entryCount + '건</b>' +
+      (s.firstDate ? ' · ' + s.firstDate + ' ~ ' + s.lastDate : '') +
+      (result.warnings.length ? ' · 확인 필요 ' + result.warnings.length + '건' : '');
+
+    var warnBox = $('previewWarnings');
+    if (result.warnings.length) {
+      var items = result.warnings.slice(0, 8).map(function (w) {
+        return '<li>' + w.line + '행: ' + escapeHtml(w.message) + ' <code>' + escapeHtml(w.text) + '</code></li>';
+      }).join('');
+      var more = result.warnings.length > 8 ? '<li>… 외 ' + (result.warnings.length - 8) + '건</li>' : '';
+      warnBox.innerHTML = '확인이 필요한 줄이 있습니다.<ul>' + items + more + '</ul>';
+      warnBox.hidden = false;
+    } else {
+      warnBox.hidden = true;
+      warnBox.innerHTML = '';
+    }
+
+    var tbody = $('previewBody');
+    tbody.innerHTML = '';
+    result.entries.forEach(function (entry) {
+      var tr = document.createElement('tr');
+      if (!entry.known) tr.className = 'unknown-row';
+
+      var tdCheck = document.createElement('td');
+      var cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = entry.known !== false; // 미확인 코드는 기본 해제
+      cb.setAttribute('data-entry-id', entry.id);
+      cb.addEventListener('change', updateApplyButton);
+      tdCheck.appendChild(cb);
+      tr.appendChild(tdCheck);
+
+      tr.appendChild(cell(entry.date + ' (' + calendar.weekdayOf(entry.date) + ')'));
+
+      var tdCode = document.createElement('td');
+      var chip = document.createElement('span');
+      chip.className = 'chip cat-' + (entry.category || 'other');
+      chip.textContent = entry.code;
+      tdCode.appendChild(chip);
+      tr.appendChild(tdCode);
+
+      tr.appendChild(cell(entry.label || ''));
+      tr.appendChild(cell(entry.route || ''));
+      tr.appendChild(cell(timeCellText(entry, 'start')));
+      tr.appendChild(cell(timeCellText(entry, 'end')));
+
+      var tdSrc = cell(entry.source || '');
+      tdSrc.className = 'src';
+      tdSrc.title = entry.source || '';
+      tr.appendChild(tdSrc);
+
+      tbody.appendChild(tr);
+    });
+
+    $('checkAll').checked = result.entries.every(function (e) { return e.known !== false; });
+    $('preview').hidden = false;
+    updateApplyButton();
+    $('preview').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    function cell(text) {
+      var td = document.createElement('td');
+      td.textContent = text;
+      return td;
+    }
+  }
+
+  function hidePreview() {
+    state.preview = null;
+    $('preview').hidden = true;
+    $('previewBody').innerHTML = '';
+  }
+
+  function selectedPreviewEntries() {
+    if (!state.preview) return [];
+    var checked = {};
+    Array.prototype.forEach.call(document.querySelectorAll('#previewBody input[type=checkbox]'), function (cb) {
+      if (cb.checked) checked[cb.getAttribute('data-entry-id')] = true;
+    });
+    return state.preview.entries.filter(function (e) { return checked[e.id]; });
+  }
+
+  function updateApplyButton() {
+    var n = selectedPreviewEntries().length;
+    var btn = $('applyBtn');
+    btn.disabled = n === 0;
+    btn.textContent = n ? '캘린더에 반영 (' + n + '건)' : '캘린더에 반영';
+  }
+
+  function applyPreview() {
+    var entries = selectedPreviewEntries();
+    if (!entries.length) return;
+
+    var mode = document.querySelector('input[name=applyMode]:checked').value;
+    if (mode === 'replace') {
+      var existing = store.countExisting(entries);
+      if (existing > 0) {
+        var ok = window.confirm('해당 날짜의 기존 일정 ' + existing + '건을 지우고 ' + entries.length + '건을 반영합니다. 계속할까요?');
+        if (!ok) return;
+      }
+    }
+
+    var res = store.applyEntries(entries, mode);
+    var first = entries[0].date;
+    state.year = +first.slice(0, 4);
+    state.month = +first.slice(5, 7);
+    state.selectedDate = first;
+    $('singleDate').value = first;
+
+    hidePreview();
+    syncPasteBase();
+    refresh();
+    toast(res.added + '건 반영' + (res.removed ? ' · 기존 ' + res.removed + '건 교체' : ''));
+  }
+
+  function escapeHtml(text) {
+    return String(text == null ? '' : text)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  /* ---------------- 3) 스크린샷 업로드 ---------------- */
+
+  function initImage() {
+    var config = vision.loadConfig();
+    $('visionEndpoint').value = config.endpoint;
+    $('visionModel').value = config.model;
+
+    var dropZone = $('dropZone');
+    var input = $('imageInput');
+
+    dropZone.addEventListener('click', function () { input.click(); });
+    dropZone.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); }
+    });
+    ['dragenter', 'dragover'].forEach(function (type) {
+      dropZone.addEventListener(type, function (e) {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+      });
+    });
+    ['dragleave', 'drop'].forEach(function (type) {
+      dropZone.addEventListener(type, function (e) {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+      });
+    });
+    dropZone.addEventListener('drop', function (e) {
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+        setImageFile(e.dataTransfer.files[0]);
+      }
+    });
+    input.addEventListener('change', function () {
+      if (input.files && input.files.length) setImageFile(input.files[0]);
+    });
+
+    $('removeImageBtn').addEventListener('click', clearImage);
+    $('analyzeBtn').addEventListener('click', runAnalyze);
+
+    $('saveVisionConfig').addEventListener('click', function () {
+      var saved = vision.saveConfig({
+        endpoint: $('visionEndpoint').value,
+        model: $('visionModel').value
+      });
+      $('visionEndpoint').value = saved.endpoint;
+      $('visionModel').value = saved.model;
+      updateAnalyzeButton();
+      toast(saved.endpoint ? '연동 설정을 저장했습니다.' : '엔드포인트를 비웠습니다.');
+    });
+
+    updateAnalyzeButton();
+  }
+
+  function setImageFile(file) {
+    var invalid = vision.validateFile(file);
+    if (invalid) {
+      setStatus(invalid, 'error');
+      return;
+    }
+    state.imageFile = file;
+    $('imageName').textContent = file.name + ' · ' + Math.round(file.size / 1024) + 'KB';
+    vision.fileToBase64(file).then(function (image) {
+      $('imageThumb').src = image.dataUrl;
+      $('imagePreview').hidden = false;
+    });
+    setStatus('', '');
+    updateAnalyzeButton();
+  }
+
+  function clearImage() {
+    state.imageFile = null;
+    $('imageInput').value = '';
+    $('imageThumb').removeAttribute('src');
+    $('imagePreview').hidden = true;
+    setStatus('', '');
+    updateAnalyzeButton();
+  }
+
+  function updateAnalyzeButton() {
+    var btn = $('analyzeBtn');
+    var configured = vision.isConfigured();
+    btn.disabled = !state.imageFile || !configured;
+    if (!configured) {
+      btn.title = '이미지 인식 서버가 아직 연결되지 않았습니다.';
+      if (state.imageFile) {
+        setStatus('이미지는 준비됐습니다. 인식 기능은 다음 단계에서 Claude API 를 연결하면 켜집니다.', '');
+      }
+    } else {
+      btn.title = '';
+    }
+  }
+
+  function setStatus(message, kind) {
+    var el = $('imageStatus');
+    el.textContent = message;
+    el.className = 'status' + (kind ? ' ' + kind : '');
+  }
+
+  function runAnalyze() {
+    if (!state.imageFile) return;
+    var base = baseYearMonth();
+    setStatus('이미지를 읽는 중…', '');
+    $('analyzeBtn').disabled = true;
+
+    vision.analyze(state.imageFile, { year: base.year, month: base.month })
+      .then(function (result) {
+        if (result.text) {
+          $('pasteInput').value = result.text;
+          showTab('paste');
+          runParse();
+          setStatus('인식 결과를 텍스트 미리보기로 넘겼습니다.', 'ok');
+          return;
+        }
+        var normalized = (result.entries || []).map(function (e) {
+          return store.decorate({
+            date: e.date,
+            code: e.code,
+            route: e.route || null,
+            start: e.start || e.dep || null,
+            end: e.end || e.arr || null,
+            endOffset: e.endOffset || 0
+          });
+        }).filter(function (e) { return /^\d{4}-\d{2}-\d{2}$/.test(e.date) && e.code; });
+
+        normalized.forEach(function (e, i) {
+          e.id = 'v' + (i + 1);
+          e.known = e.category !== 'unknown';
+          e.source = '스크린샷 인식';
+        });
+
+        showTab('paste');
+        showPreview({
+          entries: normalized,
+          warnings: [],
+          ignoredLines: [],
+          stats: statsOf(normalized)
+        });
+        setStatus('인식 결과를 미리보기로 넘겼습니다.', 'ok');
+      })
+      .catch(function (err) {
+        setStatus(err.message, 'error');
+      })
+      .then(function () {
+        updateAnalyzeButton();
+      });
+  }
+
+  function statsOf(entries) {
+    var dates = {};
+    var counts = {};
+    entries.forEach(function (e) {
+      dates[e.date] = true;
+      counts[e.category] = (counts[e.category] || 0) + 1;
+    });
+    var keys = Object.keys(dates).sort();
+    return {
+      dateCount: keys.length,
+      entryCount: entries.length,
+      firstDate: keys[0] || null,
+      lastDate: keys[keys.length - 1] || null,
+      counts: counts
+    };
+  }
+
+  /* ---------------- 백업 도구 ---------------- */
+
+  /**
+   * 백업 파일 저장.
+   * 아티팩트로 열렸을 때는 뷰어가 저장을 중개하므로 링크 클릭이 동작하지 않는다.
+   * 그래서 뷰어가 있으면 뷰어에 맡기고, 파일이나 서버로 직접 열었을 때만 링크로 내려받는다.
+   */
+  var downloadsReady = null;
+
+  function initDownloads() {
+    if (!window.claude || typeof window.claude.use !== 'function') return;
+    downloadsReady = window.claude.use('downloads').then(function (api) {
+      if (!api) $('exportBtn').hidden = true;
+      return api;
+    }, function () {
+      $('exportBtn').hidden = true;
+      return null;
+    });
+  }
+
+  function exportBackup() {
+    var filename = 'crew-cal-' + calendar.todayIso() + '.json';
+    var json = store.exportJson();
+
+    if (!downloadsReady) {
+      saveViaLink(filename, json);
+      return;
+    }
+
+    downloadsReady.then(function (api) {
+      if (!api) {
+        toast('이 화면에서는 백업 저장을 지원하지 않습니다.');
+        return;
+      }
+      return api.save({ filename: filename, data: json }).then(function (result) {
+        if (!result || result.status === 'saved') toast('백업을 저장했습니다.');
+      }, function (err) {
+        var code = err && err.code;
+        if (code === 'declined') return;
+        if (code === 'rate_limited') {
+          toast('저장 창이 이미 열려 있습니다. 잠시 후 다시 눌러주세요.');
+          return;
+        }
+        toast('백업을 저장하지 못했습니다.');
+      });
+    });
+  }
+
+  function saveViaLink(filename, text) {
+    var blob = new Blob([text], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+
+  function initDataTools() {
+    $('exportBtn').addEventListener('click', exportBackup);
+
+    $('importBtn').addEventListener('click', function () { $('importInput').click(); });
+    $('importInput').addEventListener('change', function () {
+      var file = this.files && this.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function () {
+        try {
+          store.importJson(String(reader.result));
+          refresh();
+          toast('백업을 불러왔습니다.');
+        } catch (e) {
+          toast('불러오기 실패: ' + e.message);
+        }
+      };
+      reader.readAsText(file);
+      this.value = '';
+    });
+
+    $('clearAllBtn').addEventListener('click', function () {
+      if (!window.confirm('저장된 모든 일정을 삭제합니다. 계속할까요?')) return;
+      store.clearAll();
+      refresh();
+      toast('전체 삭제했습니다.');
+    });
+  }
+
+  /* ---------------- 시작 ---------------- */
+
+  function init() {
+    $('prevMonth').addEventListener('click', function () { goMonth(-1); });
+    $('nextMonth').addEventListener('click', function () { goMonth(1); });
+    $('todayBtn').addEventListener('click', function () {
+      var today = calendar.todayIso();
+      state.year = +today.slice(0, 4);
+      state.month = +today.slice(5, 7);
+      state.selectedDate = today;
+      $('singleDate').value = today;
+      syncPasteBase();
+      refresh();
+    });
+
+    initDownloads();
+    initTabs();
+    initSingleForm();
+    initPaste();
+    initImage();
+    initDataTools();
+    refresh();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
