@@ -4,7 +4,7 @@ name: Pages
 
 on:
   push:
-    branches: [main, claude/text-paste-input-mode-f3jw1h]
+    branches: [main, claude/text-paste-input-mode-f3jw1h, claude/work-request-odmwi6]
   workflow_dispatch:
 
 permissions:
@@ -30,12 +30,28 @@ jobs:
         run: |
           node build.js
           git diff --exit-code -- dist/crew-cal.html
+
+      # 임장 노트(imjang/)는 빌드가 필요한 별도 앱이다. /imjang/ 아래로 함께 내보낸다.
+      - name: 임장 노트 빌드
+        working-directory: imjang
+        run: |
+          npm ci
+          npm test
+          npm run build
+
+      - name: 사이트 모으기
+        run: |
+          mkdir -p _site
+          tar -cf - --exclude=./.git --exclude=./_site --exclude=./imjang . | (cd _site && tar -xf -)
+          mkdir -p _site/imjang
+          cp -r imjang/dist/. _site/imjang/
+
       - uses: actions/configure-pages@v5
         with:
           enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: _site
 
   deploy:
     needs: build
