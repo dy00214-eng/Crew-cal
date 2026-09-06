@@ -130,6 +130,23 @@
     return String(entry.code).replace(/^[A-Z]{2}(?=\d)/, '');
   }
 
+  /**
+   * 그날이 어떤 날인지 한마디로. 칸 전체를 이 색으로 칠해 쉬는 날과 비행 날을 갈라 준다.
+   * 하루에 여러 개가 있으면 무거운 쪽을 따른다. 비행이 하나라도 있으면 비행하는 날이고,
+   * 아무 근무도 없이 휴무만 있어야 쉬는 날이다.
+   */
+  var DAY_ORDER = ['flight', 'standby', 'training', 'layover', 'other', 'unknown', 'off'];
+
+  function dayCategory(list) {
+    if (!list || !list.length) return null;
+    for (var i = 0; i < DAY_ORDER.length; i++) {
+      for (var j = 0; j < list.length; j++) {
+        if ((list[j].category || 'other') === DAY_ORDER[i]) return DAY_ORDER[i];
+      }
+    }
+    return null;
+  }
+
   function nextDay(date) {
     var d = new Date(date + 'T00:00:00Z');
     if (isNaN(d)) return null;
@@ -231,6 +248,8 @@
         if (weekday === 0) cell.classList.add('sun');
         if (weekday === 6) cell.classList.add('sat');
         if (holiday) cell.classList.add('holiday');
+        var dayKind = dayCategory(list);
+        if (dayKind) cell.classList.add('day-' + dayKind);
         if (outside) cell.classList.add('outside');
         if (date === today) cell.classList.add('today');
         if (date === selected) cell.classList.add('selected');
@@ -380,6 +399,8 @@
       if (date === today) row.classList.add('today');
       if (date === selected) row.classList.add('selected');
       if (outsideDates[date]) row.classList.add('outside');
+      var rowKind = dayCategory(entriesByDate[date]);
+      if (rowKind) row.classList.add('day-' + rowKind);
       row.setAttribute('data-date', date);
 
       var day = document.createElement('span');
@@ -594,6 +615,7 @@
     routeLabel: routeLabel,
     placeLabel: placeLabel,
     chipText: chipText,
+    dayCategory: dayCategory,
     iso: iso,
     pad2: pad2,
     todayIso: todayIso,

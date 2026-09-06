@@ -218,3 +218,20 @@ test('한국에 내리는 편은 "한국 도착" 이라고 못박는다', () => 
   const full = { type: 'flight', route: 'CDG/ICN', start: '13:25', end: '15:50', endOffset: 1 };
   assert.strictEqual(calendar.describeTimes(full, true), '출발 13:25 → 도착 15:50 (익일)');
 });
+
+test('하루의 성격은 무거운 쪽을 따른다', () => {
+  const flight = { category: 'flight' };
+  const layover = { category: 'layover' };
+  const off = { category: 'off' };
+  const standby = { category: 'standby' };
+
+  assert.strictEqual(calendar.dayCategory([flight, layover]), 'flight');
+  assert.strictEqual(calendar.dayCategory([layover, flight]), 'flight');
+  assert.strictEqual(calendar.dayCategory([layover]), 'layover');
+  assert.strictEqual(calendar.dayCategory([standby, off]), 'standby');
+  // 휴무만 있어야 쉬는 날이다
+  assert.strictEqual(calendar.dayCategory([off]), 'off');
+  assert.strictEqual(calendar.dayCategory([off, layover]), 'layover');
+  assert.strictEqual(calendar.dayCategory([]), null);
+  assert.strictEqual(calendar.dayCategory(), null);
+});

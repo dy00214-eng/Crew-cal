@@ -311,6 +311,24 @@ body {
   color: #fff;
 }
 
+/* 훑어봤을 때 쉬는 날과 비행 날이 바로 갈리도록 칸 전체를 옅게 칠한다.
+   칩만으로는 크기가 다 비슷해 한눈에 구분되지 않는다는 이야기가 있었다. */
+.cal-cell.day-flight { background: color-mix(in srgb, var(--cat-flight) 10%, transparent); }
+.cal-cell.day-layover { background: color-mix(in srgb, var(--cat-layover) 10%, transparent); }
+.cal-cell.day-standby { background: color-mix(in srgb, var(--cat-standby) 12%, transparent); }
+.cal-cell.day-training { background: color-mix(in srgb, var(--cat-training) 12%, transparent); }
+.cal-cell.day-off { background: color-mix(in srgb, var(--cat-off) 14%, transparent); }
+.cal-cell.day-unknown { background: color-mix(in srgb, var(--cat-unknown) 10%, transparent); }
+.cal-cell.outside { opacity: 0.7; }
+
+/* 칸이 이미 색을 갖고 있으므로 칩 배경은 덜어내고 글자만 남긴다 */
+.cal-cell[class*="day-"] .chip {
+  background: transparent;
+  padding-left: 2px;
+  padding-right: 2px;
+  font-weight: 700;
+}
+
 .cal-chips { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .cal-item { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 
@@ -429,6 +447,14 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 .agenda-row:last-child { border-bottom: none; }
+/* 목록에서도 그날의 성격을 왼쪽 띠로 세워 둔다 (색은 달력 칸과 같다) */
+.agenda-row { border-left: 3px solid transparent; padding-left: 9px; }
+.agenda-row.day-flight { border-left-color: var(--cat-flight); }
+.agenda-row.day-layover { border-left-color: var(--cat-layover); }
+.agenda-row.day-standby { border-left-color: var(--cat-standby); }
+.agenda-row.day-training { border-left-color: var(--cat-training); }
+.agenda-row.day-off { border-left-color: var(--cat-off); }
+.agenda-row.day-unknown { border-left-color: var(--cat-unknown); }
 .agenda-row.selected { background: var(--fill); border-radius: 10px; }
 .agenda-row.outside .agenda-date b { color: var(--faint); font-weight: 500; }
 .agenda-row.outside .chip, .agenda-row.outside .agenda-text { opacity: 0.75; }

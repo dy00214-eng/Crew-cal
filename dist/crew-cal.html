@@ -315,6 +315,24 @@ body {
   color: #fff;
 }
 
+/* 훑어봤을 때 쉬는 날과 비행 날이 바로 갈리도록 칸 전체를 옅게 칠한다.
+   칩만으로는 크기가 다 비슷해 한눈에 구분되지 않는다는 이야기가 있었다. */
+.cal-cell.day-flight { background: color-mix(in srgb, var(--cat-flight) 10%, transparent); }
+.cal-cell.day-layover { background: color-mix(in srgb, var(--cat-layover) 10%, transparent); }
+.cal-cell.day-standby { background: color-mix(in srgb, var(--cat-standby) 12%, transparent); }
+.cal-cell.day-training { background: color-mix(in srgb, var(--cat-training) 12%, transparent); }
+.cal-cell.day-off { background: color-mix(in srgb, var(--cat-off) 14%, transparent); }
+.cal-cell.day-unknown { background: color-mix(in srgb, var(--cat-unknown) 10%, transparent); }
+.cal-cell.outside { opacity: 0.7; }
+
+/* 칸이 이미 색을 갖고 있으므로 칩 배경은 덜어내고 글자만 남긴다 */
+.cal-cell[class*="day-"] .chip {
+  background: transparent;
+  padding-left: 2px;
+  padding-right: 2px;
+  font-weight: 700;
+}
+
 .cal-chips { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .cal-item { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 
@@ -433,6 +451,14 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 .agenda-row:last-child { border-bottom: none; }
+/* 목록에서도 그날의 성격을 왼쪽 띠로 세워 둔다 (색은 달력 칸과 같다) */
+.agenda-row { border-left: 3px solid transparent; padding-left: 9px; }
+.agenda-row.day-flight { border-left-color: var(--cat-flight); }
+.agenda-row.day-layover { border-left-color: var(--cat-layover); }
+.agenda-row.day-standby { border-left-color: var(--cat-standby); }
+.agenda-row.day-training { border-left-color: var(--cat-training); }
+.agenda-row.day-off { border-left-color: var(--cat-off); }
+.agenda-row.day-unknown { border-left-color: var(--cat-unknown); }
 .agenda-row.selected { background: var(--fill); border-radius: 10px; }
 .agenda-row.outside .agenda-date b { color: var(--faint); font-weight: 500; }
 .agenda-row.outside .chip, .agenda-row.outside .agenda-text { opacity: 0.75; }
@@ -3955,6 +3981,23 @@ button.ghost.danger { color: var(--danger); }
     return String(entry.code).replace(/^[A-Z]{2}(?=\d)/, '');
   }
 
+  /**
+   * 그날이 어떤 날인지 한마디로. 칸 전체를 이 색으로 칠해 쉬는 날과 비행 날을 갈라 준다.
+   * 하루에 여러 개가 있으면 무거운 쪽을 따른다. 비행이 하나라도 있으면 비행하는 날이고,
+   * 아무 근무도 없이 휴무만 있어야 쉬는 날이다.
+   */
+  var DAY_ORDER = ['flight', 'standby', 'training', 'layover', 'other', 'unknown', 'off'];
+
+  function dayCategory(list) {
+    if (!list || !list.length) return null;
+    for (var i = 0; i < DAY_ORDER.length; i++) {
+      for (var j = 0; j < list.length; j++) {
+        if ((list[j].category || 'other') === DAY_ORDER[i]) return DAY_ORDER[i];
+      }
+    }
+    return null;
+  }
+
   function nextDay(date) {
     var d = new Date(date + 'T00:00:00Z');
     if (isNaN(d)) return null;
@@ -4056,6 +4099,8 @@ button.ghost.danger { color: var(--danger); }
         if (weekday === 0) cell.classList.add('sun');
         if (weekday === 6) cell.classList.add('sat');
         if (holiday) cell.classList.add('holiday');
+        var dayKind = dayCategory(list);
+        if (dayKind) cell.classList.add('day-' + dayKind);
         if (outside) cell.classList.add('outside');
         if (date === today) cell.classList.add('today');
         if (date === selected) cell.classList.add('selected');
@@ -4205,6 +4250,8 @@ button.ghost.danger { color: var(--danger); }
       if (date === today) row.classList.add('today');
       if (date === selected) row.classList.add('selected');
       if (outsideDates[date]) row.classList.add('outside');
+      var rowKind = dayCategory(entriesByDate[date]);
+      if (rowKind) row.classList.add('day-' + rowKind);
       row.setAttribute('data-date', date);
 
       var day = document.createElement('span');
@@ -4419,6 +4466,7 @@ button.ghost.danger { color: var(--danger); }
     routeLabel: routeLabel,
     placeLabel: placeLabel,
     chipText: chipText,
+    dayCategory: dayCategory,
     iso: iso,
     pad2: pad2,
     todayIso: todayIso,
