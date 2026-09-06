@@ -1,0 +1,48 @@
+# 기본 브랜치에 올라갈 때마다 GitHub Pages 로 내보낸다.
+# 저장소에 Pages 가 아직 안 켜져 있으면 configure-pages 가 켜준다.
+name: Pages
+
+on:
+  push:
+    branches: [main, claude/text-paste-input-mode-f3jw1h]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: 테스트
+        run: npm test
+      - name: 한 파일 버전도 최신인지 확인
+        run: |
+          node build.js
+          git diff --exit-code -- dist/crew-cal.html
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
