@@ -291,6 +291,7 @@
 
       syncPasteBase();
       refresh();
+      renderFlightBook();
       toast(date + ' 에 ' + code + ' 추가');
     });
   }
@@ -359,6 +360,7 @@
     }
     var base = baseYearMonth();
     var result = parser.parse(text, base);
+    result.entries.forEach(function (entry) { store.enrich(entry); });
     showPreview(result);
   }
 
@@ -371,11 +373,21 @@
       return;
     }
 
+    var autoFilled = result.entries.filter(function (e) { return e.autoFilled; }).length;
     var s = result.stats;
     $('previewSummary').innerHTML =
       '<b>' + s.dateCount + '일</b> · <b>' + s.entryCount + '건</b>' +
       (s.firstDate ? ' · ' + s.firstDate + ' ~ ' + s.lastDate : '') +
       (result.warnings.length ? ' · 확인 필요 ' + result.warnings.length + '건' : '');
+
+    var memoBox = $('previewMemo');
+    if (autoFilled) {
+      memoBox.textContent = '기억해둔 편명의 구간·시각을 ' + autoFilled + '건 채웠습니다. ' +
+        '표에서 확인하고, 다르면 붙여넣은 텍스트에 직접 적어주세요.';
+      memoBox.hidden = false;
+    } else {
+      memoBox.hidden = true;
+    }
 
     var warnBox = $('previewWarnings');
     if (result.warnings.length) {
@@ -415,9 +427,9 @@
       tr.appendChild(tdCode);
 
       tr.appendChild(cell(entry.label || ''));
-      tr.appendChild(cell(calendar.routeLabel(entry)));
-      tr.appendChild(cell(timeCellText(entry, 'start')));
-      tr.appendChild(cell(timeCellText(entry, 'end')));
+      tr.appendChild(autoCell(calendar.routeLabel(entry), entry, 'route'));
+      tr.appendChild(autoCell(timeCellText(entry, 'start'), entry, 'start'));
+      tr.appendChild(autoCell(timeCellText(entry, 'end'), entry, 'end'));
 
       var tdSrc = cell(entry.source || '');
       tdSrc.className = 'src';
@@ -435,6 +447,16 @@
     function cell(text) {
       var td = document.createElement('td');
       td.textContent = text;
+      return td;
+    }
+
+    /** 기억해둔 값으로 채운 칸은 점선을 그어 직접 넣은 값과 구분한다. */
+    function autoCell(text, entry, field) {
+      var td = cell(text);
+      if (entry.autoFilled && entry.autoFilled.indexOf(field) !== -1) {
+        td.className = 'auto-filled';
+        td.title = '기억해둔 ' + entry.code + ' 정보로 채웠습니다.';
+      }
       return td;
     }
   }
@@ -484,6 +506,7 @@
     hidePreview();
     syncPasteBase();
     refresh();
+    renderFlightBook();
     toast(res.added + '건 반영' + (res.removed ? ' · 기존 ' + res.removed + '건 교체' : ''));
   }
 
@@ -797,7 +820,43 @@
     setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
   }
 
+  /** 기억해둔 편명 목록을 그린다. */
+  function renderFlightBook() {
+    var list = store.flightList();
+    $('flightCount').textContent = list.length;
+    $('flightBook').hidden = list.length === 0;
+
+    var ul = $('flightList');
+    ul.innerHTML = '';
+    list.forEach(function (item) {
+      var li = document.createElement('li');
+
+      var chip = document.createElement('span');
+      chip.className = 'chip cat-flight';
+      chip.textContent = item.code;
+      li.appendChild(chip);
+
+      var text = document.createElement('span');
+      text.className = 'entry-main';
+      text.textContent = [calendar.routeLabel(item), calendar.describeTimes({
+        type: 'flight', start: item.start, end: item.end, endOffset: item.endOffset
+      })].filter(Boolean).join(' · ') || '기억한 정보 없음';
+      li.appendChild(text);
+
+      ul.appendChild(li);
+    });
+  }
+
   function initDataTools() {
+    renderFlightBook();
+
+    $('forgetFlightsBtn').addEventListener('click', function () {
+      if (!window.confirm('기억해둔 편명의 구간·시각을 모두 지웁니다. 계속할까요?')) return;
+      store.forgetFlights();
+      renderFlightBook();
+      toast('편명 기억을 지웠습니다.');
+    });
+
     $('exportBtn').addEventListener('click', exportBackup);
 
     $('importBtn').addEventListener('click', function () { $('importInput').click(); });

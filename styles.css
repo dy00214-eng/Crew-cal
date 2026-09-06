@@ -248,6 +248,31 @@ body {
 .legend li { display: flex; align-items: center; gap: 5px; }
 .dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
 
+/* ---------- 기억한 편명 ---------- */
+.flight-book {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-top: 16px;
+}
+.flight-book summary { cursor: pointer; font-size: 13px; font-weight: 600; }
+.flight-book .muted { margin: 8px 0; line-height: 1.5; }
+.flight-book .entry-list { margin-top: 8px; }
+
+.memo {
+  background: var(--accent-soft);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  margin: 10px 0 0;
+  color: var(--text);
+}
+.preview-table td.auto-filled {
+  text-decoration: underline dotted var(--muted);
+  text-underline-offset: 3px;
+}
+
 /* ---------- 안내 상자 ---------- */
 .fallback {
   border: 1px solid var(--line);

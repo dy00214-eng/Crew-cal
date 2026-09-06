@@ -12,7 +12,9 @@
   'use strict';
 
   var KEY = 'crew-cal.schedule.v1';
+  var FLIGHTS_KEY = 'crew-cal.flights.v1';
   var memory = null;
+  var flightMemory = null;
   var seq = 0;
 
   function storage() {
@@ -60,6 +62,100 @@
     return 'e' + Date.now().toString(36) + (seq++).toString(36) + Math.random().toString(36).slice(2, 6);
   }
 
+  /* ---------------- 편명 기억 ----------------
+   * 크루넷 월간 화면에는 편명만 있고 시각이 없다. 한 번이라도 구간·시각을 넣은
+   * 편명은 여기에 적어두었다가, 다음에 같은 편명이 코드만으로 들어오면 채워준다.
+   * 없는 정보를 지어내지 않도록, 사용자가 직접 넣은 값만 기억한다.
+   */
+
+  function loadFlights() {
+    var ls = storage();
+    if (!ls) return flightMemory || (flightMemory = {});
+    try {
+      var raw = ls.getItem(FLIGHTS_KEY);
+      var data = raw ? JSON.parse(raw) : null;
+      return (data && typeof data === 'object') ? data : {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function saveFlights(data) {
+    var ls = storage();
+    if (!ls) { flightMemory = data; return data; }
+    try {
+      ls.setItem(FLIGHTS_KEY, JSON.stringify(data));
+    } catch (e) {
+      flightMemory = data;
+    }
+    return data;
+  }
+
+  function isFlightCode(entry) {
+    return entry && entry.type === 'flight' && /^[A-Z]{2}\d{1,4}[A-Z]?$/.test(entry.code || '');
+  }
+
+  /** 구간이나 시각이 들어 있는 항공편이면 그 값을 기억한다. */
+  function learnFlight(entry) {
+    if (!isFlightCode(entry)) return null;
+    if (!entry.route && !entry.start && !entry.end) return null;
+
+    var data = loadFlights();
+    var known = data[entry.code] || {};
+    data[entry.code] = {
+      route: entry.route || known.route || null,
+      start: entry.start || known.start || null,
+      end: entry.end || known.end || null,
+      endOffset: entry.end ? (entry.endOffset || 0) : (known.endOffset || 0),
+      updatedAt: new Date().toISOString()
+    };
+    saveFlights(data);
+    return data[entry.code];
+  }
+
+  function recallFlight(code) {
+    if (!code) return null;
+    return loadFlights()[String(code).toUpperCase()] || null;
+  }
+
+  /** 코드만 있는 항공편에 기억해둔 구간·시각을 채운다. 채운 항목은 표시를 남긴다. */
+  function enrich(entry) {
+    if (!isFlightCode(entry)) return entry;
+    if (entry.route && entry.start && entry.end) return entry;
+
+    var known = recallFlight(entry.code);
+    if (!known) return entry;
+
+    var filled = [];
+    if (!entry.route && known.route) { entry.route = known.route; filled.push('route'); }
+    if (!entry.start && known.start) { entry.start = known.start; filled.push('start'); }
+    if (!entry.end && known.end) {
+      entry.end = known.end;
+      entry.endOffset = known.endOffset || 0;
+      filled.push('end');
+    }
+    if (filled.length) entry.autoFilled = filled;
+    return entry;
+  }
+
+  function forgetFlights() {
+    saveFlights({});
+  }
+
+  function flightList() {
+    var data = loadFlights();
+    return Object.keys(data).sort().map(function (code) {
+      var item = data[code];
+      return {
+        code: code,
+        route: item.route || null,
+        start: item.start || null,
+        end: item.end || null,
+        endOffset: item.endOffset || 0
+      };
+    });
+  }
+
   function decorate(entry) {
     var out = {
       id: entry.id || newId(),
@@ -72,7 +168,8 @@
       start: entry.start || entry.dep || null,   // 출발(시작) 시각 HH:MM
       end: entry.end || entry.arr || null,       // 도착(종료) 시각 HH:MM
       endOffset: +(entry.endOffset || entry.arrOffset || 0) || 0, // 도착이 익일이면 1
-      memo: entry.memo || null
+      memo: entry.memo || null,
+      autoFilled: entry.autoFilled || null
     };
     if (!out.end) out.endOffset = 0;
     if (!out.type || !out.category || !out.label) {
@@ -130,6 +227,8 @@
     var e = decorate(entry);
     if (!e.date) throw new Error('날짜가 필요합니다.');
     if (!e.code) throw new Error('코드가 필요합니다.');
+    learnFlight(e);
+    enrich(e);
     data.entries[e.date] = data.entries[e.date] || [];
     data.entries[e.date].push(e);
     save(data);
@@ -178,8 +277,10 @@
       });
     }
 
+    entries.forEach(function (entry) { learnFlight(entry); });
+
     entries.forEach(function (entry) {
-      var e = decorate(entry);
+      var e = enrich(decorate(entry));
       e.id = newId();
       data.entries[e.date] = data.entries[e.date] || [];
       if (mode !== 'replace') {
@@ -237,6 +338,12 @@
     importJson: importJson,
     decorate: decorate,
     sortByTime: sortByTime,
+    learnFlight: learnFlight,
+    recallFlight: recallFlight,
+    enrich: enrich,
+    flightList: flightList,
+    forgetFlights: forgetFlights,
+    FLIGHTS_KEY: FLIGHTS_KEY,
     newId: newId
   };
 });

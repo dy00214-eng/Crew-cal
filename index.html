@@ -116,6 +116,7 @@
           <h3>파싱 결과 미리보기</h3>
           <p id="previewSummary" class="summary"></p>
         </div>
+        <p id="previewMemo" class="memo" hidden></p>
         <div id="previewWarnings" class="warnings" hidden></div>
         <div class="preview-table-wrap">
           <table class="preview-table">
@@ -213,6 +214,18 @@
         </div>
       </details>
     </div>
+
+    <details id="flightBook" class="flight-book" hidden>
+      <summary>기억한 편명 <span id="flightCount">0</span>개</summary>
+      <p class="muted">
+        구간이나 시각을 한 번 넣은 편명은 기억해 두었다가, 다음에 코드만 들어오면 그대로 채웁니다.
+        크루넷 월간 화면처럼 시각이 없는 스케줄에도 시각이 붙습니다.
+      </p>
+      <ul id="flightList" class="entry-list"></ul>
+      <div class="actions">
+        <button type="button" id="forgetFlightsBtn" class="ghost small danger">편명 기억 지우기</button>
+      </div>
+    </details>
 
     <div class="data-tools">
       <button type="button" id="exportBtn" class="ghost small">백업 내보내기</button>
