@@ -693,3 +693,142 @@ a {
 .bar.warn > i {
   background: var(--stamp);
 }
+
+/* ── 지도 ─────────────────────────────────────────────── */
+
+/* 지도가 있는 화면은 스크롤 대신 화면을 꽉 채운다. */
+.app:has(.mapcanvas) {
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.maptools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gap-3);
+  padding: var(--gap-2) var(--gap-4);
+  border-bottom: 1px solid var(--rule);
+  font-size: var(--t-small);
+  color: var(--graphite);
+}
+
+.mapcanvas {
+  flex: 1;
+  min-height: 60dvh;
+  background: var(--wash);
+}
+
+.mapcanvas-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--graphite);
+}
+
+/* 캐시에 없는 타일은 회색 대신 종이색으로 비워 둔다 */
+.leaflet-container {
+  background: var(--paper);
+  font-family: var(--font);
+}
+
+.leaflet-control-attribution {
+  background: rgba(250, 249, 246, 0.85);
+  font-size: 11px;
+  color: var(--graphite);
+}
+
+.leaflet-bar a {
+  width: var(--touch);
+  height: var(--touch);
+  line-height: var(--touch);
+  background: var(--paper);
+  color: var(--ink);
+  border-bottom-color: var(--rule);
+}
+
+.leaflet-bar {
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  box-shadow: none;
+}
+
+/* 가격 말풍선 */
+.pin-wrap {
+  width: auto !important;
+  height: auto !important;
+  margin: 0 !important;
+}
+
+.pin {
+  display: inline-block;
+  transform: translate(-50%, -100%);
+  padding: 3px 7px 4px;
+  background: var(--paper);
+  border: 1px solid var(--ink);
+  border-radius: 2px;
+  color: var(--ink);
+  font-size: var(--t-small);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.pin::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -5px;
+  width: 7px;
+  height: 7px;
+  margin-left: -4px;
+  background: var(--paper);
+  border-right: 1px solid var(--ink);
+  border-bottom: 1px solid var(--ink);
+  transform: rotate(45deg);
+}
+
+.pin i {
+  display: block;
+  font-style: normal;
+  font-size: 11px;
+  color: var(--graphite);
+}
+
+.pin b {
+  font-weight: 600;
+}
+
+.pin-visited {
+  border-color: var(--stamp);
+  color: var(--stamp);
+}
+
+.pin-visited::after {
+  border-right-color: var(--stamp);
+  border-bottom-color: var(--stamp);
+}
+
+.pin-out {
+  border-color: var(--rule);
+  color: var(--graphite);
+}
+
+.pin-out::after {
+  border-right-color: var(--rule);
+  border-bottom-color: var(--rule);
+}
+
+.pin-new {
+  background: var(--stamp);
+  border-color: var(--stamp);
+  color: var(--paper);
+  font-weight: 600;
+}
+
+.pin-new::after {
+  background: var(--stamp);
+  border-right-color: var(--stamp);
+  border-bottom-color: var(--stamp);
+}

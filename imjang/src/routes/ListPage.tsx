@@ -70,6 +70,7 @@ export default function ListPage() {
             >
               {picking ? '취소' : '비교'}
             </button>
+            <Link to="/map">지도</Link>
             <Link to="/settings">설정</Link>
           </>
         }

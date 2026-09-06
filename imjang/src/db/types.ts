@@ -34,6 +34,10 @@ export interface Property {
   // 실거래가 조회용 (스펙의 complexKey = 법정동코드 + 단지명 을 두 조각으로 들고 있는다)
   lawdCd?: string; // 법정동코드 앞 5자리
   complexName?: string; // 단지명 / 아파트명
+
+  // 지도 위 위치. 직접 핀을 찍어 넣는다 (오프라인에서도 되어야 하므로 주소 자동 변환은 쓰지 않는다)
+  lat?: number;
+  lng?: number;
 }
 
 export interface Photo {

@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import PropertyForm from '../components/PropertyForm.tsx';
 import Rating from '../components/Rating.tsx';
 import TopBar from '../components/TopBar.tsx';
@@ -179,6 +179,20 @@ export default function DetailPage() {
               <tr>
                 <th>방문일</th>
                 <td>{formatDate(p.visitedAt)}</td>
+              </tr>
+              <tr>
+                <th>위치</th>
+                <td>
+                  {p.lat != null && p.lng != null ? (
+                    <>
+                      <Link to={`/map?focus=${p.id}`}>지도에서 보기</Link>
+                      {' · '}
+                      <Link to={`/map?pick=${p.id}`}>다시 찍기</Link>
+                    </>
+                  ) : (
+                    <Link to={`/map?pick=${p.id}`}>지도에서 위치 찍기</Link>
+                  )}
+                </td>
               </tr>
             </tbody>
           </table>

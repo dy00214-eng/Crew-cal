@@ -37,8 +37,21 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,png,svg,woff2}'],
         navigateFallback: 'index.html',
         cleanupOutdatedCaches: true,
-        // 앱 셸만 프리캐시한다. 데이터는 전부 IndexedDB 라 런타임 캐시가 필요 없다.
-        runtimeCaching: [],
+        // 앱 셸과 데이터(IndexedDB)는 프리캐시/로컬이라 런타임 캐시가 필요 없다.
+        // 예외는 지도 타일 하나뿐 — 한 번 본 타일은 오프라인에서도 그대로 떠야 한다.
+        runtimeCaching: [
+          {
+            // 타일은 다른 오리진에서 온다. 워크박스는 교차 오리진 요청에서
+            // URL 맨 앞부터 맞는 정규식만 route 로 받아 주므로 ^https? 로 시작해야 한다.
+            urlPattern: /^https?:\/\/[^?#]*\/\d{1,2}\/\d+\/\d+\.(?:png|jpg|jpeg|webp)$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'map-tiles',
+              expiration: { maxEntries: 3000, maxAgeSeconds: 60 * 60 * 24 * 60 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+        ],
       },
       devOptions: { enabled: false },
     }),
