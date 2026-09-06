@@ -339,3 +339,44 @@ test('YVS 는 휴가, TFRS 는 교육으로 읽는다', () => {
   );
   assert.strictEqual(r.warnings.length, 0);
 });
+
+test('달력 격자에 딸려 오는 다음 달 날짜는 다음 달로 넘긴다', () => {
+  // 5월 격자의 마지막 줄에는 6월 1~2일이 흐리게 붙어 온다
+  const r = parse('30\tKE2101\n31\tKE0497\n1\tLO KE0498\n2\tKE0498', { year: 2026, month: 5 });
+  assert.deepStrictEqual(
+    r.entries.map(e => e.date + ':' + e.code),
+    ['2026-05-30:KE2101', '2026-05-31:KE0497', '2026-06-01:LO', '2026-06-01:KE0498', '2026-06-02:KE0498']
+  );
+});
+
+test('달력 격자 첫 줄의 지난달 날짜는 지난달로 본다', () => {
+  // 앞머리(4월 말) 다음에 5월이 통째로 이어지는 모양이라야 격자로 본다
+  const lines = ['28\tLO', '29\tLO', '30\tLO'];
+  for (let d = 1; d <= 31; d++) lines.push(d + '\tATDO');
+  const r = parse(lines.join('\n'), { year: 2026, month: 5 });
+  assert.strictEqual(r.entries[0].date, '2026-04-28');
+  assert.strictEqual(r.entries[2].date, '2026-04-30');
+  assert.strictEqual(r.entries[3].date, '2026-05-01');
+  assert.strictEqual(r.entries[r.entries.length - 1].date, '2026-05-31');
+});
+
+test('달 끝부분만 잘라 붙여넣으면 그 달 그대로 읽는다', () => {
+  const r = parse('30\tKE2101\n31\tKE0497\n1\tLO\n2\tKE0498', { year: 2026, month: 5 });
+  assert.deepStrictEqual(
+    r.entries.map(e => e.date + ':' + e.code),
+    ['2026-05-30:KE2101', '2026-05-31:KE0497', '2026-06-01:LO', '2026-06-02:KE0498']
+  );
+});
+
+test('달 초부터 시작하는 붙여넣기는 그대로 그 달로 읽는다', () => {
+  const r = parse('1\tDO\n2\tKE0037\n3\tLO', { year: 2026, month: 7 });
+  assert.deepStrictEqual(
+    r.entries.map(e => e.date + ':' + e.code),
+    ['2026-07-01:DO', '2026-07-02:KE0037', '2026-07-03:LO']
+  );
+});
+
+test('연월이 적힌 날짜는 되돌아가도 그대로 쓴다', () => {
+  const r = parse('2026-05-31\tLO\n2026-05-01\tATDO', { year: 2026, month: 5 });
+  assert.deepStrictEqual(r.entries.map(e => e.date), ['2026-05-01', '2026-05-31']);
+});
