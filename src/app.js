@@ -67,7 +67,8 @@
 
   function detailText(entry) {
     var bits = [];
-    if (entry.route) bits.push(entry.route);
+    var route = calendar.routeLabel(entry);
+    if (route) bits.push(route);
     var times = calendar.describeTimes(entry);
     if (times) bits.push(times);
     if (entry.memo) bits.push(entry.memo);
@@ -414,7 +415,7 @@
       tr.appendChild(tdCode);
 
       tr.appendChild(cell(entry.label || ''));
-      tr.appendChild(cell(entry.route || ''));
+      tr.appendChild(cell(calendar.routeLabel(entry)));
       tr.appendChild(cell(timeCellText(entry, 'start')));
       tr.appendChild(cell(timeCellText(entry, 'end')));
 

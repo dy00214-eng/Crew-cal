@@ -1,12 +1,12 @@
 /** 월간 캘린더 렌더러 */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
-    module.exports = factory();
+    module.exports = factory(require('./airports.js'));
   } else {
     root.CrewCal = root.CrewCal || {};
-    root.CrewCal.calendar = factory();
+    root.CrewCal.calendar = factory(root.CrewCal.airports);
   }
-})(typeof self !== 'undefined' ? self : this, function () {
+})(typeof self !== 'undefined' ? self : this, function (airports) {
   'use strict';
 
   var WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
@@ -36,10 +36,23 @@
   function formatTimeRange(entry) {
     if (!entry) return '';
     var suffix = entry.endOffset ? '+' + entry.endOffset : '';
-    if (entry.start && entry.end) return entry.start + '\u2192' + entry.end + suffix;
+    // \u200B(폭 없는 공백)은 칸이 좁을 때 도착 시각이 아랫줄로 넘어가게 해준다.
+    if (entry.start && entry.end) return entry.start + '\u2192\u200B' + entry.end + suffix;
     if (entry.start) return entry.start + ' 출발';
     if (entry.end) return entry.end + suffix + ' 도착';
     return '';
+  }
+
+  /** 편명 앞에 붙일 출발 나라 국기. 구간을 모르면 빈 문자열. */
+  function departureFlag(entry) {
+    return airports ? airports.departureFlag(entry) : '';
+  }
+
+  /** 국기 + 구간. '🇰🇷 ICN/JFK' */
+  function routeLabel(entry) {
+    if (!entry || !entry.route) return '';
+    var flag = departureFlag(entry);
+    return (flag ? flag + ' ' : '') + entry.route;
   }
 
   /** 목록에 쓸 자세한 시각 표기. 비행이면 출발/도착, 그 밖에는 시작/종료로 읽는다. */
@@ -129,8 +142,9 @@
 
           var chip = document.createElement('span');
           chip.className = 'chip cat-' + (e.category || 'other');
-          chip.textContent = shortCode(e, compact);
-          chip.title = [e.code, e.label || '', e.route || '', describeTimes(e)]
+          var flag = departureFlag(e);
+          chip.textContent = (flag ? flag + '\u2009' : '') + shortCode(e, compact);
+          chip.title = [e.code, e.label || '', airports ? airports.describeRoute(e.route) : e.route, describeTimes(e)]
             .filter(Boolean).join(' · ');
           item.appendChild(chip);
 
@@ -223,8 +237,10 @@
 
         var text = document.createElement('span');
         text.className = 'agenda-text';
-        text.textContent = [e.route || '', describeTimes(e), e.memo || '']
+        text.textContent = [routeLabel(e), describeTimes(e), e.memo || '']
           .filter(Boolean).join(' · ') || (e.label || '');
+        text.title = [airports ? airports.describeRoute(e.route) : '', e.label || '']
+          .filter(Boolean).join(' · ');
         item.appendChild(text);
 
         items.appendChild(item);
@@ -259,6 +275,8 @@
     summarize: summarize,
     formatTimeRange: formatTimeRange,
     describeTimes: describeTimes,
+    departureFlag: departureFlag,
+    routeLabel: routeLabel,
     iso: iso,
     pad2: pad2,
     todayIso: todayIso,
