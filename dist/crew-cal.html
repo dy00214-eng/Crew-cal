@@ -3,8 +3,9 @@
 <title>Crew-cal</title>
 <style>
 /* ==========================================================================
-   Crew-cal — iOS 감성으로 맞춘 스타일
-   색·간격·모서리·글자 크기를 iOS 시스템 값에 맞춘다.
+   Crew-cal 스타일
+   간격·모서리·글자 크기는 iOS 값을 따르되, 색은 채도를 낮춘 따뜻한 계열로 쓴다.
+   쨍한 시스템 색을 옅게 깔면 파스텔이 튀어 촌스러워 보인다는 이야기가 있었다.
    토큰은 :root 에 모아 두고, 다크 모드는 토큰만 바꿔 끼운다.
    ========================================================================== */
 
@@ -14,51 +15,52 @@
   color-scheme: light;
 
   /* 바탕과 면 */
-  --bg: #f2f2f7;                        /* systemGroupedBackground */
+  --bg: #f7f5f1;                        /* 따뜻한 흰색 */
   --surface: #ffffff;                   /* secondarySystemGroupedBackground */
-  --surface-alt: #f2f2f7;               /* 카드 안의 한 단계 아래 면 */
-  --fill: rgba(120, 120, 128, 0.12);    /* secondarySystemFill */
-  --fill-strong: rgba(120, 120, 128, 0.2);
-  --input-bg: rgba(120, 120, 128, 0.12);
-  --separator: rgba(60, 60, 67, 0.29);
-  --line: rgba(60, 60, 67, 0.18);
+  --surface-alt: #f7f5f1;               /* 카드 안의 한 단계 아래 면 */
+  --fill: rgba(122, 112, 94, 0.10);    /* secondarySystemFill */
+  --fill-strong: rgba(122, 112, 94, 0.18);
+  --input-bg: rgba(122, 112, 94, 0.10);
+  --separator: rgba(72, 66, 54, 0.20);
+  --line: rgba(72, 66, 54, 0.15);
 
   /* 글자 */
-  --text: #000000;
-  --muted: rgba(60, 60, 67, 0.6);       /* secondaryLabel */
-  --faint: rgba(60, 60, 67, 0.3);       /* tertiaryLabel */
-  --cal-sub: rgba(28, 28, 30, 0.88);    /* 달력 칸의 도시·시각 — 작아서 진하게 쓴다 */
+  --text: #221f1a;
+  --muted: rgba(72, 66, 54, 0.62);       /* secondaryLabel */
+  --faint: rgba(72, 66, 54, 0.34);       /* tertiaryLabel */
+  --cal-sub: rgba(46, 42, 35, 0.86);    /* 달력 칸의 도시·시각 — 작아서 진하게 쓴다 */
 
   /* 강조 */
-  --accent: #007aff;                    /* systemBlue */
+  --accent: #33456e;                    /* 차분한 남색 */
   --accent-ink: #ffffff;
-  --accent-soft: rgba(0, 122, 255, 0.12);
-  --accent-weak: rgba(120, 120, 128, 0.16);
-  --accent-weak-ink: rgba(60, 60, 67, 0.35);
+  --accent-soft: rgba(51, 69, 110, 0.10);
+  --accent-weak: rgba(122, 112, 94, 0.14);
+  --accent-weak-ink: rgba(72, 66, 54, 0.35);
 
-  --danger: #ff3b30;
-  --danger-soft: rgba(255, 59, 48, 0.12);
-  --sun: #ff3b30;
-  --sat: #007aff;
-  --ok: #34c759;
+  --danger: #a2554a;
+  --danger-soft: rgba(176, 82, 74, 0.11);
+  --sun: #a2554a;
+  --sat: #33456e;
+  --ok: #6f7a55;
 
-  --warn-bg: rgba(255, 149, 0, 0.12);
-  --warn-line: rgba(255, 149, 0, 0.28);
-  --warn-text: #a05a00;
-  --unknown-row: rgba(255, 59, 48, 0.07);
+  --warn-bg: rgba(161, 121, 74, 0.13);
+  --warn-line: rgba(161, 121, 74, 0.26);
+  --warn-text: #8a6338;
+  --unknown-row: rgba(168, 90, 74, 0.07);
 
-  --toast-bg: rgba(28, 28, 30, 0.92);
+  --toast-bg: rgba(40, 36, 30, 0.93);
   --toast-ink: #ffffff;
 
-  /* 근무 분류 — iOS 시스템 컬러 */
-  --cat-flight: #007aff;
-  --cat-layover: #af52de;
-  --cat-standby: #ff9500;
-  --cat-off: #34c759;
-  --cat-training: #30b0c7;
-  --cat-other: #8e8e93;
-  --cat-unknown: #ff3b30;
-  --chip-tint: 0.14;                    /* 칩 배경에 쓰는 색의 농도 */
+  /* 근무 분류 — 채도를 낮춘 색. 비행·체류는 남색, 쉬는 날은 세이지, 대기는 카라멜 */
+  --cat-flight: #33456e;      /* 네이비 — 비행·체류 */
+  --cat-layover: #33456e;     /* 비행과 한 색 */
+  --cat-standby: #b18a3a;     /* 머스타드 — 대기 */
+  --cat-off: #8d8067;         /* 에토프 베이지 — 휴무 */
+  --cat-vacation: #6b7a45;    /* 올리브 — 휴가 */
+  --cat-training: #a2603f;    /* 테라코타 — 교육 */
+  --cat-other: #97907f;
+  --cat-unknown: #8f3f3a;     /* 딥 브릭 — 미확인 */
+  --chip-tint: 0.16;                    /* 칩 배경에 쓰는 색의 농도 */
 
   /* 모서리 */
   --r-card: 16px;
@@ -70,47 +72,48 @@
   :root:not([data-theme="light"]) {
     color-scheme: dark;
 
-    --bg: #000000;
-    --surface: #1c1c1e;
-    --surface-alt: #2c2c2e;
-    --fill: rgba(120, 120, 128, 0.24);
-    --fill-strong: rgba(120, 120, 128, 0.36);
-    --input-bg: rgba(120, 120, 128, 0.24);
-    --separator: rgba(84, 84, 88, 0.65);
-    --line: rgba(84, 84, 88, 0.45);
+    --bg: #141310;
+    --surface: #201d18;
+    --surface-alt: #2b2822;
+    --fill: rgba(168, 156, 134, 0.15);
+    --fill-strong: rgba(168, 156, 134, 0.25);
+    --input-bg: rgba(168, 156, 134, 0.15);
+    --separator: rgba(160, 148, 126, 0.28);
+    --line: rgba(160, 148, 126, 0.20);
 
-    --text: #ffffff;
-    --muted: rgba(235, 235, 245, 0.6);
-    --faint: rgba(235, 235, 245, 0.3);
-    --cal-sub: rgba(235, 235, 245, 0.85);
+    --text: #f2eee6;
+    --muted: rgba(242, 236, 224, 0.62);
+    --faint: rgba(242, 236, 224, 0.32);
+    --cal-sub: rgba(242, 236, 224, 0.86);
 
-    --accent: #0a84ff;
+    --accent: #94a6cf;
     --accent-ink: #ffffff;
-    --accent-soft: rgba(10, 132, 255, 0.24);
-    --accent-weak: rgba(120, 120, 128, 0.24);
-    --accent-weak-ink: rgba(235, 235, 245, 0.3);
+    --accent-soft: rgba(148, 166, 207, 0.20);
+    --accent-weak: rgba(168, 156, 134, 0.15);
+    --accent-weak-ink: rgba(242, 236, 224, 0.32);
 
-    --danger: #ff453a;
-    --danger-soft: rgba(255, 69, 58, 0.22);
-    --sun: #ff453a;
-    --sat: #0a84ff;
-    --ok: #30d158;
+    --danger: #e0877a;
+    --danger-soft: rgba(224, 135, 122, 0.20);
+    --sun: #e0877a;
+    --sat: #94a6cf;
+    --ok: #a3b083;
 
-    --warn-bg: rgba(255, 159, 10, 0.18);
-    --warn-line: rgba(255, 159, 10, 0.35);
-    --warn-text: #ffd60a;
-    --unknown-row: rgba(255, 69, 58, 0.12);
+    --warn-bg: rgba(215, 171, 114, 0.16);
+    --warn-line: rgba(215, 171, 114, 0.30);
+    --warn-text: #e6c489;
+    --unknown-row: rgba(224, 135, 122, 0.12);
 
-    --toast-bg: rgba(58, 58, 60, 0.94);
+    --toast-bg: rgba(48, 44, 38, 0.94);
     --toast-ink: #ffffff;
 
-    --cat-flight: #0a84ff;
-    --cat-layover: #bf5af2;
-    --cat-standby: #ff9f0a;
-    --cat-off: #30d158;
-    --cat-training: #64d2ff;
-    --cat-other: #98989d;
-    --cat-unknown: #ff453a;
+    --cat-flight: #94a6cf;
+    --cat-layover: #94a6cf;
+    --cat-standby: #d3b06a;
+    --cat-off: #b0a99b;
+    --cat-vacation: #a8b57e;
+    --cat-training: #cf9370;
+    --cat-other: #a59d8e;
+    --cat-unknown: #d98a7f;
     --chip-tint: 0.26;
   }
 }
@@ -118,47 +121,48 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
 
-  --bg: #000000;
-  --surface: #1c1c1e;
-  --surface-alt: #2c2c2e;
-  --fill: rgba(120, 120, 128, 0.24);
-  --fill-strong: rgba(120, 120, 128, 0.36);
-  --input-bg: rgba(120, 120, 128, 0.24);
-  --separator: rgba(84, 84, 88, 0.65);
-  --line: rgba(84, 84, 88, 0.45);
+  --bg: #141310;
+  --surface: #201d18;
+  --surface-alt: #2b2822;
+  --fill: rgba(168, 156, 134, 0.15);
+  --fill-strong: rgba(168, 156, 134, 0.25);
+  --input-bg: rgba(168, 156, 134, 0.15);
+  --separator: rgba(160, 148, 126, 0.28);
+  --line: rgba(160, 148, 126, 0.20);
 
-  --text: #ffffff;
-  --muted: rgba(235, 235, 245, 0.6);
-  --faint: rgba(235, 235, 245, 0.3);
-  --cal-sub: rgba(235, 235, 245, 0.85);
+  --text: #f2eee6;
+  --muted: rgba(242, 236, 224, 0.62);
+  --faint: rgba(242, 236, 224, 0.32);
+  --cal-sub: rgba(242, 236, 224, 0.86);
 
-  --accent: #0a84ff;
+  --accent: #94a6cf;
   --accent-ink: #ffffff;
-  --accent-soft: rgba(10, 132, 255, 0.24);
-  --accent-weak: rgba(120, 120, 128, 0.24);
-  --accent-weak-ink: rgba(235, 235, 245, 0.3);
+  --accent-soft: rgba(148, 166, 207, 0.20);
+  --accent-weak: rgba(168, 156, 134, 0.15);
+  --accent-weak-ink: rgba(242, 236, 224, 0.32);
 
-  --danger: #ff453a;
-  --danger-soft: rgba(255, 69, 58, 0.22);
-  --sun: #ff453a;
-  --sat: #0a84ff;
-  --ok: #30d158;
+  --danger: #e0877a;
+  --danger-soft: rgba(224, 135, 122, 0.20);
+  --sun: #e0877a;
+  --sat: #94a6cf;
+  --ok: #a3b083;
 
-  --warn-bg: rgba(255, 159, 10, 0.18);
-  --warn-line: rgba(255, 159, 10, 0.35);
-  --warn-text: #ffd60a;
-  --unknown-row: rgba(255, 69, 58, 0.12);
+  --warn-bg: rgba(215, 171, 114, 0.16);
+  --warn-line: rgba(215, 171, 114, 0.30);
+  --warn-text: #e6c489;
+  --unknown-row: rgba(224, 135, 122, 0.12);
 
-  --toast-bg: rgba(58, 58, 60, 0.94);
+  --toast-bg: rgba(48, 44, 38, 0.94);
   --toast-ink: #ffffff;
 
-  --cat-flight: #0a84ff;
-  --cat-layover: #bf5af2;
-  --cat-standby: #ff9f0a;
-  --cat-off: #30d158;
-  --cat-training: #64d2ff;
-  --cat-other: #98989d;
-  --cat-unknown: #ff453a;
+  --cat-flight: #94a6cf;
+  --cat-layover: #94a6cf;
+  --cat-standby: #d3b06a;
+  --cat-off: #b0a99b;
+  --cat-vacation: #a8b57e;
+  --cat-training: #cf9370;
+  --cat-other: #a59d8e;
+  --cat-unknown: #d98a7f;
   --chip-tint: 0.26;
 }
 
@@ -315,8 +319,19 @@ body {
   color: #fff;
 }
 
+/* 훑어봤을 때 쉬는 날과 비행 날이 바로 갈리도록 칸 전체를 옅게 칠한다.
+   칩만으로는 크기가 다 비슷해 한눈에 구분되지 않는다는 이야기가 있었다. */
+.cal-cell.day-flight, .cal-cell.day-layover { background: color-mix(in srgb, var(--cat-flight) 13%, transparent); }
+.cal-cell.day-standby { background: color-mix(in srgb, var(--cat-standby) 17%, transparent); }
+.cal-cell.day-training { background: color-mix(in srgb, var(--cat-training) 16%, transparent); }
+.cal-cell.day-vacation { background: color-mix(in srgb, var(--cat-vacation) 18%, transparent); }
+.cal-cell.day-off { background: color-mix(in srgb, var(--cat-off) 17%, transparent); }
+.cal-cell.day-unknown { background: color-mix(in srgb, var(--cat-unknown) 13%, transparent); }
+.cal-cell.outside { opacity: 0.7; }
+
 .cal-chips { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .cal-item { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.cal-cell { min-height: 96px; }
 
 .chip {
   font-size: 11px;
@@ -337,23 +352,50 @@ body {
 .cat-standby { color: var(--cat-standby); background: color-mix(in srgb, var(--cat-standby) calc(var(--chip-tint) * 100%), transparent); }
 .cat-off { color: var(--cat-off); background: color-mix(in srgb, var(--cat-off) calc(var(--chip-tint) * 100%), transparent); }
 .cat-training { color: var(--cat-training); background: color-mix(in srgb, var(--cat-training) calc(var(--chip-tint) * 100%), transparent); }
+.cat-vacation { color: var(--cat-vacation); background: color-mix(in srgb, var(--cat-vacation) calc(var(--chip-tint) * 100%), transparent); }
 .cat-other { color: var(--cat-other); background: color-mix(in srgb, var(--cat-other) calc(var(--chip-tint) * 100%), transparent); }
 .cat-unknown { color: var(--cat-unknown); background: color-mix(in srgb, var(--cat-unknown) calc(var(--chip-tint) * 100%), transparent); }
 
 .cal-cell .chip { text-align: center; }
-.cal-place, .cal-time {
-  font-size: 11px;
+.cal-flag { font-size: 12px; line-height: 1.25; text-align: center; letter-spacing: -0.5px; }
+.cal-city, .cal-title {
+  background: none;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.4px;
+  line-height: 1.2;
+  text-align: center;
+  word-break: keep-all;
+  color: var(--cat-other);
+}
+.cal-city.cat-flight, .cal-city.cat-layover, .cal-title.cat-flight, .cal-title.cat-layover { color: var(--cat-flight); }
+.cal-title.cat-off { color: var(--cat-off); }
+.cal-title.cat-standby { color: var(--cat-standby); }
+.cal-title.cat-training { color: var(--cat-training); }
+.cal-title.cat-vacation { color: var(--cat-vacation); }
+.cal-title.cat-unknown { color: var(--cat-unknown); }
+.cal-time {
+  font-size: 10.5px;
   font-weight: 500;
-  line-height: 1.32;
+  line-height: 1.35;
   color: var(--cal-sub);
   word-break: keep-all;
   overflow-wrap: break-word;
   text-align: center;
-}
-.cal-time {
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.2px;
+  letter-spacing: -0.3px;
 }
+.cal-code {
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--muted);
+  text-align: center;
+  word-break: keep-all;
+}
+.cal-more { font-size: 10px; color: var(--faint); text-align: center; }
+
 
 .month-summary {
   margin-top: 14px;
@@ -385,6 +427,7 @@ body {
 .dot.cat-standby { background: var(--cat-standby); }
 .dot.cat-off { background: var(--cat-off); }
 .dot.cat-training { background: var(--cat-training); }
+.dot.cat-vacation { background: var(--cat-vacation); }
 .dot.cat-unknown { background: var(--cat-unknown); }
 
 /* ---------- 세그먼티드 컨트롤 ---------- */
@@ -433,6 +476,15 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 .agenda-row:last-child { border-bottom: none; }
+/* 목록에서도 그날의 성격을 왼쪽 띠로 세워 둔다 (색은 달력 칸과 같다) */
+.agenda-row { border-left: 3px solid transparent; padding-left: 9px; }
+.agenda-row.day-flight { border-left-color: var(--cat-flight); }
+.agenda-row.day-layover { border-left-color: var(--cat-flight); }
+.agenda-row.day-standby { border-left-color: var(--cat-standby); }
+.agenda-row.day-training { border-left-color: var(--cat-training); }
+.agenda-row.day-vacation { border-left-color: var(--cat-vacation); }
+.agenda-row.day-off { border-left-color: var(--cat-off); }
+.agenda-row.day-unknown { border-left-color: var(--cat-unknown); }
 .agenda-row.selected { background: var(--fill); border-radius: 10px; }
 .agenda-row.outside .agenda-date b { color: var(--faint); font-weight: 500; }
 .agenda-row.outside .chip, .agenda-row.outside .agenda-text { opacity: 0.75; }
@@ -1098,8 +1150,9 @@ button.ghost.danger { color: var(--danger); }
   .card { padding: 12px 10px; border-radius: 14px; }
   .cal-head, .cal-grid { gap: 3px; }
   .cal-cell { padding: 3px 2px 5px; }
-  .chip { font-size: 10px; padding: 2px 4px; }
-  .cal-place, .cal-time { font-size: 10.5px; }
+  .cal-city, .cal-title { font-size: 12px; }
+  .cal-time { font-size: 10px; }
+  .cal-code { font-size: 9.5px; }
 }
 
 @media (max-width: 640px) {
@@ -1119,8 +1172,9 @@ button.ghost.danger { color: var(--danger); }
   .cal-head, .cal-grid { gap: 2px; }
   .cal-cell { padding: 3px 1px 4px; }
   .cal-chips { gap: 3px; }
-  .chip { font-size: 9.5px; padding: 1.5px 3px; letter-spacing: -0.2px; }
-  .cal-place, .cal-time { font-size: 10px; }
+  .cal-city, .cal-title { font-size: 11px; letter-spacing: -0.5px; }
+  .cal-time { font-size: 9.5px; }
+  .cal-code { font-size: 9px; }
   .cal-day { font-size: 12px; width: 20px; height: 20px; line-height: 20px; }
   .legend { gap: 9px; font-size: 11px; }
   .tab { font-size: 13px; padding: 7px 4px; }
@@ -1178,12 +1232,13 @@ button.ghost.danger { color: var(--danger); }
     <div id="calendar" class="calendar"></div>
     <div id="listView" class="list-view" hidden></div>
     <div id="yearView" class="year-view" hidden></div>
+    <div id="yearSummary" class="month-summary" hidden></div>
     <div id="monthSummary" class="month-summary"></div>
     <ul class="legend">
-      <li><i class="dot cat-flight"></i>비행</li>
-      <li><i class="dot cat-layover"></i>체류</li>
+      <li><i class="dot cat-flight"></i>비행 · 체류</li>
       <li><i class="dot cat-standby"></i>대기</li>
       <li><i class="dot cat-off"></i>휴무</li>
+      <li><i class="dot cat-vacation"></i>휴가</li>
       <li><i class="dot cat-training"></i>훈련</li>
       <li><i class="dot cat-unknown"></i>미확인</li>
     </ul>
@@ -1412,6 +1467,7 @@ button.ghost.danger { color: var(--danger); }
     </details>
 
     <div class="data-tools">
+      <button type="button" id="imageBtn" class="ghost small">이미지로 저장</button>
       <button type="button" id="icsBtn" class="ghost small">캘린더 앱에 넣기</button>
       <button type="button" id="exportBtn" class="ghost small">백업 내보내기</button>
       <button type="button" id="importBtn" class="ghost small">백업 불러오기</button>
@@ -1482,12 +1538,13 @@ button.ghost.danger { color: var(--danger); }
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  // category: flight | layover | standby | off | training | other
+  // category: flight | layover | standby | off | vacation | training | other
   var CATEGORY_LABELS = {
     flight: '비행',
     layover: '체류',
     standby: '대기',
     off: '휴무',
+    vacation: '휴가',
     training: '훈련',
     other: '기타',
     unknown: '미확인'
@@ -1502,13 +1559,13 @@ button.ghost.danger { color: var(--danger); }
     ADO: { label: '휴무', category: 'off' },
     GDO: { label: '보장 휴무', category: 'off' },
     CDO: { label: '보상 휴무', category: 'off' },
-    VAC: { label: '휴가', category: 'off' },
-    YVS: { label: '휴가', category: 'off' },
+    VAC: { label: '휴가', category: 'vacation' },
+    YVS: { label: '휴가', category: 'vacation' },
     PDO: { label: '휴무', category: 'off' },
-    ANL: { label: '연차 휴가', category: 'off' },
-    AL: { label: '연차 휴가', category: 'off' },
-    PL: { label: '개인 휴가', category: 'off' },
-    UL: { label: '무급 휴가', category: 'off' },
+    ANL: { label: '연차 휴가', category: 'vacation' },
+    AL: { label: '연차 휴가', category: 'vacation' },
+    PL: { label: '개인 휴가', category: 'vacation' },
+    UL: { label: '무급 휴가', category: 'vacation' },
 
     // 대기 계열
     STBY: { label: '대기', category: 'standby' },
@@ -3386,7 +3443,7 @@ button.ghost.danger { color: var(--danger); }
 
   function summarize(entries) {
     var byDate = {};
-    var counts = { flight: 0, layover: 0, standby: 0, off: 0, training: 0, other: 0, unknown: 0 };
+    var counts = { flight: 0, layover: 0, standby: 0, off: 0, vacation: 0, training: 0, other: 0, unknown: 0 };
     entries.forEach(function (e) {
       byDate[e.date] = true;
       if (counts[e.category] == null) counts[e.category] = 0;
@@ -3955,6 +4012,23 @@ button.ghost.danger { color: var(--danger); }
     return String(entry.code).replace(/^[A-Z]{2}(?=\d)/, '');
   }
 
+  /**
+   * 그날이 어떤 날인지 한마디로. 칸 전체를 이 색으로 칠해 쉬는 날과 비행 날을 갈라 준다.
+   * 하루에 여러 개가 있으면 무거운 쪽을 따른다. 비행이 하나라도 있으면 비행하는 날이고,
+   * 아무 근무도 없이 휴무만 있어야 쉬는 날이다.
+   */
+  var DAY_ORDER = ['flight', 'standby', 'training', 'layover', 'other', 'unknown', 'vacation', 'off'];
+
+  function dayCategory(list) {
+    if (!list || !list.length) return null;
+    for (var i = 0; i < DAY_ORDER.length; i++) {
+      for (var j = 0; j < list.length; j++) {
+        if ((list[j].category || 'other') === DAY_ORDER[i]) return DAY_ORDER[i];
+      }
+    }
+    return null;
+  }
+
   function nextDay(date) {
     var d = new Date(date + 'T00:00:00Z');
     if (isNaN(d)) return null;
@@ -4011,6 +4085,29 @@ button.ghost.danger { color: var(--danger); }
     return Math.round((two - one) / 86400000);
   }
 
+  /**
+   * 날짜별로 "그날 어디에 있나". 체류하는 날에는 구간이 안 적혀 있으므로,
+   * 마지막으로 내린 공항을 다음 비행까지 이어 간다. 한국에 내리면 다시 비운다.
+   * 결과는 { 'YYYY-MM-DD': { iata, city, flag } }.
+   */
+  function tripPlaces(entriesByDate) {
+    var byDate = entriesByDate || {};
+    var out = {};
+    var current = null;
+    Object.keys(byDate).sort().forEach(function (date) {
+      (byDate[date] || []).forEach(function (e) {
+        if (e.type !== 'flight' || !e.route || !airports) return;
+        var ends = airports.splitRoute(e.route);
+        if (!ends.to) return;
+        current = airports.countryOf(ends.to) === 'KR'
+          ? null
+          : { iata: ends.to, city: airports.cityOf(ends.to), flag: airports.flagOf(ends.to) };
+      });
+      out[date] = current;
+    });
+    return out;
+  }
+
   function render(container, options) {
     var year = options.year;
     var month = options.month;
@@ -4034,8 +4131,7 @@ button.ghost.danger { color: var(--danger); }
     var grid = document.createElement('div');
     grid.className = 'cal-grid';
 
-    // 칸 너비를 재서 좁으면 짧은 표기로 바꾼다
-    var compact = (container.clientWidth || 0) / 7 < 62;
+    var places = tripPlaces(entriesByDate);
 
     var lead = firstWeekday(year, month);
     var total = daysInMonth(year, month);
@@ -4056,6 +4152,8 @@ button.ghost.danger { color: var(--danger); }
         if (weekday === 0) cell.classList.add('sun');
         if (weekday === 6) cell.classList.add('sat');
         if (holiday) cell.classList.add('holiday');
+        var dayKind = dayCategory(list);
+        if (dayKind) cell.classList.add('day-' + dayKind);
         if (outside) cell.classList.add('outside');
         if (date === today) cell.classList.add('today');
         if (date === selected) cell.classList.add('selected');
@@ -4078,23 +4176,38 @@ button.ghost.danger { color: var(--danger); }
 
         var chips = document.createElement('span');
         chips.className = 'cal-chips';
+        var dayHasFlight = list.some(function (e) { return e.type === 'flight'; });
+        var staying = places[date] || null;
+
         list.slice(0, 3).forEach(function (e) {
           var item = document.createElement('span');
           item.className = 'cal-item';
+          item.title = [e.code, e.label || '', airports ? airports.describeRoute(e.route) : e.route,
+            describeTimes(e, true)].filter(Boolean).join(' · ');
 
-          var chip = document.createElement('span');
-          chip.className = 'chip cat-' + (e.category || 'other');
-          chip.textContent = chipText(e, compact);
-          chip.title = [e.code, e.label || '', airports ? airports.describeRoute(e.route) : e.route, describeTimes(e, true)]
-            .filter(Boolean).join(' · ');
-          item.appendChild(chip);
+          // 도시가 주인공이다. 비행하는 날은 그 편이 가는 곳, 체류하는 날은 머무는 곳.
+          var place = e.type === 'flight' ? (airports ? airports.tripPlace(e) : null)
+            : (e.category === 'layover' && !dayHasFlight ? staying : null);
 
-          var placeText = placeLabel(e);
-          if (placeText) {
-            var place = document.createElement('span');
-            place.className = 'cal-place';
-            place.textContent = placeText;
-            item.appendChild(place);
+          if (place) {
+            if (place.flag || e.type === 'flight') {
+              var flag = document.createElement('span');
+              flag.className = 'cal-flag';
+              flag.textContent = (e.type === 'flight' ? '\u2708\uFE0F ' : '') + (place.flag || '');
+              item.appendChild(flag);
+            }
+            var city = document.createElement('span');
+            city.className = 'cal-city cat-' + (e.category || 'other');
+            city.textContent = place.city;
+            item.appendChild(city);
+          } else {
+            var title = document.createElement('span');
+            title.className = 'cal-title cat-' + (e.category || 'other');
+            // 구간을 모르는 비행은 편명이 곧 제목이다
+            title.textContent = e.type === 'flight'
+              ? '\u2708\uFE0F ' + e.code
+              : (e.label || e.code);
+            item.appendChild(title);
           }
 
           var timeText = hideTimes[date + '|' + e.code] ? '' : formatTimeRange(e);
@@ -4104,11 +4217,24 @@ button.ghost.danger { color: var(--danger); }
             time.textContent = timeText;
             item.appendChild(time);
           }
+
+          // 큰 글씨 밑에는 작은 글씨로 한 줄. 도시 밑에는 편명(체류면 '체류'),
+          // 휴무·대기처럼 이름이 제목인 경우에는 원래 코드를 적는다.
+          var subText = place
+            ? (e.type === 'flight' ? e.code : (e.label || ''))
+            : (e.type === 'flight' ? '' : (e.code !== e.label ? e.code : ''));
+          if (subText) {
+            var sub = document.createElement('span');
+            sub.className = 'cal-code';
+            sub.textContent = subText;
+            item.appendChild(sub);
+          }
+
           chips.appendChild(item);
         });
         if (list.length > 3) {
           var more = document.createElement('span');
-          more.className = 'chip more';
+          more.className = 'cal-more';
           more.textContent = '+' + (list.length - 3);
           chips.appendChild(more);
         }
@@ -4205,6 +4331,8 @@ button.ghost.danger { color: var(--danger); }
       if (date === today) row.classList.add('today');
       if (date === selected) row.classList.add('selected');
       if (outsideDates[date]) row.classList.add('outside');
+      var rowKind = dayCategory(entriesByDate[date]);
+      if (rowKind) row.classList.add('day-' + rowKind);
       row.setAttribute('data-date', date);
 
       var day = document.createElement('span');
@@ -4250,6 +4378,53 @@ button.ghost.danger { color: var(--danger); }
    * 건수만 세면 "체류 3" 이 사흘인지 세 번인지 알 수 없다. 그래서 비행은 편수로,
    * 나머지는 날수로 센다(하루에 두 번 적혀 있어도 하루). 다녀온 도시도 순서대로 모은다.
    */
+  /**
+   * 한 해 요약. 어디를 몇 번 갔는지와 날수를 센다.
+   *
+   * 비행 편수는 크루넷이 이틀에 걸쳐 적어둔 도착편을 한 번만 센다.
+   * "간 곳" 은 한국에서 뜨는 편만 세어 한 번 다녀온 것을 한 번으로 잡는다
+   * (나가는 편과 들어오는 편을 다 세면 갈 때마다 두 번이 된다).
+   */
+  function summarizeYear(entriesByDate, year) {
+    var byDate = entriesByDate || {};
+    var hidden = suppressedTimes(byDate);
+    var prefix = String(year) + '-';
+    var dayCounts = {};
+    var days = 0;
+    var flights = 0;
+    var visits = {};
+
+    Object.keys(byDate).sort().forEach(function (date) {
+      if (date.indexOf(prefix) !== 0) return;
+      var list = byDate[date] || [];
+      if (!list.length) return;
+      days++;
+      var seenHere = {};
+      list.forEach(function (e) {
+        var c = e.category || 'other';
+        if (!seenHere[c]) { seenHere[c] = true; dayCounts[c] = (dayCounts[c] || 0) + 1; }
+        if (e.type !== 'flight') return;
+        if (hidden[date + '|' + e.code]) return;      // 도착일 쪽에서 이미 셌다
+        flights++;
+        if (!airports) return;
+        var ends = airports.splitRoute(e.route);
+        if (!ends.from || airports.countryOf(ends.from) !== 'KR') return;   // 나가는 편만
+        var place = airports.tripPlace(e);
+        if (!place) return;
+        if (!visits[place.city]) visits[place.city] = { city: place.city, flag: place.flag, count: 0 };
+        visits[place.city].count++;
+      });
+    });
+
+    var places = Object.keys(visits).map(function (city) { return visits[city]; });
+    places.sort(function (a, b) {
+      if (a.count !== b.count) return b.count - a.count;
+      return a.city < b.city ? -1 : 1;
+    });
+
+    return { year: year, days: days, flights: flights, dayCounts: dayCounts, places: places };
+  }
+
   /**
    * 한 해를 열두 개의 작은 달로 그린다. 칸마다 그날의 성격을 점으로만 찍는다.
    * 휴가를 어디에 붙일지, 어느 달이 빡셌는지 한눈에 보라고 만든 화면이다.
@@ -4327,7 +4502,7 @@ button.ghost.danger { color: var(--danger); }
 
   function summarize(entriesByDate, year, month) {
     var prefix = year + '-' + pad2(month);
-    var counts = { flight: 0, layover: 0, standby: 0, off: 0, training: 0, other: 0, unknown: 0 };
+    var counts = { flight: 0, layover: 0, standby: 0, off: 0, vacation: 0, training: 0, other: 0, unknown: 0 };
     var dayCounts = {};
     var days = 0;
     var flightCodes = {};
@@ -4410,6 +4585,7 @@ button.ghost.danger { color: var(--danger); }
     upcoming: upcoming,
     daysBetween: daysBetween,
     summarize: summarize,
+    summarizeYear: summarizeYear,
     search: search,
     formatTimeRange: formatTimeRange,
     describeTimes: describeTimes,
@@ -4419,11 +4595,300 @@ button.ghost.danger { color: var(--danger); }
     routeLabel: routeLabel,
     placeLabel: placeLabel,
     chipText: chipText,
+    dayCategory: dayCategory,
+    tripPlaces: tripPlaces,
     iso: iso,
     pad2: pad2,
     todayIso: todayIso,
     weekdayOf: weekdayOf,
     daysInMonth: daysInMonth
+  };
+});
+</script>
+<script>
+/**
+ * 한 달 스케줄을 그림 한 장으로 그린다. 카톡으로 보내거나 사진에 저장하려는 용도.
+ *
+ * 화면을 그대로 찍는 대신 캔버스에 다시 그린다. 스크롤·탭·버튼이 끼지 않고,
+ * 폰 화면 크기와 상관없이 언제나 같은 크기로 나오기 때문이다.
+ * 자리 계산과 칸에 넣을 글자는 캔버스 없이도 따로 검사할 수 있게 떼어 놨다.
+ */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) {
+    module.exports = factory(require('./calendar.js'), require('./airports.js'), require('./holidays.js'));
+  } else {
+    root.CrewCal = root.CrewCal || {};
+    root.CrewCal.poster = factory(root.CrewCal.calendar, root.CrewCal.airports, root.CrewCal.holidays);
+  }
+})(typeof self !== 'undefined' ? self : this, function (calendar, airports, holidays) {
+  'use strict';
+
+  var WIDTH = 1080;
+  var PAD = 28;
+  var TITLE_H = 108;
+  var HEAD_H = 46;
+  var FOOT_H = 54;
+
+  /** 칸 하나에 넣을 글줄. 달력 화면과 같은 규칙을 쓴다. */
+  function cellLines(list, options) {
+    var opts = options || {};
+    var hideTimes = opts.hideTimes || {};
+    var date = opts.date;
+    var place = opts.place || null;
+    var hasFlight = list.some(function (e) { return e.type === 'flight'; });
+    var out = [];
+
+    list.slice(0, 3).forEach(function (e) {
+      var spot = e.type === 'flight'
+        ? (airports ? airports.tripPlace(e) : null)
+        : (e.category === 'layover' && !hasFlight ? place : null);
+
+      var head = '';
+      if (spot) {
+        head = (e.type === 'flight' ? '✈️ ' : '') + (spot.flag || '');
+      }
+      var title = spot ? spot.city
+        : (e.type === 'flight' ? '✈️ ' + e.code : (e.label || e.code));
+      var time = hideTimes[date + '|' + e.code] ? '' : calendar.formatTimeRange(e);
+      var sub = spot
+        ? (e.type === 'flight' ? e.code : (e.label || ''))
+        : (e.type === 'flight' ? '' : (e.code !== e.label ? e.code : ''));
+
+      out.push({
+        category: e.category || 'other',
+        head: head,
+        title: title,
+        time: time ? time.replace(/​/g, '') : '',
+        sub: sub
+      });
+    });
+
+    if (list.length > 3) out.push({ category: 'other', head: '', title: '+' + (list.length - 3), time: '', sub: '' });
+    return out;
+  }
+
+  /** 칸 자리. 주 수에 따라 높이가 달라지므로 전체 크기도 함께 준다. */
+  function layout(year, month) {
+    var slots = calendar.gridDates(year, month);
+    var weeks = Math.ceil(slots.length / 7);
+    var cellW = (WIDTH - PAD * 2) / 7;
+    var cellH = 168;
+    var height = TITLE_H + HEAD_H + cellH * weeks + FOOT_H;
+    var cells = slots.map(function (slot, i) {
+      return {
+        date: slot.date,
+        day: slot.day,
+        outside: slot.outside,
+        column: i % 7,
+        x: PAD + (i % 7) * cellW,
+        y: TITLE_H + HEAD_H + Math.floor(i / 7) * cellH,
+        w: cellW,
+        h: cellH
+      };
+    });
+    return { width: WIDTH, height: height, weeks: weeks, cellW: cellW, cellH: cellH, cells: cells };
+  }
+
+  /** 화면에서 쓰는 색을 그대로 가져온다. 밝은/어두운 화면에 맞춰 따라간다. */
+  function readColors(doc) {
+    var style = (doc || document).defaultView.getComputedStyle((doc || document).documentElement);
+    function token(name, fallback) {
+      var value = style.getPropertyValue(name);
+      return (value && value.trim()) || fallback;
+    }
+    return {
+      bg: token('--bg', '#f7f5f1'),
+      surface: token('--surface', '#ffffff'),
+      text: token('--text', '#221f1a'),
+      muted: token('--muted', '#6b6555'),
+      faint: token('--faint', '#a9a293'),
+      sub: token('--cal-sub', '#3b372f'),
+      line: token('--line', '#d8d2c6'),
+      sun: token('--sun', '#a2554a'),
+      sat: token('--sat', '#33456e'),
+      cat: {
+        flight: token('--cat-flight', '#33456e'),
+        layover: token('--cat-layover', '#33456e'),
+        standby: token('--cat-standby', '#b18a3a'),
+        training: token('--cat-training', '#a2603f'),
+        vacation: token('--cat-vacation', '#6b7a45'),
+        off: token('--cat-off', '#8d8067'),
+        other: token('--cat-other', '#97907f'),
+        unknown: token('--cat-unknown', '#8f3f3a')
+      }
+    };
+  }
+
+  var TINT = {
+    flight: 0.13, layover: 0.13, standby: 0.17, training: 0.16,
+    vacation: 0.18, off: 0.17, other: 0.10, unknown: 0.13
+  };
+
+  var FONT = '-apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif';
+
+  /**
+   * 캔버스에 한 달을 그린다.
+   *   draw(canvas, { year, month, entriesByDate, hideTimes, scale })
+   * scale 을 2로 주면 선명한 그림이 나온다(폰 화면 그대로 확대해도 안 깨진다).
+   */
+  function draw(canvas, options) {
+    var opts = options || {};
+    var year = opts.year;
+    var month = opts.month;
+    var byDate = opts.entriesByDate || {};
+    var hideTimes = opts.hideTimes || calendar.suppressedTimes(byDate);
+    var places = calendar.tripPlaces(byDate);
+    var scale = opts.scale || 2;
+    var plan = layout(year, month);
+    var color = opts.colors || readColors(canvas.ownerDocument);
+
+    canvas.width = plan.width * scale;
+    canvas.height = plan.height * scale;
+    var ctx = canvas.getContext('2d');
+    ctx.scale(scale, scale);
+    ctx.textBaseline = 'top';
+
+    ctx.fillStyle = color.bg;
+    ctx.fillRect(0, 0, plan.width, plan.height);
+
+    // 머리말
+    ctx.fillStyle = color.text;
+    ctx.font = '700 40px ' + FONT;
+    ctx.textAlign = 'left';
+    ctx.fillText(year + '년 ' + month + '월', PAD, 34);
+    ctx.fillStyle = color.faint;
+    ctx.font = '500 22px ' + FONT;
+    ctx.textAlign = 'right';
+    ctx.fillText('크루캘', plan.width - PAD, 48);
+
+    // 요일
+    ctx.textAlign = 'center';
+    ctx.font = '600 20px ' + FONT;
+    calendar.WEEKDAYS.forEach(function (w, i) {
+      ctx.fillStyle = i === 0 ? color.sun : i === 6 ? color.sat : color.muted;
+      ctx.fillText(w, PAD + plan.cellW * (i + 0.5), TITLE_H + 12);
+    });
+
+    plan.cells.forEach(function (cell) {
+      var list = byDate[cell.date] || [];
+      var kind = calendar.dayCategory(list);
+      var holiday = holidays ? holidays.nameOf(cell.date) : null;
+
+      if (kind) {
+        ctx.save();
+        ctx.globalAlpha = TINT[kind] == null ? 0.12 : TINT[kind];
+        ctx.fillStyle = color.cat[kind] || color.cat.other;
+        roundRect(ctx, cell.x + 2, cell.y + 2, cell.w - 4, cell.h - 4, 12);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      ctx.save();
+      ctx.globalAlpha = cell.outside ? 0.45 : 1;
+      ctx.textAlign = 'center';
+      var middle = cell.x + cell.w / 2;
+
+      ctx.font = '700 22px ' + FONT;
+      ctx.fillStyle = holiday || cell.column === 0 ? color.sun : cell.column === 6 ? color.sat : color.text;
+      ctx.fillText(String(cell.day), middle, cell.y + 10);
+
+      var y = cell.y + 38;
+      if (holiday) {
+        ctx.font = '600 15px ' + FONT;
+        ctx.fillStyle = color.sun;
+        ctx.fillText(cut(ctx, holiday, cell.w - 10), middle, y);
+        y += 19;
+      }
+
+      cellLines(list, { date: cell.date, hideTimes: hideTimes, place: places[cell.date] }).forEach(function (line) {
+        if (line.head) {
+          ctx.font = '400 18px ' + FONT;
+          ctx.fillStyle = color.text;
+          ctx.fillText(line.head, middle, y);
+          y += 21;
+        }
+        if (line.title) {
+          ctx.font = '700 19px ' + FONT;
+          ctx.fillStyle = color.cat[line.category] || color.cat.other;
+          y = wrap(ctx, line.title, middle, y, cell.w - 8, 21);
+        }
+        if (line.time) {
+          ctx.font = '500 15px ' + FONT;
+          ctx.fillStyle = color.sub;
+          y = wrap(ctx, line.time, middle, y, cell.w - 8, 18);
+        }
+        if (line.sub) {
+          ctx.font = '500 15px ' + FONT;
+          ctx.fillStyle = color.muted;
+          y = wrap(ctx, line.sub, middle, y, cell.w - 8, 18);
+        }
+        y += 4;
+      });
+      ctx.restore();
+    });
+
+    // 바닥말
+    ctx.textAlign = 'center';
+    ctx.font = '500 17px ' + FONT;
+    ctx.fillStyle = color.faint;
+    ctx.fillText('출·도착 시각은 한국 시각 기준 · 실제 로스터를 따르세요',
+      plan.width / 2, plan.height - FOOT_H + 16);
+
+    return plan;
+  }
+
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  /** 칸을 넘치면 줄을 바꿔 가며 그린다. 다음 줄이 시작할 y 를 준다. */
+  function wrap(ctx, text, cx, y, maxWidth, lineHeight) {
+    var words = String(text).split(' ');
+    var line = '';
+    for (var i = 0; i < words.length; i++) {
+      var next = line ? line + ' ' + words[i] : words[i];
+      if (ctx.measureText(next).width > maxWidth && line) {
+        ctx.fillText(line, cx, y);
+        y += lineHeight;
+        line = words[i];
+      } else {
+        line = next;
+      }
+    }
+    if (line) {
+      ctx.fillText(cut(ctx, line, maxWidth), cx, y);
+      y += lineHeight;
+    }
+    return y;
+  }
+
+  /** 한 줄에 안 들어가면 뒤를 잘라 낸다. */
+  function cut(ctx, text, maxWidth) {
+    var value = String(text);
+    if (ctx.measureText(value).width <= maxWidth) return value;
+    while (value.length > 1 && ctx.measureText(value + '…').width > maxWidth) {
+      value = value.slice(0, -1);
+    }
+    return value + '…';
+  }
+
+  function filename(year, month) {
+    return 'crew-cal-' + year + '-' + (month < 10 ? '0' : '') + month + '.png';
+  }
+
+  return {
+    WIDTH: WIDTH,
+    layout: layout,
+    cellLines: cellLines,
+    readColors: readColors,
+    draw: draw,
+    filename: filename
   };
 });
 </script>
@@ -5223,6 +5688,7 @@ button.ghost.danger { color: var(--danger); }
   var vision = CrewCal.vision;
   var feedback = CrewCal.feedback;
   var ics = CrewCal.ics;
+  var poster = CrewCal.poster;
   var airports = CrewCal.airports;
   var holidays = CrewCal.holidays;
   var clock = CrewCal.clock;
@@ -5338,6 +5804,7 @@ button.ghost.danger { color: var(--danger); }
 
     // 연간 화면에서는 달 이름 대신 해를 보여준다
     if (mode === 'year') $('monthLabel').textContent = state.year + '년';
+    renderYearSummary(mode === 'year' ? entriesByDate : null);
 
     renderMonthSummary(entriesByDate);
     renderNextDuty(entriesByDate);
@@ -5364,7 +5831,7 @@ button.ghost.danger { color: var(--danger); }
     var bits = [];
     // 비행은 몇 편인지가, 나머지는 며칠인지가 궁금한 값이다
     if (s.flights) bits.push(['비행', s.flights + '편']);
-    ['layover', 'standby', 'off', 'training', 'other', 'unknown'].forEach(function (key) {
+    ['layover', 'standby', 'training', 'vacation', 'off', 'other', 'unknown'].forEach(function (key) {
       if (s.dayCounts[key]) bits.push([codes.CATEGORY_LABELS[key], s.dayCounts[key] + '일']);
     });
     bits.push(['일정 있는 날', s.days + '일']);
@@ -5391,6 +5858,57 @@ button.ghost.danger { color: var(--danger); }
       line.className = 'sum-cities';
       line.textContent = '간 곳 · ' + s.cities.map(function (c) {
         return (c.flag ? c.flag + ' ' : '') + c.city;
+      }).join(', ');
+      box.appendChild(line);
+    }
+  }
+
+  /** 연간 보기 아래에 한 해를 정리해 붙인다. 어디를 몇 번 갔는지가 궁금한 자리다. */
+  function renderYearSummary(entriesByDate) {
+    var box = $('yearSummary');
+    if (!box) return;
+    box.innerHTML = '';
+    if (!entriesByDate) { box.hidden = true; return; }
+
+    var s = calendar.summarizeYear(entriesByDate, state.year);
+    box.hidden = false;
+    if (!s.days) {
+      var empty = document.createElement('div');
+      empty.className = 'sum-cities';
+      empty.textContent = state.year + '년에 등록된 일정이 없습니다.';
+      box.appendChild(empty);
+      return;
+    }
+
+    var bits = [];
+    if (s.flights) bits.push(['비행', s.flights + '편']);
+    ['layover', 'standby', 'training', 'vacation', 'off', 'other', 'unknown'].forEach(function (key) {
+      if (s.dayCounts[key]) bits.push([codes.CATEGORY_LABELS[key], s.dayCounts[key] + '일']);
+    });
+    bits.push(['일정 있는 날', s.days + '일']);
+
+    bits.forEach(function (pair, i) {
+      if (i) {
+        var dot = document.createElement('span');
+        dot.className = 'sum-item';
+        dot.setAttribute('aria-hidden', 'true');
+        dot.textContent = '·';
+        box.appendChild(dot);
+      }
+      var item = document.createElement('span');
+      item.className = 'sum-item';
+      item.appendChild(document.createTextNode(pair[0] + ' '));
+      var strong = document.createElement('b');
+      strong.textContent = pair[1];
+      item.appendChild(strong);
+      box.appendChild(item);
+    });
+
+    if (s.places.length) {
+      var line = document.createElement('div');
+      line.className = 'sum-cities';
+      line.textContent = '다녀온 곳 · ' + s.places.map(function (p) {
+        return (p.flag ? p.flag + ' ' : '') + p.city + ' ' + p.count + '번';
       }).join(', ');
       box.appendChild(line);
     }
@@ -6291,6 +6809,68 @@ button.ghost.danger { color: var(--danger); }
     toast(made.count + '건 · 받은 파일을 열면 캘린더에 추가됩니다.');
   }
 
+  /**
+   * 보고 있는 달을 그림 한 장으로 만들어 공유하거나 저장한다.
+   * 폰에서는 공유창이 열려 카톡·사진으로 바로 넘길 수 있고, 안 되면 내려받는다.
+   */
+  function exportImage() {
+    var entriesByDate = store.getAll();
+    var canvas = document.createElement('canvas');
+    try {
+      poster.draw(canvas, {
+        year: state.year,
+        month: state.month,
+        entriesByDate: entriesByDate,
+        hideTimes: state.hideTimes
+      });
+    } catch (e) {
+      toast('그림을 만들지 못했습니다.');
+      return;
+    }
+
+    var name = poster.filename(state.year, state.month);
+    if (!canvas.toBlob) {
+      openImageTab(canvas.toDataURL('image/png'));
+      return;
+    }
+
+    canvas.toBlob(function (blob) {
+      if (!blob) { toast('그림을 만들지 못했습니다.'); return; }
+
+      var file = null;
+      try { file = new File([blob], name, { type: 'image/png' }); } catch (e) { file = null; }
+      if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({ files: [file], title: state.year + '년 ' + state.month + '월 스케줄' })
+          .catch(function () { /* 공유창을 닫은 경우 */ });
+        return;
+      }
+
+      // 아티팩트 뷰어처럼 내려받기가 막힌 화면에서는 새 탭으로 열어 길게 눌러 저장하게 한다
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      if ('download' in a) {
+        a.href = url;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+        toast('이미지를 저장했습니다.');
+        return;
+      }
+      openImageTab(url);
+    }, 'image/png');
+  }
+
+  function openImageTab(src) {
+    var win = window.open('', '_blank');
+    if (!win) { toast('새 창이 막혀 있습니다. 허용한 뒤 다시 눌러주세요.'); return; }
+    win.document.write('<title>스케줄 이미지</title>' +
+      '<body style="margin:0;background:#111"><img src="' + src + '" style="width:100%">');
+    win.document.close();
+    toast('사진을 길게 눌러 저장하세요.');
+  }
+
   function saveViaLink(filename, text, type) {
     var blob = new Blob([text], { type: type || 'application/json' });
     var url = URL.createObjectURL(blob);
@@ -6377,6 +6957,7 @@ button.ghost.danger { color: var(--danger); }
 
     $('exportBtn').addEventListener('click', exportBackup);
     $('icsBtn').addEventListener('click', exportIcs);
+    $('imageBtn').addEventListener('click', exportImage);
 
     $('importBtn').addEventListener('click', function () { $('importInput').click(); });
     $('importInput').addEventListener('change', function () {

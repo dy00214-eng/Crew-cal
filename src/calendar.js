@@ -130,6 +130,23 @@
     return String(entry.code).replace(/^[A-Z]{2}(?=\d)/, '');
   }
 
+  /**
+   * 그날이 어떤 날인지 한마디로. 칸 전체를 이 색으로 칠해 쉬는 날과 비행 날을 갈라 준다.
+   * 하루에 여러 개가 있으면 무거운 쪽을 따른다. 비행이 하나라도 있으면 비행하는 날이고,
+   * 아무 근무도 없이 휴무만 있어야 쉬는 날이다.
+   */
+  var DAY_ORDER = ['flight', 'standby', 'training', 'layover', 'other', 'unknown', 'vacation', 'off'];
+
+  function dayCategory(list) {
+    if (!list || !list.length) return null;
+    for (var i = 0; i < DAY_ORDER.length; i++) {
+      for (var j = 0; j < list.length; j++) {
+        if ((list[j].category || 'other') === DAY_ORDER[i]) return DAY_ORDER[i];
+      }
+    }
+    return null;
+  }
+
   function nextDay(date) {
     var d = new Date(date + 'T00:00:00Z');
     if (isNaN(d)) return null;
@@ -186,6 +203,29 @@
     return Math.round((two - one) / 86400000);
   }
 
+  /**
+   * 날짜별로 "그날 어디에 있나". 체류하는 날에는 구간이 안 적혀 있으므로,
+   * 마지막으로 내린 공항을 다음 비행까지 이어 간다. 한국에 내리면 다시 비운다.
+   * 결과는 { 'YYYY-MM-DD': { iata, city, flag } }.
+   */
+  function tripPlaces(entriesByDate) {
+    var byDate = entriesByDate || {};
+    var out = {};
+    var current = null;
+    Object.keys(byDate).sort().forEach(function (date) {
+      (byDate[date] || []).forEach(function (e) {
+        if (e.type !== 'flight' || !e.route || !airports) return;
+        var ends = airports.splitRoute(e.route);
+        if (!ends.to) return;
+        current = airports.countryOf(ends.to) === 'KR'
+          ? null
+          : { iata: ends.to, city: airports.cityOf(ends.to), flag: airports.flagOf(ends.to) };
+      });
+      out[date] = current;
+    });
+    return out;
+  }
+
   function render(container, options) {
     var year = options.year;
     var month = options.month;
@@ -209,8 +249,7 @@
     var grid = document.createElement('div');
     grid.className = 'cal-grid';
 
-    // 칸 너비를 재서 좁으면 짧은 표기로 바꾼다
-    var compact = (container.clientWidth || 0) / 7 < 62;
+    var places = tripPlaces(entriesByDate);
 
     var lead = firstWeekday(year, month);
     var total = daysInMonth(year, month);
@@ -231,6 +270,8 @@
         if (weekday === 0) cell.classList.add('sun');
         if (weekday === 6) cell.classList.add('sat');
         if (holiday) cell.classList.add('holiday');
+        var dayKind = dayCategory(list);
+        if (dayKind) cell.classList.add('day-' + dayKind);
         if (outside) cell.classList.add('outside');
         if (date === today) cell.classList.add('today');
         if (date === selected) cell.classList.add('selected');
@@ -253,23 +294,38 @@
 
         var chips = document.createElement('span');
         chips.className = 'cal-chips';
+        var dayHasFlight = list.some(function (e) { return e.type === 'flight'; });
+        var staying = places[date] || null;
+
         list.slice(0, 3).forEach(function (e) {
           var item = document.createElement('span');
           item.className = 'cal-item';
+          item.title = [e.code, e.label || '', airports ? airports.describeRoute(e.route) : e.route,
+            describeTimes(e, true)].filter(Boolean).join(' · ');
 
-          var chip = document.createElement('span');
-          chip.className = 'chip cat-' + (e.category || 'other');
-          chip.textContent = chipText(e, compact);
-          chip.title = [e.code, e.label || '', airports ? airports.describeRoute(e.route) : e.route, describeTimes(e, true)]
-            .filter(Boolean).join(' · ');
-          item.appendChild(chip);
+          // 도시가 주인공이다. 비행하는 날은 그 편이 가는 곳, 체류하는 날은 머무는 곳.
+          var place = e.type === 'flight' ? (airports ? airports.tripPlace(e) : null)
+            : (e.category === 'layover' && !dayHasFlight ? staying : null);
 
-          var placeText = placeLabel(e);
-          if (placeText) {
-            var place = document.createElement('span');
-            place.className = 'cal-place';
-            place.textContent = placeText;
-            item.appendChild(place);
+          if (place) {
+            if (place.flag || e.type === 'flight') {
+              var flag = document.createElement('span');
+              flag.className = 'cal-flag';
+              flag.textContent = (e.type === 'flight' ? '\u2708\uFE0F ' : '') + (place.flag || '');
+              item.appendChild(flag);
+            }
+            var city = document.createElement('span');
+            city.className = 'cal-city cat-' + (e.category || 'other');
+            city.textContent = place.city;
+            item.appendChild(city);
+          } else {
+            var title = document.createElement('span');
+            title.className = 'cal-title cat-' + (e.category || 'other');
+            // 구간을 모르는 비행은 편명이 곧 제목이다
+            title.textContent = e.type === 'flight'
+              ? '\u2708\uFE0F ' + e.code
+              : (e.label || e.code);
+            item.appendChild(title);
           }
 
           var timeText = hideTimes[date + '|' + e.code] ? '' : formatTimeRange(e);
@@ -279,11 +335,24 @@
             time.textContent = timeText;
             item.appendChild(time);
           }
+
+          // 큰 글씨 밑에는 작은 글씨로 한 줄. 도시 밑에는 편명(체류면 '체류'),
+          // 휴무·대기처럼 이름이 제목인 경우에는 원래 코드를 적는다.
+          var subText = place
+            ? (e.type === 'flight' ? e.code : (e.label || ''))
+            : (e.type === 'flight' ? '' : (e.code !== e.label ? e.code : ''));
+          if (subText) {
+            var sub = document.createElement('span');
+            sub.className = 'cal-code';
+            sub.textContent = subText;
+            item.appendChild(sub);
+          }
+
           chips.appendChild(item);
         });
         if (list.length > 3) {
           var more = document.createElement('span');
-          more.className = 'chip more';
+          more.className = 'cal-more';
           more.textContent = '+' + (list.length - 3);
           chips.appendChild(more);
         }
@@ -380,6 +449,8 @@
       if (date === today) row.classList.add('today');
       if (date === selected) row.classList.add('selected');
       if (outsideDates[date]) row.classList.add('outside');
+      var rowKind = dayCategory(entriesByDate[date]);
+      if (rowKind) row.classList.add('day-' + rowKind);
       row.setAttribute('data-date', date);
 
       var day = document.createElement('span');
@@ -425,6 +496,53 @@
    * 건수만 세면 "체류 3" 이 사흘인지 세 번인지 알 수 없다. 그래서 비행은 편수로,
    * 나머지는 날수로 센다(하루에 두 번 적혀 있어도 하루). 다녀온 도시도 순서대로 모은다.
    */
+  /**
+   * 한 해 요약. 어디를 몇 번 갔는지와 날수를 센다.
+   *
+   * 비행 편수는 크루넷이 이틀에 걸쳐 적어둔 도착편을 한 번만 센다.
+   * "간 곳" 은 한국에서 뜨는 편만 세어 한 번 다녀온 것을 한 번으로 잡는다
+   * (나가는 편과 들어오는 편을 다 세면 갈 때마다 두 번이 된다).
+   */
+  function summarizeYear(entriesByDate, year) {
+    var byDate = entriesByDate || {};
+    var hidden = suppressedTimes(byDate);
+    var prefix = String(year) + '-';
+    var dayCounts = {};
+    var days = 0;
+    var flights = 0;
+    var visits = {};
+
+    Object.keys(byDate).sort().forEach(function (date) {
+      if (date.indexOf(prefix) !== 0) return;
+      var list = byDate[date] || [];
+      if (!list.length) return;
+      days++;
+      var seenHere = {};
+      list.forEach(function (e) {
+        var c = e.category || 'other';
+        if (!seenHere[c]) { seenHere[c] = true; dayCounts[c] = (dayCounts[c] || 0) + 1; }
+        if (e.type !== 'flight') return;
+        if (hidden[date + '|' + e.code]) return;      // 도착일 쪽에서 이미 셌다
+        flights++;
+        if (!airports) return;
+        var ends = airports.splitRoute(e.route);
+        if (!ends.from || airports.countryOf(ends.from) !== 'KR') return;   // 나가는 편만
+        var place = airports.tripPlace(e);
+        if (!place) return;
+        if (!visits[place.city]) visits[place.city] = { city: place.city, flag: place.flag, count: 0 };
+        visits[place.city].count++;
+      });
+    });
+
+    var places = Object.keys(visits).map(function (city) { return visits[city]; });
+    places.sort(function (a, b) {
+      if (a.count !== b.count) return b.count - a.count;
+      return a.city < b.city ? -1 : 1;
+    });
+
+    return { year: year, days: days, flights: flights, dayCounts: dayCounts, places: places };
+  }
+
   /**
    * 한 해를 열두 개의 작은 달로 그린다. 칸마다 그날의 성격을 점으로만 찍는다.
    * 휴가를 어디에 붙일지, 어느 달이 빡셌는지 한눈에 보라고 만든 화면이다.
@@ -502,7 +620,7 @@
 
   function summarize(entriesByDate, year, month) {
     var prefix = year + '-' + pad2(month);
-    var counts = { flight: 0, layover: 0, standby: 0, off: 0, training: 0, other: 0, unknown: 0 };
+    var counts = { flight: 0, layover: 0, standby: 0, off: 0, vacation: 0, training: 0, other: 0, unknown: 0 };
     var dayCounts = {};
     var days = 0;
     var flightCodes = {};
@@ -585,6 +703,7 @@
     upcoming: upcoming,
     daysBetween: daysBetween,
     summarize: summarize,
+    summarizeYear: summarizeYear,
     search: search,
     formatTimeRange: formatTimeRange,
     describeTimes: describeTimes,
@@ -594,6 +713,8 @@
     routeLabel: routeLabel,
     placeLabel: placeLabel,
     chipText: chipText,
+    dayCategory: dayCategory,
+    tripPlaces: tripPlaces,
     iso: iso,
     pad2: pad2,
     todayIso: todayIso,

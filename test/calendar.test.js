@@ -218,3 +218,53 @@ test('한국에 내리는 편은 "한국 도착" 이라고 못박는다', () => 
   const full = { type: 'flight', route: 'CDG/ICN', start: '13:25', end: '15:50', endOffset: 1 };
   assert.strictEqual(calendar.describeTimes(full, true), '출발 13:25 → 도착 15:50 (익일)');
 });
+
+test('하루의 성격은 무거운 쪽을 따른다', () => {
+  const flight = { category: 'flight' };
+  const layover = { category: 'layover' };
+  const off = { category: 'off' };
+  const standby = { category: 'standby' };
+
+  assert.strictEqual(calendar.dayCategory([flight, layover]), 'flight');
+  assert.strictEqual(calendar.dayCategory([layover, flight]), 'flight');
+  assert.strictEqual(calendar.dayCategory([layover]), 'layover');
+  assert.strictEqual(calendar.dayCategory([standby, off]), 'standby');
+  // 휴무만 있어야 쉬는 날이다
+  assert.strictEqual(calendar.dayCategory([off]), 'off');
+  assert.strictEqual(calendar.dayCategory([off, layover]), 'layover');
+  assert.strictEqual(calendar.dayCategory([]), null);
+  assert.strictEqual(calendar.dayCategory(), null);
+});
+
+test('한 해 요약은 다녀온 횟수와 날수를 센다', () => {
+  const byDate = {
+    '2026-02-10': [{ type: 'flight', code: 'KE0035', route: 'ICN/ATL', category: 'flight' }],
+    '2026-02-11': [{ type: 'duty', code: 'LO', category: 'layover' }],
+    '2026-02-12': [{ type: 'flight', code: 'KE0036', route: 'ATL/ICN', category: 'flight' }],
+    '2026-05-01': [{ type: 'flight', code: 'KE0035', route: 'ICN/ATL', category: 'flight' }],
+    '2026-05-02': [{ type: 'flight', code: 'KE0036', route: 'ATL/ICN', category: 'flight' }],
+    '2026-06-01': [{ type: 'flight', code: 'KE0901', route: 'ICN/CDG', category: 'flight' }],
+    '2026-06-03': [{ type: 'flight', code: 'KE0902', route: 'CDG/ICN', category: 'flight' }],
+    '2026-07-01': [{ type: 'duty', code: 'YVS', category: 'vacation' }],
+    '2026-07-02': [{ type: 'duty', code: 'ATDO', category: 'off' }],
+    '2027-01-01': [{ type: 'flight', code: 'KE0035', route: 'ICN/ATL', category: 'flight' }]
+  };
+  const s = calendar.summarizeYear(byDate, 2026);
+  assert.strictEqual(s.days, 9);
+  assert.strictEqual(s.flights, 6);
+  // 나가는 편만 세므로 애틀랜타 두 번, 파리 한 번
+  assert.deepStrictEqual(s.places.map((p) => [p.city, p.count]), [['애틀랜타', 2], ['파리', 1]]);
+  assert.strictEqual(s.dayCounts.layover, 1);
+  assert.strictEqual(s.dayCounts.vacation, 1);
+  assert.strictEqual(s.dayCounts.off, 1);
+});
+
+test('이틀에 걸쳐 적힌 도착편은 한 해 요약에서도 한 번만 센다', () => {
+  const arrival = { type: 'flight', code: 'KE0036', route: 'ATL/ICN', category: 'flight', endOffset: 1 };
+  const s = calendar.summarizeYear({
+    '2026-03-04': [{ type: 'duty', code: 'LO', category: 'layover' }, arrival],
+    '2026-03-05': [arrival]
+  }, 2026);
+  assert.strictEqual(s.flights, 1);
+  assert.deepStrictEqual(s.places, []);   // 들어오는 편은 "간 곳" 으로 세지 않는다
+});
