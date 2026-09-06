@@ -392,3 +392,13 @@ test('RF 는 자택 대기로 읽는다', () => {
   assert.strictEqual(r.entries[0].category, 'standby');
   assert.strictEqual(r.warnings.length, 0);
 });
+
+test('공항 대기 코드를 읽는다', () => {
+  const r = parse('2026-09-06 SA\n2026-09-07 SB\n2026-09-08 SC\n2026-09-09 IA\n2026-09-10 IB\n2026-09-11 IC');
+  assert.deepStrictEqual(
+    r.entries.map(e => e.label),
+    ['김포공항 대기', '김포공항 대기', '김포공항 대기', '인천공항 대기', '인천공항 대기', '인천공항 대기']
+  );
+  assert.ok(r.entries.every(e => e.category === 'standby'));
+  assert.strictEqual(r.warnings.length, 0);
+});
