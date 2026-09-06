@@ -330,3 +330,12 @@ test('구간과 시각은 줄 중간에 날짜가 끼어도 제 날짜에 붙는
     [['02', 'KE0037', 'ICN/ORD', '10:40'], ['03', 'KE0038', 'ORD/ICN', '16:50']]
   );
 });
+
+test('YVS 는 휴가, TFRS 는 교육으로 읽는다', () => {
+  const r = parse('2026-06-10 YVS\n2026-06-29 TFRS\n2026-06-09 PDO');
+  assert.deepStrictEqual(
+    r.entries.map(e => [e.code, e.category, e.label]),
+    [['PDO', 'off', '휴무'], ['YVS', 'off', '휴가'], ['TFRS', 'training', '교육']]
+  );
+  assert.strictEqual(r.warnings.length, 0);
+});

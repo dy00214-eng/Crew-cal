@@ -33,6 +33,8 @@
     GDO: { label: '보장 휴무', category: 'off' },
     CDO: { label: '보상 휴무', category: 'off' },
     VAC: { label: '휴가', category: 'off' },
+    YVS: { label: '휴가', category: 'off' },
+    PDO: { label: '휴무', category: 'off' },
     ANL: { label: '연차 휴가', category: 'off' },
     AL: { label: '연차 휴가', category: 'off' },
     PL: { label: '개인 휴가', category: 'off' },
@@ -67,6 +69,7 @@
     CBT: { label: '온라인 교육', category: 'training' },
     OJT: { label: '현장 훈련', category: 'training' },
     RT: { label: '정기 훈련', category: 'training' },
+    TFRS: { label: '교육', category: 'training' },
 
     // 기타
     SICK: { label: '병가', category: 'other' },
