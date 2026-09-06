@@ -32,10 +32,32 @@
     return isNaN(d) ? '' : WEEKDAYS[d.getUTCDay()];
   }
 
-  /** 달력 칸에 넣을 짧은 시각 표기: '10:30→14:20', '23:50→06:20+1' */
-  function formatTimeRange(entry) {
+  /**
+   * 어느 쪽 시각을 보여줄지 고른다.
+   * 시차가 섞이면 헷갈리므로 한국 시각만 남긴다.
+   *   한국에서 출발 -> 출발 시각만 (현지 도착 시각은 감춘다)
+   *   한국에 도착   -> 한국 도착 시각만 (현지 출발 시각은 감춘다)
+   *   국내선이나 한국과 무관한 구간, 구간을 모르면 -> 둘 다
+   */
+  function koreanSide(entry) {
+    if (!entry || !entry.route || !airports) return null;
+    var parts = airports.splitRoute(entry.route);
+    var fromKR = airports.countryOf(parts.from) === 'KR';
+    var toKR = airports.countryOf(parts.to) === 'KR';
+    if (fromKR && !toKR) return 'start';
+    if (toKR && !fromKR) return 'end';
+    return null;
+  }
+
+  /** 달력 칸에 넣을 짧은 시각 표기: '09:45 출발', '17:50+1 도착', 국내선은 '06:35→07:45' */
+  function formatTimeRange(entry, full) {
     if (!entry) return '';
     var suffix = entry.endOffset ? '+' + entry.endOffset : '';
+    var side = full ? null : koreanSide(entry);
+
+    if (side === 'start' && entry.start) return entry.start + ' 출발';
+    if (side === 'end' && entry.end) return entry.end + suffix + ' 도착';
+
     // \u200B(폭 없는 공백)은 칸이 좁을 때 도착 시각이 아랫줄로 넘어가게 해준다.
     if (entry.start && entry.end) return entry.start + '\u2192\u200B' + entry.end + suffix;
     if (entry.start) return entry.start + ' 출발';
@@ -56,12 +78,21 @@
   }
 
   /** 목록에 쓸 자세한 시각 표기. 비행이면 출발/도착, 그 밖에는 시작/종료로 읽는다. */
-  function describeTimes(entry) {
+  /**
+   * 목록에 쓸 자세한 시각 표기. 비행이면 출발/도착, 그 밖에는 시작/종료로 읽는다.
+   * full 을 주면 한국 시각만 남기는 규칙을 건너뛰고 양쪽을 모두 보여준다.
+   */
+  function describeTimes(entry, full) {
     if (!entry || (!entry.start && !entry.end)) return '';
     var flight = entry.type === 'flight' || entry.category === 'flight';
     var startLabel = flight ? '출발' : '시작';
     var endLabel = flight ? '도착' : '종료';
     var nextDay = entry.endOffset ? ' (익일)' : '';
+    var side = full ? null : koreanSide(entry);
+
+    if (side === 'start' && entry.start) return startLabel + ' ' + entry.start;
+    if (side === 'end' && entry.end) return endLabel + ' ' + entry.end + nextDay;
+
     if (entry.start && entry.end) {
       return startLabel + ' ' + entry.start + ' \u2192 ' + endLabel + ' ' + entry.end + nextDay;
     }
@@ -144,7 +175,7 @@
           chip.className = 'chip cat-' + (e.category || 'other');
           var flag = departureFlag(e);
           chip.textContent = (flag ? flag + '\u2009' : '') + shortCode(e, compact);
-          chip.title = [e.code, e.label || '', airports ? airports.describeRoute(e.route) : e.route, describeTimes(e)]
+          chip.title = [e.code, e.label || '', airports ? airports.describeRoute(e.route) : e.route, describeTimes(e, true)]
             .filter(Boolean).join(' · ');
           item.appendChild(chip);
 
@@ -275,6 +306,7 @@
     summarize: summarize,
     formatTimeRange: formatTimeRange,
     describeTimes: describeTimes,
+    koreanSide: koreanSide,
     departureFlag: departureFlag,
     routeLabel: routeLabel,
     iso: iso,

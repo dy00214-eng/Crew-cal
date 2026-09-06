@@ -210,7 +210,10 @@ body {
   line-height: 1.25;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;   /* 칸이 좁으면 도착 시각이 아랫줄로 내려간다 */
+  /* 칸이 좁으면 아랫줄로 내려가되, '출발' 같은 낱말이 가운데서 쪼개지지 않게 한다.
+     시각 사이 줄바꿈은 formatTimeRange 가 넣어둔 \u200B 가 맡는다. */
+  word-break: keep-all;
+  overflow-wrap: break-word;
   padding-left: 1px;
 }
 .chip {

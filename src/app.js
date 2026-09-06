@@ -841,7 +841,7 @@
       text.className = 'entry-main';
       text.textContent = [calendar.routeLabel(item), calendar.describeTimes({
         type: 'flight', start: item.start, end: item.end, endOffset: item.endOffset
-      })].filter(Boolean).join(' · ') || '기억한 정보 없음';
+      }, true)].filter(Boolean).join(' · ') || '기억한 정보 없음';
       li.appendChild(text);
 
       ul.appendChild(li);
