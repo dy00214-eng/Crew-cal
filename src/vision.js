@@ -1,15 +1,19 @@
 /**
- * 스크린샷(이미지) 인식 모드 - 연동 자리만 잡아둔 어댑터.
+ * 스크린샷(이미지)에서 스케줄을 읽어오는 어댑터.
  *
- * 실제 이미지 인식은 Claude API 를 붙여서 처리할 예정이다.
- * 브라우저에서 API 키를 직접 들고 있으면 그대로 노출되므로,
- * 키는 반드시 서버(프록시 엔드포인트)에 두고 이 모듈은 그 엔드포인트만 호출한다.
+ * 두 가지 경로가 있고, 쓸 수 있는 쪽을 자동으로 고른다.
  *
- * 서버가 지켜야 할 규약
- *   POST {endpoint}
- *   요청  { image_base64, media_type, prompt, hint: { year, month } }
- *   응답  { text }        -> 텍스트 파서로 넘겨서 처리
- *      또는 { entries: [{ date, code, route?, start?, end? }] }
+ *  1. sample   - 아티팩트로 열렸을 때. 뷰어의 Claude 가 이미지를 직접 읽는다.
+ *                서버도 API 키도 필요 없고, 첫 호출 때 뷰어에게 사용 동의를 받는다.
+ *  2. endpoint - 직접 띄워 쓸 때. 아래 규약을 지키는 서버 주소를 설정에 넣어두면 그쪽으로 보낸다.
+ *
+ *        POST {endpoint}
+ *        요청  { image_base64, media_type, prompt, model, hint: { year, month } }
+ *        응답  { text }  또는  { entries: [{ date, code, route?, start?, end?, endOffset? }] }
+ *
+ *      브라우저에 API 키를 두면 그대로 노출되므로, 키는 서버에 두고 여기에는 주소만 넣는다.
+ *
+ * 어느 쪽이든 결과는 텍스트 붙여넣기와 같은 미리보기 -> 확인 절차를 그대로 탄다.
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
@@ -23,25 +27,44 @@
 
   var CONFIG_KEY = 'crew-cal.vision.v1';
   var DEFAULT_MODEL = 'claude-opus-5';
-
-  // 나중에 Claude API 로 보낼 프롬프트. 응답을 텍스트 붙여넣기 파서가 그대로 먹을 수 있는
-  // "날짜 + 코드" 한 줄 형식으로 강제한다.
-  var EXTRACTION_PROMPT = [
-    '이 이미지는 항공사 승무원 스케줄표입니다.',
-    '표에 적힌 날짜와 근무 코드를 빠짐없이 읽어 아래 형식으로만 출력하세요.',
-    '',
-    '  YYYY-MM-DD<탭>코드 [코드 ...]',
-    '',
-    '규칙:',
-    '- 한 줄에 하루씩, 날짜 오름차순으로 출력합니다.',
-    '- 코드는 이미지에 적힌 그대로 대문자로 씁니다(KE0035, LO, ATDO, STBY 등).',
-    '- 구간과 시각이 보이면 코드 뒤에 ICN/JFK 1030-1420 형태로 덧붙입니다.',
-    '- 설명, 머리말, 코드블록 없이 데이터 줄만 출력합니다.',
-    '- 읽을 수 없는 칸은 그 줄을 생략합니다.'
-  ].join('\n');
-
   var MAX_BYTES = 5 * 1024 * 1024;
   var ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+
+  /**
+   * 이미지에서 읽은 내용을 텍스트 파서가 그대로 먹을 수 있는 형태로 받아온다.
+   * 달력 칸 형태든 한 줄에 하루씩인 표 형태든 같은 형식으로 돌려달라고 못박는다.
+   */
+  function buildPrompt(hint) {
+    var year = hint && hint.year;
+    var month = hint && hint.month;
+    return [
+      '이 이미지는 항공사 승무원의 스케줄입니다.',
+      '달력 형태(칸마다 날짜와 근무가 적힌 월간 표)일 수도 있고, 한 줄에 하루씩인 목록일 수도 있습니다.',
+      '읽은 내용을 아래 형식의 데이터 줄로만 출력하세요.',
+      '',
+      'YYYY-MM-DD<탭>코드 [코드 ...] [출발공항/도착공항] [출발시각-도착시각]',
+      '',
+      '규칙:',
+      '- 하루에 한 줄, 날짜 오름차순으로 출력합니다.',
+      '- 근무가 없는(빈) 날은 줄을 만들지 않습니다.',
+      '- 코드는 이미지에 적힌 그대로 대문자로 씁니다. 예: KE0035, LO, ATDO, STBY, DO, VAC, GT',
+      '- 한 날짜에 근무가 여러 개면 한 줄에 이어 씁니다.',
+      year && month
+        ? '- 이미지에 연도나 월이 보이지 않으면 ' + year + '년 ' + month + '월로 봅니다.'
+        : '- 이미지에 보이는 연도와 월을 그대로 씁니다.',
+      '- 시각은 24시간 HHMM-HHMM 으로 씁니다. 도착이 다음 날이면 뒤에 +1 을 붙입니다. 예: 2350-0620+1',
+      '- 구간이나 시각이 안 보이면 그 부분은 생략합니다.',
+      '- 글자가 흐려 확실하지 않은 칸은 그 줄을 생략합니다.',
+      '- 설명, 머리말, 코드블록, 빈 줄 없이 데이터 줄만 출력합니다.',
+      '',
+      '출력 예:',
+      '2026-09-01\tKE0035\tICN/JFK\t1030-1420',
+      '2026-09-02\tLO',
+      '2026-09-03\tATDO'
+    ].filter(Boolean).join('\n');
+  }
+
+  /* ---------------- 설정 (endpoint 경로에서만 쓴다) ---------------- */
 
   function loadConfig() {
     try {
@@ -53,7 +76,7 @@
           model: parsed.model || DEFAULT_MODEL
         };
       }
-    } catch (e) { /* 무시하고 기본값 */ }
+    } catch (e) { /* 저장소를 못 읽으면 기본값 */ }
     return { endpoint: '', model: DEFAULT_MODEL };
   }
 
@@ -64,18 +87,63 @@
     };
     try {
       localStorage.setItem(CONFIG_KEY, JSON.stringify(next));
-    } catch (e) { /* 저장 실패해도 이번 세션에는 반환값으로 동작 */ }
+    } catch (e) { /* 저장에 실패해도 이번 세션에는 반환값으로 동작 */ }
     return next;
   }
 
-  function isConfigured() {
-    return !!loadConfig().endpoint;
+  /* ---------------- 경로 고르기 ---------------- */
+
+  var samplePromise = null;
+
+  /** 아티팩트 뷰어의 Claude 를 쓸 수 있는지 한 번만 확인한다. */
+  function probeSample() {
+    if (samplePromise) return samplePromise;
+
+    if (typeof window === 'undefined' || !window.claude || typeof window.claude.use !== 'function') {
+      samplePromise = Promise.resolve(null);
+      return samplePromise;
+    }
+
+    samplePromise = window.claude.use('sample').then(function (sample) {
+      if (!sample || typeof sample.limits !== 'function') return null;
+      return sample.limits().then(function (limits) {
+        if (!limits || !limits.images) return null;   // 이 화면은 이미지를 못 보낸다
+        return { kind: 'sample', sample: sample, images: limits.images };
+      }, function () { return null; });
+    }, function () { return null; });
+
+    return samplePromise;
   }
 
-  function validateFile(file) {
+  /** 지금 쓸 수 있는 경로를 알려준다. { kind: 'sample' | 'endpoint' | 'none' } */
+  function resolveBackend() {
+    return probeSample().then(function (viewer) {
+      if (viewer) return viewer;
+      var config = loadConfig();
+      if (config.endpoint) return { kind: 'endpoint', endpoint: config.endpoint, model: config.model };
+      return { kind: 'none' };
+    });
+  }
+
+  /* ---------------- 파일 ---------------- */
+
+  function validateFile(file, backend) {
     if (!file) return '이미지를 선택하세요.';
-    if (ALLOWED_TYPES.indexOf(file.type) === -1) return 'PNG, JPG, WEBP, GIF 이미지만 올릴 수 있습니다.';
-    if (file.size > MAX_BYTES) return '이미지가 너무 큽니다. 5MB 이하로 올려주세요.';
+
+    var types = ALLOWED_TYPES;
+    var maxBytes = MAX_BYTES;
+    if (backend && backend.kind === 'sample') {
+      types = backend.images.mediaTypes || types;
+      maxBytes = backend.images.maxInputBytes || maxBytes;
+    }
+
+    if (types.indexOf(file.type) === -1) {
+      return types.map(function (t) { return t.replace('image/', '').toUpperCase(); }).join(', ') +
+        ' 이미지만 올릴 수 있습니다.';
+    }
+    if (file.size > maxBytes) {
+      return '이미지가 너무 큽니다. ' + Math.floor(maxBytes / (1024 * 1024)) + 'MB 이하로 올려주세요.';
+    }
     return null;
   }
 
@@ -96,10 +164,7 @@
     });
   }
 
-  /**
-   * 서버(프록시)에서 Claude Messages API 로 그대로 넘길 수 있는 요청 본문 형태.
-   * 지금은 참고용이자 서버 구현 규약이다.
-   */
+  /** 서버에서 Claude Messages API 로 그대로 넘길 수 있는 요청 본문 (endpoint 구현 참고용) */
   function buildClaudeRequest(base64, mediaType, options) {
     options = options || {};
     return {
@@ -109,40 +174,78 @@
         role: 'user',
         content: [
           { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
-          { type: 'text', text: options.prompt || EXTRACTION_PROMPT }
+          { type: 'text', text: options.prompt || buildPrompt(options.hint) }
         ]
       }]
     };
   }
 
-  /**
-   * 스크린샷 분석. 엔드포인트가 설정돼 있지 않으면 NOT_CONFIGURED 로 거절한다.
-   * 성공하면 { text } 또는 { entries } 를 돌려주고, 호출부에서 미리보기로 넘긴다.
-   */
-  function analyze(file, options) {
-    options = options || {};
-    var config = loadConfig();
+  /* ---------------- 실행 ---------------- */
 
-    var invalid = validateFile(file);
-    if (invalid) return Promise.reject(new Error(invalid));
+  var SAMPLE_MESSAGES = {
+    cancelled: null,
+    not_granted: '이미지 인식 사용을 허용해야 읽을 수 있습니다. 다시 눌러 허용해 주세요.',
+    sampling_disabled: '이 계정에서는 Claude 이미지 인식을 쓸 수 없습니다.',
+    not_declared: '이 화면에서는 이미지 인식을 쓸 수 없습니다.',
+    capability_disabled: '이 화면에서는 이미지 인식을 쓸 수 없습니다.',
+    capability_removed: '이 화면에서는 이미지 인식을 쓸 수 없습니다.',
+    images_unavailable: '이 화면에서는 이미지를 보낼 수 없습니다. 텍스트 붙여넣기를 써주세요.',
+    image_rejected: '이미지를 읽지 못했습니다. 다른 파일이나 더 작은 화면으로 시도해 보세요.',
+    rate_limited: '요청이 몰렸습니다. 잠시 후 다시 눌러주세요.',
+    session_expired: '로그인이 만료됐습니다. 다시 로그인한 뒤 시도해 주세요.',
+    refused: '이 이미지는 읽지 않았습니다. 스케줄 화면인지 확인하고 다시 올려주세요.',
+    empty_completion: '이미지에서 읽어낸 내용이 없습니다. 더 또렷하게 캡처해 보세요.',
+    invalid_request: '요청을 만들지 못했습니다.',
+    transform_error: '요청을 만들지 못했습니다.',
+    prompt_too_large: '요청이 너무 큽니다.',
+    upstream_error: '일시적인 오류입니다. 다시 시도해 주세요.'
+  };
 
-    if (!config.endpoint) {
-      var err = new Error('이미지 인식 서버가 아직 연결되지 않았습니다. (다음 단계에서 Claude API 연동 예정)');
-      err.code = 'NOT_CONFIGURED';
-      return Promise.reject(err);
+  function sampleError(err) {
+    var code = (err && err.code) || 'upstream_error';
+    var message = SAMPLE_MESSAGES.hasOwnProperty(code) ? SAMPLE_MESSAGES[code] : SAMPLE_MESSAGES.upstream_error;
+    if (message === null) {
+      var cancelled = new Error('중지했습니다.');
+      cancelled.code = 'CANCELLED';
+      return cancelled;
     }
+    var out = new Error(message);
+    out.code = code;
+    return out;
+  }
 
+  function analyzeWithSample(backend, file, options) {
+    var callOptions = {
+      images: file,
+      modelTier: 'default'
+    };
+    if (options.signal) callOptions.signal = options.signal;
+    if (options.onText) callOptions.onText = options.onText;
+
+    return backend.sample(buildPrompt(options), callOptions).then(function (result) {
+      var text = String((result && result.text) || '').trim();
+      if (!text) {
+        throw new Error('이미지에서 일정을 읽지 못했습니다. 더 또렷한 화면을 올려보세요.');
+      }
+      return { text: text, entries: null };
+    }, function (err) {
+      throw sampleError(err);
+    });
+  }
+
+  function analyzeWithEndpoint(backend, file, options) {
     return fileToBase64(file).then(function (image) {
-      return fetch(config.endpoint, {
+      return fetch(backend.endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           image_base64: image.base64,
           media_type: image.mediaType,
-          prompt: options.prompt || EXTRACTION_PROMPT,
-          model: config.model,
+          prompt: buildPrompt(options),
+          model: backend.model,
           hint: { year: options.year || null, month: options.month || null }
-        })
+        }),
+        signal: options.signal
       });
     }).then(function (res) {
       if (!res.ok) throw new Error('이미지 인식 요청이 실패했습니다. (HTTP ' + res.status + ')');
@@ -154,13 +257,37 @@
     });
   }
 
+  /**
+   * 스크린샷 한 장을 읽는다.
+   * options: { year, month, signal, onText }
+   * 성공하면 { text } 또는 { entries } 를 돌려주고, 호출부가 미리보기로 넘긴다.
+   */
+  function analyze(file, options) {
+    options = options || {};
+
+    return resolveBackend().then(function (backend) {
+      if (backend.kind === 'none') {
+        var err = new Error('이미지 인식을 쓸 수 없는 화면입니다. 텍스트 붙여넣기를 쓰거나, 설정에 인식 서버 주소를 넣어주세요.');
+        err.code = 'NOT_CONFIGURED';
+        throw err;
+      }
+
+      var invalid = validateFile(file, backend);
+      if (invalid) throw new Error(invalid);
+
+      return backend.kind === 'sample'
+        ? analyzeWithSample(backend, file, options)
+        : analyzeWithEndpoint(backend, file, options);
+    });
+  }
+
   return {
     CONFIG_KEY: CONFIG_KEY,
     DEFAULT_MODEL: DEFAULT_MODEL,
-    EXTRACTION_PROMPT: EXTRACTION_PROMPT,
+    buildPrompt: buildPrompt,
     loadConfig: loadConfig,
     saveConfig: saveConfig,
-    isConfigured: isConfigured,
+    resolveBackend: resolveBackend,
     validateFile: validateFile,
     fileToBase64: fileToBase64,
     buildClaudeRequest: buildClaudeRequest,

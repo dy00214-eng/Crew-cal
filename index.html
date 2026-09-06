@@ -142,8 +142,9 @@
     <!-- 3) 스크린샷 업로드 (연동 자리) -->
     <div class="panel" id="panel-image" role="tabpanel">
       <p class="hint">
-        스케줄 화면을 캡처해서 올리면 이미지에서 날짜와 코드를 읽어옵니다.
-        <strong>이미지 인식은 다음 단계에서 Claude API 를 붙일 예정</strong>이라 지금은 업로드와 연동 자리만 준비돼 있습니다.
+        스케줄 화면을 캡처해서 올리면 날짜 · 코드 · 구간 · 출발/도착 시각을 읽어옵니다.
+        달력 형태든 목록 형태든 됩니다. 읽은 결과는 바로 반영하지 않고
+        <strong>텍스트 미리보기로 넘겨서</strong> 확인·수정한 뒤 반영합니다.
       </p>
 
       <div id="dropZone" class="drop-zone" tabindex="0" role="button" aria-label="스크린샷 업로드">
@@ -168,8 +169,9 @@
       <details class="api-config">
         <summary>이미지 인식 API 연동 설정</summary>
         <p class="muted">
-          브라우저에 API 키를 두면 그대로 노출됩니다. 키는 서버에 두고, 여기에는 그 서버의
-          엔드포인트 주소만 입력하세요. 서버는 <code>{ image_base64, media_type, prompt }</code> 를 받아
+          Claude 아티팩트로 열었다면 설정 없이 바로 인식됩니다. 이 설정은 앱을 직접 띄워 쓸 때만 필요합니다.
+          브라우저에 API 키를 두면 그대로 노출되므로 키는 서버에 두고, 여기에는 그 서버의 주소만 넣으세요.
+          서버는 <code>{ image_base64, media_type, prompt }</code> 를 받아
           <code>{ text }</code> 또는 <code>{ entries }</code> 로 응답하면 됩니다.
         </p>
         <label class="field">

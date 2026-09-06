@@ -15,7 +15,10 @@
     month: new Date().getMonth() + 1,
     selectedDate: calendar.todayIso(),
     preview: null,
-    imageFile: null
+    imageFile: null,
+    backend: null,
+    analyzing: false,
+    abort: null
   };
 
   var SAMPLE = [
@@ -456,6 +459,8 @@
     $('visionEndpoint').value = config.endpoint;
     $('visionModel').value = config.model;
 
+    refreshBackend();
+
     var dropZone = $('dropZone');
     var input = $('imageInput');
 
@@ -494,15 +499,26 @@
       });
       $('visionEndpoint').value = saved.endpoint;
       $('visionModel').value = saved.model;
-      updateAnalyzeButton();
+      refreshBackend();
       toast(saved.endpoint ? '연동 설정을 저장했습니다.' : '엔드포인트를 비웠습니다.');
     });
 
     updateAnalyzeButton();
   }
 
+  /** 이미지 인식을 어느 경로로 할 수 있는지 확인하고 안내 문구를 맞춘다. */
+  function refreshBackend() {
+    vision.resolveBackend().then(function (backend) {
+      state.backend = backend;
+      updateAnalyzeButton();
+      if (backend.kind === 'sample' && !state.imageFile) {
+        setStatus('이 화면에서는 Claude 가 이미지를 바로 읽습니다. 스케줄 화면을 올려보세요.', '');
+      }
+    });
+  }
+
   function setImageFile(file) {
-    var invalid = vision.validateFile(file);
+    var invalid = vision.validateFile(file, state.backend);
     if (invalid) {
       setStatus(invalid, 'error');
       return;
@@ -528,15 +544,27 @@
 
   function updateAnalyzeButton() {
     var btn = $('analyzeBtn');
-    var configured = vision.isConfigured();
-    btn.disabled = !state.imageFile || !configured;
-    if (!configured) {
-      btn.title = '이미지 인식 서버가 아직 연결되지 않았습니다.';
-      if (state.imageFile) {
-        setStatus('이미지는 준비됐습니다. 인식 기능은 다음 단계에서 Claude API 를 연결하면 켜집니다.', '');
-      }
-    } else {
+
+    if (state.analyzing) {
+      btn.disabled = false;
+      btn.textContent = '중지';
       btn.title = '';
+      return;
+    }
+
+    btn.textContent = '이미지에서 일정 읽기';
+
+    if (!state.backend) {              // 아직 확인 중
+      btn.disabled = true;
+      btn.title = '';
+      return;
+    }
+
+    var usable = state.backend.kind !== 'none';
+    btn.disabled = !state.imageFile || !usable;
+    btn.title = usable ? '' : '이미지 인식을 쓸 수 없는 화면입니다.';
+    if (!usable && state.imageFile) {
+      setStatus('이 화면에서는 이미지 인식을 쓸 수 없습니다. 텍스트 붙여넣기를 쓰거나, 아래 설정에 인식 서버 주소를 넣어주세요.', '');
     }
   }
 
@@ -547,18 +575,33 @@
   }
 
   function runAnalyze() {
+    if (state.analyzing) {                 // 다시 누르면 중지
+      if (state.abort) state.abort.abort();
+      return;
+    }
     if (!state.imageFile) return;
-    var base = baseYearMonth();
-    setStatus('이미지를 읽는 중…', '');
-    $('analyzeBtn').disabled = true;
 
-    vision.analyze(state.imageFile, { year: base.year, month: base.month })
+    var base = baseYearMonth();
+    state.abort = typeof AbortController === 'function' ? new AbortController() : null;
+    state.analyzing = true;
+    updateAnalyzeButton();
+    setStatus('이미지를 읽는 중… 10~60초쯤 걸립니다.', '');
+
+    vision.analyze(state.imageFile, {
+      year: base.year,
+      month: base.month,
+      signal: state.abort ? state.abort.signal : null,
+      onText: function (chunk) {
+        var lines = String(chunk.text || '').split('\n').filter(function (l) { return l.trim(); }).length;
+        setStatus('읽는 중… ' + lines + '줄 확인', '');
+      }
+    })
       .then(function (result) {
         if (result.text) {
           $('pasteInput').value = result.text;
           showTab('paste');
           runParse();
-          setStatus('인식 결과를 텍스트 미리보기로 넘겼습니다.', 'ok');
+          setStatus('읽은 내용을 텍스트 붙여넣기 탭의 미리보기로 넘겼습니다. 틀린 곳은 고친 뒤 반영하세요.', 'ok');
           return;
         }
         var normalized = (result.entries || []).map(function (e) {
@@ -588,9 +631,15 @@
         setStatus('인식 결과를 미리보기로 넘겼습니다.', 'ok');
       })
       .catch(function (err) {
+        if (err && err.code === 'CANCELLED') {
+          setStatus('중지했습니다.', '');
+          return;
+        }
         setStatus(err.message, 'error');
       })
       .then(function () {
+        state.analyzing = false;
+        state.abort = null;
         updateAnalyzeButton();
       });
   }
