@@ -1029,6 +1029,12 @@
 
   var APP_VERSION = '2026-09-06';
 
+  /**
+   * 의견이 모이는 카톡 오픈채팅방 주소.
+   * 채워 넣으면 "보내기" 가 글을 복사하고 이 방을 연다. 비워두면 폰 공유창을 쓴다.
+   */
+  var OPEN_CHAT = '';
+
   function feedbackContext() {
     var now = new Date();
     var at = now.getFullYear() + '-' + calendar.pad2(now.getMonth() + 1) + '-' + calendar.pad2(now.getDate()) +
@@ -1094,6 +1100,25 @@
       $('feedbackMessage').value = '';
     }
 
+    // 오픈채팅방이 정해져 있으면, 글을 복사해 주고 그 방을 열어준다.
+    // 복사와 방 열기를 같은 누름 안에서 시작해야 사파리가 창을 막지 않는다.
+    if (!copyOnly && OPEN_CHAT) {
+      var copying = navigator.clipboard && navigator.clipboard.writeText
+        ? navigator.clipboard.writeText(text)
+        : Promise.reject();
+      window.open(OPEN_CHAT, '_blank', 'noopener');
+      copying.then(function () {
+        $('feedbackStatus').textContent = '글을 복사했습니다. 열린 채팅방에 붙여넣기만 하면 됩니다.';
+        $('feedbackStatus').className = 'status ok';
+        $('feedbackMessage').value = '';
+      }, function () {
+        $('feedbackMessage').value = text;
+        $('feedbackStatus').textContent = '복사가 막혀 있습니다. 이 글을 직접 복사해 채팅방에 붙여넣어 주세요.';
+        $('feedbackStatus').className = 'status error';
+      });
+      return;
+    }
+
     if (!copyOnly && navigator.share) {
       navigator.share({ title: '크루캘 의견', text: text }).then(function () {
         $('feedbackMessage').value = '';
@@ -1118,6 +1143,11 @@
   function initFeedback() {
     var select = $('feedbackKind');
     if (!select) return;
+    // 아무것도 안 고르고 보내면 첫 항목으로 잘못 분류되니, 고르기 전에는 빈 칸을 둔다
+    var blank = document.createElement('option');
+    blank.value = '';
+    blank.textContent = '골라주세요';
+    select.appendChild(blank);
     feedback.KINDS.forEach(function (kind) {
       var option = document.createElement('option');
       option.value = kind.value;
@@ -1125,6 +1155,12 @@
       select.appendChild(option);
     });
     select.addEventListener('change', syncFeedbackSchedule);
+    if (OPEN_CHAT) {
+      $('feedbackSend').textContent = '카톡 방에 보내기';
+      $('feedbackHint').textContent =
+        '쓰다가 이상한 점이 있으면 적어 주세요. 보내기를 누르면 글이 복사되고 ' +
+        '크루캘 오픈채팅방이 열립니다. 방에 붙여넣기만 하면 됩니다.';
+    }
     $('feedbackBtn').addEventListener('click', openFeedback);
     $('feedbackClose').addEventListener('click', closeFeedback);
     $('feedbackBackdrop').addEventListener('click', closeFeedback);
