@@ -17,6 +17,8 @@
     preview: null,
     imageFile: null,
     view: 'calendar',
+    cleaning: false,
+    cleanupAbort: null,
     backend: null,
     analyzing: false,
     abort: null
@@ -325,10 +327,17 @@
 
     $('clearPasteBtn').addEventListener('click', function () {
       $('pasteInput').value = '';
+      setPasteStatus('', '');
       hidePreview();
     });
 
     $('parseBtn').addEventListener('click', runParse);
+    $('cleanupBtn').addEventListener('click', runCleanup);
+
+    // 텍스트 정리는 Claude 를 부를 수 있는 화면에서만 쓸 수 있다
+    vision.canCleanupText().then(function (usable) {
+      $('cleanupBtn').hidden = !usable;
+    });
     $('cancelPreviewBtn').addEventListener('click', function () {
       hidePreview();
       toast('반영을 취소했습니다.');
@@ -341,6 +350,61 @@
         cb.checked = on;
       });
       updateApplyButton();
+    });
+  }
+
+  function setPasteStatus(message, kind) {
+    var el = $('pasteStatus');
+    el.textContent = message;
+    el.className = 'status' + (kind ? ' ' + kind : '');
+  }
+
+  /**
+   * 사진 앱에서 인식한 글자나 화면을 통째로 복사한 글은 줄이 뒤섞여 있다.
+   * Claude 에게 날짜 + 코드 형식으로 다시 정리해 달라고 한 뒤 그대로 미리보기에 태운다.
+   */
+  function runCleanup() {
+    if (state.cleaning) {
+      if (state.cleanupAbort) state.cleanupAbort.abort();
+      return;
+    }
+
+    var text = $('pasteInput').value;
+    if (!text.trim()) {
+      setPasteStatus('정리할 내용이 없습니다. 먼저 텍스트를 붙여넣으세요.', 'error');
+      return;
+    }
+
+    var base = baseYearMonth();
+    state.cleanupAbort = typeof AbortController === 'function' ? new AbortController() : null;
+    state.cleaning = true;
+    $('cleanupBtn').textContent = '중지';
+    $('parseBtn').disabled = true;
+    setPasteStatus('Claude 가 정리하는 중… 10~60초쯤 걸립니다.', '');
+
+    vision.cleanupText(text, {
+      year: base.year,
+      month: base.month,
+      signal: state.cleanupAbort ? state.cleanupAbort.signal : null,
+      onText: function (chunk) {
+        var lines = String(chunk.text || '').split('\n').filter(function (l) { return l.trim(); }).length;
+        setPasteStatus('정리하는 중… ' + lines + '줄', '');
+      }
+    }).then(function (cleaned) {
+      $('pasteInput').value = cleaned;
+      runParse();
+      setPasteStatus('정리한 내용으로 미리보기를 만들었습니다. 확인하고 반영하세요.', 'ok');
+    }, function (err) {
+      if (err && err.code === 'CANCELLED') {
+        setPasteStatus('중지했습니다.', '');
+        return;
+      }
+      setPasteStatus(err.message, 'error');
+    }).then(function () {
+      state.cleaning = false;
+      state.cleanupAbort = null;
+      $('cleanupBtn').textContent = 'Claude로 정리';
+      $('parseBtn').disabled = false;
     });
   }
 

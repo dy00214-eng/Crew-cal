@@ -64,6 +64,81 @@
     ].filter(Boolean).join('\n');
   }
 
+  /**
+   * 사진 앱의 텍스트 인식으로 복사한 글이나, 화면을 통째로 복사한 글은
+   * 줄이 뒤섞이고 달력 격자가 풀려 있어 그대로는 읽기 어렵다.
+   * 이미지를 보낼 수 없는 화면에서도 텍스트 호출은 되므로, 그 글을 Claude 에게
+   * 날짜 + 코드 형식으로 다시 정리해 달라고 부탁한다.
+   */
+  function buildCleanupPrompt(text, hint) {
+    var year = hint && hint.year;
+    var month = hint && hint.month;
+    return [
+      '아래는 항공사 승무원 스케줄 화면에서 복사했거나 사진의 글자를 인식해 옮긴 텍스트입니다.',
+      '달력 격자가 풀려 줄이 뒤섞였을 수 있습니다. 아래 형식의 데이터 줄로만 다시 정리하세요.',
+      '',
+      'YYYY-MM-DD<탭>코드 [코드 ...] [출발공항/도착공항] [출발시각-도착시각]',
+      '',
+      '규칙:',
+      '- 하루에 한 줄, 날짜 오름차순으로 출력합니다.',
+      '- 근무가 없는 날은 줄을 만들지 않습니다.',
+      '- 코드는 원문 그대로 대문자로 씁니다. 예: KE0035, LO, ATDO, ADO, DO, STBY, TVL',
+      '- 달력 격자라면 날짜 숫자에 딸린 코드를 그 날짜에 맞춰 묶습니다.',
+      year && month
+        ? '- 연도나 월이 본문에 없으면 ' + year + '년 ' + month + '월로 봅니다.'
+        : '- 본문에 보이는 연도와 월을 그대로 씁니다.',
+      '- 시각이 보이면 코드 뒤에 1030-1420 형태로 붙이고, 없으면 생략합니다.',
+      '- MY SKD, prev, next, clear, 오늘 같은 화면 조작용 글자는 버립니다.',
+      '- 어느 날짜의 근무인지 확실하지 않으면 그 줄을 생략합니다.',
+      '- 설명, 머리말, 코드블록 없이 데이터 줄만 출력합니다.',
+      '',
+      '원문:',
+      '---',
+      String(text || '').slice(0, 40000),
+      '---'
+    ].filter(Boolean).join('\n');
+  }
+
+  /** 텍스트 정리를 쓸 수 있는 화면인지. (이미지와 달리 호출만 되면 된다) */
+  function canCleanupText() {
+    return probeSample().then(function (probe) {
+      return probe.reason !== 'no-runtime' && probe.reason !== 'no-sample';
+    });
+  }
+
+  /** 지저분한 텍스트를 날짜 + 코드 형식으로 정리해 돌려준다. */
+  function cleanupText(text, options) {
+    options = options || {};
+    if (!String(text || '').trim()) {
+      return Promise.reject(new Error('정리할 내용이 없습니다.'));
+    }
+
+    if (typeof window === 'undefined' || !window.claude || typeof window.claude.use !== 'function') {
+      var err = new Error('이 화면에서는 Claude 를 부를 수 없습니다.');
+      err.code = 'not_granted';
+      return Promise.reject(err);
+    }
+
+    return window.claude.use('sample').then(function (sample) {
+      if (!sample) {
+        var e = new Error('이 화면에서는 Claude 를 부를 수 없습니다.');
+        e.code = 'not_granted';
+        throw e;
+      }
+      var callOptions = { modelTier: 'default' };
+      if (options.signal) callOptions.signal = options.signal;
+      if (options.onText) callOptions.onText = options.onText;
+
+      return sample(buildCleanupPrompt(text, options), callOptions);
+    }).then(function (result) {
+      var out = String((result && result.text) || '').trim();
+      if (!out) throw new Error('정리된 내용이 없습니다. 원문을 조금 줄여서 다시 시도해 보세요.');
+      return out;
+    }, function (err) {
+      throw sampleError(err);
+    });
+  }
+
   /* ---------------- 설정 (endpoint 경로에서만 쓴다) ---------------- */
 
   function loadConfig() {
@@ -319,6 +394,9 @@
     CONFIG_KEY: CONFIG_KEY,
     DEFAULT_MODEL: DEFAULT_MODEL,
     buildPrompt: buildPrompt,
+    buildCleanupPrompt: buildCleanupPrompt,
+    canCleanupText: canCleanupText,
+    cleanupText: cleanupText,
     loadConfig: loadConfig,
     saveConfig: saveConfig,
     resolveBackend: resolveBackend,

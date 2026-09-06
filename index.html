@@ -107,9 +107,11 @@
         placeholder="예)&#10;2026-09-01  KE0035  ICN/JFK  1030-1420&#10;09/02  KE0036  JFK/ICN  2350-0620+1&#10;3  ATDO&#10;9월 4일  STBY  09:00-17:00&#10;05  KE0081  ICN/LAX  STD 1420  STA 0850+1&#10;2026-09-10 ~ 2026-09-12  VAC"></textarea>
       <div class="actions">
         <button type="button" id="parseBtn" class="primary">미리보기</button>
+        <button type="button" id="cleanupBtn" class="ghost" hidden>Claude로 정리</button>
         <button type="button" id="sampleBtn" class="ghost">예시 넣기</button>
         <button type="button" id="clearPasteBtn" class="ghost">지우기</button>
       </div>
+      <p id="pasteStatus" class="status" role="status"></p>
 
       <div id="preview" class="preview" hidden>
         <div class="preview-head">
@@ -184,8 +186,8 @@
           <li>
             <b>사진 앱에서 글자 복사 (아이폰)</b><br>
             사진 앱에서 스케줄 스크린샷을 열고 오른쪽 아래 <b>텍스트 인식</b> 버튼을 누른 뒤,
-            스케줄 부분을 선택해 복사하세요. 그대로 <b>붙여넣기</b> 탭에 붙여넣으면 됩니다.
-            한 줄에 하루씩 적힌 목록형 스케줄에 잘 맞습니다.
+            스케줄 부분을 선택해 복사하세요. <b>붙여넣기</b> 탭에 붙여넣고
+            <b>Claude로 정리</b>를 누르면 달력 모양으로 뒤섞인 글자도 날짜별로 맞춰 줍니다.
           </li>
           <li>
             <b>Claude 대화창에 보내기</b><br>
