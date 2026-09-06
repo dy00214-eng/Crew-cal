@@ -995,13 +995,36 @@ button.ghost.danger { color: var(--danger); }
 .next-duty .nd-away { margin-left: auto; color: var(--muted); font-size: 13px; }
 @media (max-width: 900px) { .next-duty { margin: 12px 16px 0; } }
 
-/* ---------- 체류지 현재 시각 ---------- */
-.local-clock {
-  margin: 10px 0 0;
-  font-size: 13px;
-  color: var(--cal-sub);
+/* ---------- 체류지 시차 배너 ---------- */
+.tz-banner {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border-radius: var(--r-card);
+  background: var(--surface-alt);
+  border: 1px solid var(--line);
 }
-.local-clock b { font-weight: 600; }
+.tz-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+#tzPlace { font-size: 15px; font-weight: 600; letter-spacing: -0.2px; }
+.tz-gap { font-size: 13px; color: var(--muted); }
+.tz-row { display: flex; align-items: center; gap: 12px; }
+.tz-side { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.tz-label { font-size: 12px; color: var(--muted); }
+.tz-time {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.8px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.tz-date { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.tz-sep { width: 1px; align-self: stretch; background: var(--separator); flex: none; }
 
 /* ---------- 아래에서 올라오는 창 (의견 보내기) ---------- */
 .sheet { position: fixed; inset: 0; z-index: 60; display: flex; align-items: flex-end; justify-content: center; }
@@ -1155,7 +1178,6 @@ button.ghost.danger { color: var(--danger); }
     <div id="calendar" class="calendar"></div>
     <div id="listView" class="list-view" hidden></div>
     <div id="yearView" class="year-view" hidden></div>
-    <p class="local-clock" id="localClock" hidden></p>
     <div id="monthSummary" class="month-summary"></div>
     <ul class="legend">
       <li><i class="dot cat-flight"></i>비행</li>
@@ -1165,6 +1187,26 @@ button.ghost.danger { color: var(--danger); }
       <li><i class="dot cat-training"></i>훈련</li>
       <li><i class="dot cat-unknown"></i>미확인</li>
     </ul>
+
+    <div class="tz-banner" id="tzBanner" hidden>
+      <div class="tz-head">
+        <span id="tzPlace">체류지</span>
+        <span id="tzGap" class="tz-gap"></span>
+      </div>
+      <div class="tz-row">
+        <div class="tz-side">
+          <span class="tz-label" id="tzThereLabel">현지</span>
+          <span class="tz-time" id="tzThereTime">--:--</span>
+          <span class="tz-date" id="tzThereDate"></span>
+        </div>
+        <span class="tz-sep" aria-hidden="true"></span>
+        <div class="tz-side">
+          <span class="tz-label">🇰🇷 한국</span>
+          <span class="tz-time" id="tzHereTime">--:--</span>
+          <span class="tz-date" id="tzHereDate"></span>
+        </div>
+      </div>
+    </div>
   </section>
 
   <section class="card input-card">
@@ -1957,6 +1999,117 @@ button.ghost.danger { color: var(--danger); }
     splitRoute: splitRoute,
     departureFlag: departureFlag,
     describeRoute: describeRoute
+  };
+});
+</script>
+<script>
+/**
+ * 시간대 계산. 체류지가 지금 몇 시인지, 한국과 몇 시간 차이인지 알아낸다.
+ *
+ * 서머타임은 나라마다 시작·끝이 다르고 해마다 바뀌므로 직접 세지 않는다.
+ * 브라우저가 갖고 있는 시간대 자료(IANA 이름)에 맡기고, 여기서는 그 결과를 읽는다.
+ */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) {
+    module.exports = factory();
+  } else {
+    root.CrewCal = root.CrewCal || {};
+    root.CrewCal.clock = factory();
+  }
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  var KOREA = 'Asia/Seoul';
+
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+
+  function partsIn(zone, when) {
+    var fmt = new Intl.DateTimeFormat('en-US', {
+      timeZone: zone,
+      hour12: false,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit'
+    });
+    var out = {};
+    fmt.formatToParts(when).forEach(function (part) { out[part.type] = part.value; });
+    return out;
+  }
+
+  /**
+   * 그 시간대가 UTC 에서 몇 분 앞선지. 서울이면 540.
+   * 그 시간대의 벽시계를 UTC 로 읽었다 치고 실제 시각과의 차이를 본다.
+   */
+  function offsetMinutes(zone, when) {
+    var at = when || new Date();
+    try {
+      var p = partsIn(zone, at);
+      var asUtc = Date.UTC(+p.year, +p.month - 1, +p.day, (+p.hour) % 24, +p.minute, +p.second);
+      return Math.round((asUtc - at.getTime()) / 60000);
+    } catch (e) {
+      return null;   // 시간대를 모르는 낡은 브라우저
+    }
+  }
+
+  /** 그 시간대의 지금. { time: '09:14', hour, minute, month, day, weekday: '수' } */
+  function now(zone, when) {
+    var at = when || new Date();
+    try {
+      var p = partsIn(zone, at);
+      var hour = (+p.hour) % 24;
+      var date = new Date(Date.UTC(+p.year, +p.month - 1, +p.day));
+      return {
+        time: pad2(hour) + ':' + pad2(+p.minute),
+        hour: hour,
+        minute: +p.minute,
+        year: +p.year,
+        month: +p.month,
+        day: +p.day,
+        weekday: ['일', '월', '화', '수', '목', '금', '토'][date.getUTCDay()]
+      };
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /** 한국과의 시차(분). 현지가 앞서면 양수. */
+  function gapMinutes(zone, when) {
+    var there = offsetMinutes(zone, when);
+    var here = offsetMinutes(KOREA, when);
+    if (there == null || here == null) return null;
+    return there - here;
+  }
+
+  /** 시차를 읽을 수 있게. 30분 단위 시차(인도·네팔 등)도 담아낸다. */
+  function describeGap(minutes) {
+    if (minutes == null) return '';
+    if (minutes === 0) return '한국과 시차 없음';
+    var ahead = minutes > 0;
+    var abs = Math.abs(minutes);
+    var hours = Math.floor(abs / 60);
+    var rest = abs % 60;
+    var span = hours ? hours + '시간' : '';
+    if (rest) span += (span ? ' ' : '') + rest + '분';
+    return '한국보다 ' + span + ' ' + (ahead ? '빠름' : '느림');
+  }
+
+  /** 하루가 어긋났는지: 현지가 한국보다 어제면 -1, 내일이면 +1. */
+  function dayShift(zone, when) {
+    var at = when || new Date();
+    var there = now(zone, at);
+    var here = now(KOREA, at);
+    if (!there || !here) return 0;
+    var a = Date.UTC(there.year, there.month - 1, there.day);
+    var b = Date.UTC(here.year, here.month - 1, here.day);
+    return Math.round((a - b) / 86400000);
+  }
+
+  return {
+    KOREA: KOREA,
+    offsetMinutes: offsetMinutes,
+    now: now,
+    gapMinutes: gapMinutes,
+    describeGap: describeGap,
+    dayShift: dayShift
   };
 });
 </script>
@@ -5072,6 +5225,7 @@ button.ghost.danger { color: var(--danger); }
   var ics = CrewCal.ics;
   var airports = CrewCal.airports;
   var holidays = CrewCal.holidays;
+  var clock = CrewCal.clock;
 
   var $ = function (id) { return document.getElementById(id); };
 
@@ -6314,55 +6468,70 @@ button.ghost.danger { color: var(--danger); }
    * 그날 머무는 곳이 지금 몇 시인지. 브라우저가 서머타임까지 맞춰 주므로 표만 있으면 된다.
    * 집에 전화 걸기 전에 보라고 만든 줄이다.
    */
+  /**
+   * 해외에 있는 날이면 현지 시각과 한국 시각을 나란히 보여주는 배너.
+   *
+   * "지금 어디에 있나" 는 그날 일정만으로는 알 수 없다. 체류하는 날에는 구간이 없기
+   * 때문이다. 그래서 그 날짜로부터 거슬러 올라가 가장 가까운 비행을 찾고, 그 편이
+   * 내린 공항을 지금 있는 곳으로 본다. 한국에 내렸으면 배너를 띄우지 않는다.
+   */
+  function whereOn(date) {
+    for (var back = 0; back <= 7; back++) {
+      var day = shiftDate(date, -back);
+      var list = store.getByDate(day);
+      for (var i = list.length - 1; i >= 0; i--) {
+        var entry = list[i];
+        if (entry.type !== 'flight' || !entry.route) continue;
+        var ends = airports.splitRoute(entry.route);
+        if (!ends.to) continue;
+        if (airports.countryOf(ends.to) === 'KR') return null;   // 한국에 돌아와 있다
+        return {
+          iata: ends.to,
+          city: airports.cityOf(ends.to),
+          flag: airports.flagOf(ends.to)
+        };
+      }
+    }
+    return null;
+  }
+
+  function shiftDate(date, days) {
+    var d = new Date(date + 'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate() + days);
+    return d.toISOString().slice(0, 10);
+  }
+
   function renderLocalClock(date) {
-    var box = $('localClock');
+    var box = $('tzBanner');
     if (!box) return;
-    var list = store.getByDate(date);
-    var place = null;
-    for (var i = 0; i < list.length && !place; i++) {
-      place = airports.tripPlace(list[i]);
-    }
+
+    var place = whereOn(date);
     var zone = place && airports.zoneOf(place.iata);
-    if (!zone || zone === 'Asia/Seoul') {
+    var there = zone && clock.now(zone);
+    var here = clock.now(clock.KOREA);
+    if (!zone || zone === clock.KOREA || !there || !here) {
       box.hidden = true;
       return;
     }
 
-    var now = new Date();
-    var there = localTime(now, zone);
-    var here = localTime(now, 'Asia/Seoul');
-    if (!there || !here) {
-      box.hidden = true;
-      return;
-    }
-    var gap = Math.round((there.minutes - here.minutes) / 30) / 2;
-    var gapText = gap === 0 ? '한국과 같음'
-      : '한국보다 ' + Math.abs(gap) + '시간 ' + (gap > 0 ? '빠름' : '느림');
+    $('tzPlace').textContent = (place.flag ? place.flag + ' ' : '') + place.city;
+    $('tzGap').textContent = clock.describeGap(clock.gapMinutes(zone));
+    $('tzThereLabel').textContent = (place.flag ? place.flag + ' ' : '') + '현지';
+    $('tzThereTime').textContent = there.time;
+    $('tzHereTime').textContent = here.time;
 
-    box.innerHTML = '';
-    var strong = document.createElement('b');
-    strong.textContent = (place.flag ? place.flag + ' ' : '') + place.city + ' 지금 ' + there.text;
-    box.appendChild(strong);
-    box.appendChild(document.createTextNode(' · ' + gapText));
+    var shift = clock.dayShift(zone);
+    $('tzThereDate').textContent = there.month + '/' + there.day + '(' + there.weekday + ')' +
+      (shift < 0 ? ' · 어제' : shift > 0 ? ' · 내일' : '');
+    $('tzHereDate').textContent = here.month + '/' + here.day + '(' + here.weekday + ')';
     box.hidden = false;
   }
 
-  /** 어떤 시간대에서 지금 몇 시인지. { text: '01:33', minutes: 자정부터의 분 } */
-  function localTime(now, zone) {
-    try {
-      var parts = new Intl.DateTimeFormat('en-GB', {
-        timeZone: zone, hour: '2-digit', minute: '2-digit', hour12: false
-      }).formatToParts(now);
-      var hour = 0;
-      var minute = 0;
-      parts.forEach(function (part) {
-        if (part.type === 'hour') hour = +part.value % 24;
-        if (part.type === 'minute') minute = +part.value;
-      });
-      return { text: calendar.pad2(hour) + ':' + calendar.pad2(minute), minutes: hour * 60 + minute };
-    } catch (e) {
-      return null; // 시간대를 모르는 낡은 브라우저
-    }
+  /** 배너의 시계는 1분마다 다시 그린다. */
+  function initClockTick() {
+    setInterval(function () {
+      if ($('tzBanner') && !$('tzBanner').hidden) renderLocalClock(state.selectedDate);
+    }, 60000);
   }
 
   /* ---------------- 동료가 보내는 의견 ---------------- */
@@ -6641,6 +6810,7 @@ button.ghost.danger { color: var(--danger); }
     initDataTools();
     initWelcome();
     initSearch();
+    initClockTick();
     initFeedback();
     initShare();
     initOffline();

@@ -11,6 +11,7 @@
   var ics = CrewCal.ics;
   var airports = CrewCal.airports;
   var holidays = CrewCal.holidays;
+  var clock = CrewCal.clock;
 
   var $ = function (id) { return document.getElementById(id); };
 
@@ -1253,55 +1254,70 @@
    * 그날 머무는 곳이 지금 몇 시인지. 브라우저가 서머타임까지 맞춰 주므로 표만 있으면 된다.
    * 집에 전화 걸기 전에 보라고 만든 줄이다.
    */
+  /**
+   * 해외에 있는 날이면 현지 시각과 한국 시각을 나란히 보여주는 배너.
+   *
+   * "지금 어디에 있나" 는 그날 일정만으로는 알 수 없다. 체류하는 날에는 구간이 없기
+   * 때문이다. 그래서 그 날짜로부터 거슬러 올라가 가장 가까운 비행을 찾고, 그 편이
+   * 내린 공항을 지금 있는 곳으로 본다. 한국에 내렸으면 배너를 띄우지 않는다.
+   */
+  function whereOn(date) {
+    for (var back = 0; back <= 7; back++) {
+      var day = shiftDate(date, -back);
+      var list = store.getByDate(day);
+      for (var i = list.length - 1; i >= 0; i--) {
+        var entry = list[i];
+        if (entry.type !== 'flight' || !entry.route) continue;
+        var ends = airports.splitRoute(entry.route);
+        if (!ends.to) continue;
+        if (airports.countryOf(ends.to) === 'KR') return null;   // 한국에 돌아와 있다
+        return {
+          iata: ends.to,
+          city: airports.cityOf(ends.to),
+          flag: airports.flagOf(ends.to)
+        };
+      }
+    }
+    return null;
+  }
+
+  function shiftDate(date, days) {
+    var d = new Date(date + 'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate() + days);
+    return d.toISOString().slice(0, 10);
+  }
+
   function renderLocalClock(date) {
-    var box = $('localClock');
+    var box = $('tzBanner');
     if (!box) return;
-    var list = store.getByDate(date);
-    var place = null;
-    for (var i = 0; i < list.length && !place; i++) {
-      place = airports.tripPlace(list[i]);
-    }
+
+    var place = whereOn(date);
     var zone = place && airports.zoneOf(place.iata);
-    if (!zone || zone === 'Asia/Seoul') {
+    var there = zone && clock.now(zone);
+    var here = clock.now(clock.KOREA);
+    if (!zone || zone === clock.KOREA || !there || !here) {
       box.hidden = true;
       return;
     }
 
-    var now = new Date();
-    var there = localTime(now, zone);
-    var here = localTime(now, 'Asia/Seoul');
-    if (!there || !here) {
-      box.hidden = true;
-      return;
-    }
-    var gap = Math.round((there.minutes - here.minutes) / 30) / 2;
-    var gapText = gap === 0 ? '한국과 같음'
-      : '한국보다 ' + Math.abs(gap) + '시간 ' + (gap > 0 ? '빠름' : '느림');
+    $('tzPlace').textContent = (place.flag ? place.flag + ' ' : '') + place.city;
+    $('tzGap').textContent = clock.describeGap(clock.gapMinutes(zone));
+    $('tzThereLabel').textContent = (place.flag ? place.flag + ' ' : '') + '현지';
+    $('tzThereTime').textContent = there.time;
+    $('tzHereTime').textContent = here.time;
 
-    box.innerHTML = '';
-    var strong = document.createElement('b');
-    strong.textContent = (place.flag ? place.flag + ' ' : '') + place.city + ' 지금 ' + there.text;
-    box.appendChild(strong);
-    box.appendChild(document.createTextNode(' · ' + gapText));
+    var shift = clock.dayShift(zone);
+    $('tzThereDate').textContent = there.month + '/' + there.day + '(' + there.weekday + ')' +
+      (shift < 0 ? ' · 어제' : shift > 0 ? ' · 내일' : '');
+    $('tzHereDate').textContent = here.month + '/' + here.day + '(' + here.weekday + ')';
     box.hidden = false;
   }
 
-  /** 어떤 시간대에서 지금 몇 시인지. { text: '01:33', minutes: 자정부터의 분 } */
-  function localTime(now, zone) {
-    try {
-      var parts = new Intl.DateTimeFormat('en-GB', {
-        timeZone: zone, hour: '2-digit', minute: '2-digit', hour12: false
-      }).formatToParts(now);
-      var hour = 0;
-      var minute = 0;
-      parts.forEach(function (part) {
-        if (part.type === 'hour') hour = +part.value % 24;
-        if (part.type === 'minute') minute = +part.value;
-      });
-      return { text: calendar.pad2(hour) + ':' + calendar.pad2(minute), minutes: hour * 60 + minute };
-    } catch (e) {
-      return null; // 시간대를 모르는 낡은 브라우저
-    }
+  /** 배너의 시계는 1분마다 다시 그린다. */
+  function initClockTick() {
+    setInterval(function () {
+      if ($('tzBanner') && !$('tzBanner').hidden) renderLocalClock(state.selectedDate);
+    }, 60000);
   }
 
   /* ---------------- 동료가 보내는 의견 ---------------- */
@@ -1580,6 +1596,7 @@
     initDataTools();
     initWelcome();
     initSearch();
+    initClockTick();
     initFeedback();
     initShare();
     initOffline();

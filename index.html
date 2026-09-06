@@ -69,7 +69,6 @@
     <div id="calendar" class="calendar"></div>
     <div id="listView" class="list-view" hidden></div>
     <div id="yearView" class="year-view" hidden></div>
-    <p class="local-clock" id="localClock" hidden></p>
     <div id="monthSummary" class="month-summary"></div>
     <ul class="legend">
       <li><i class="dot cat-flight"></i>비행</li>
@@ -79,6 +78,26 @@
       <li><i class="dot cat-training"></i>훈련</li>
       <li><i class="dot cat-unknown"></i>미확인</li>
     </ul>
+
+    <div class="tz-banner" id="tzBanner" hidden>
+      <div class="tz-head">
+        <span id="tzPlace">체류지</span>
+        <span id="tzGap" class="tz-gap"></span>
+      </div>
+      <div class="tz-row">
+        <div class="tz-side">
+          <span class="tz-label" id="tzThereLabel">현지</span>
+          <span class="tz-time" id="tzThereTime">--:--</span>
+          <span class="tz-date" id="tzThereDate"></span>
+        </div>
+        <span class="tz-sep" aria-hidden="true"></span>
+        <div class="tz-side">
+          <span class="tz-label">🇰🇷 한국</span>
+          <span class="tz-time" id="tzHereTime">--:--</span>
+          <span class="tz-date" id="tzHereDate"></span>
+        </div>
+      </div>
+    </div>
   </section>
 
   <section class="card input-card">
@@ -342,6 +361,7 @@
 
 <script src="src/codes.js"></script>
 <script src="src/airports.js"></script>
+<script src="src/clock.js"></script>
 <script src="src/holidays-lunar.js"></script>
 <script src="src/holidays.js"></script>
 <script src="src/schedule.js"></script>
