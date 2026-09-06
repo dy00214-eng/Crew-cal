@@ -125,14 +125,115 @@
 
   function renderMonthSummary(entriesByDate) {
     var s = calendar.summarize(entriesByDate, state.year, state.month);
-    var order = ['flight', 'layover', 'standby', 'off', 'training', 'other', 'unknown'];
-    var parts = ['<span class="sum-item">일정 있는 날 <b>' + s.days + '일</b></span>'];
-    order.forEach(function (key) {
-      if (s.counts[key]) {
-        parts.push('<span class="sum-item">' + codes.CATEGORY_LABELS[key] + ' <b>' + s.counts[key] + '</b></span>');
-      }
+    var box = $('monthSummary');
+    box.innerHTML = '';
+    if (!s.days) return;
+
+    var bits = [];
+    // 비행은 몇 편인지가, 나머지는 며칠인지가 궁금한 값이다
+    if (s.flights) bits.push(['비행', s.flights + '편']);
+    ['layover', 'standby', 'off', 'training', 'other', 'unknown'].forEach(function (key) {
+      if (s.dayCounts[key]) bits.push([codes.CATEGORY_LABELS[key], s.dayCounts[key] + '일']);
     });
-    $('monthSummary').innerHTML = parts.join('<span class="sum-item" aria-hidden="true">·</span>');
+    bits.push(['일정 있는 날', s.days + '일']);
+
+    bits.forEach(function (pair, i) {
+      if (i) {
+        var dot = document.createElement('span');
+        dot.className = 'sum-item';
+        dot.setAttribute('aria-hidden', 'true');
+        dot.textContent = '·';
+        box.appendChild(dot);
+      }
+      var item = document.createElement('span');
+      item.className = 'sum-item';
+      item.appendChild(document.createTextNode(pair[0] + ' '));
+      var strong = document.createElement('b');
+      strong.textContent = pair[1];
+      item.appendChild(strong);
+      box.appendChild(item);
+    });
+
+    if (s.cities.length) {
+      var line = document.createElement('div');
+      line.className = 'sum-cities';
+      line.textContent = '간 곳 · ' + s.cities.map(function (c) {
+        return (c.flag ? c.flag + ' ' : '') + c.city;
+      }).join(', ');
+      box.appendChild(line);
+    }
+  }
+
+  /* ---------------- 지난 일정 찾기 ---------------- */
+
+  function renderSearch(query) {
+    var box = $('searchResults');
+    var text = String(query || '').trim();
+    $('searchClear').hidden = !text;
+    if (!text) {
+      box.hidden = true;
+      box.innerHTML = '';
+      return;
+    }
+
+    var hits = calendar.search(store.getAll(), text, 60);
+    box.innerHTML = '';
+    box.hidden = false;
+
+    if (!hits.length) {
+      var none = document.createElement('p');
+      none.className = 'sr-empty';
+      none.textContent = '"' + text + '" 으로 찾은 일정이 없습니다.';
+      box.appendChild(none);
+      return;
+    }
+
+    var count = document.createElement('p');
+    count.className = 'sr-count';
+    count.textContent = hits.length + '건 (최근 것부터)';
+    box.appendChild(count);
+
+    hits.forEach(function (hit) {
+      var item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'sr-item';
+
+      var date = document.createElement('span');
+      date.className = 'sr-date';
+      date.textContent = hit.date.slice(2).replace(/-/g, '.') + ' (' + calendar.weekdayOf(hit.date) + ')';
+      item.appendChild(date);
+
+      var chip = document.createElement('span');
+      chip.className = 'chip cat-' + (hit.entry.category || 'other');
+      chip.textContent = hit.entry.code;
+      item.appendChild(chip);
+
+      var what = document.createElement('span');
+      what.className = 'sr-what';
+      what.textContent = [
+        calendar.placeLabel(hit.entry) || hit.entry.label || '',
+        calendar.describeTimes(hit.entry)
+      ].filter(Boolean).join(' · ');
+      item.appendChild(what);
+
+      item.addEventListener('click', function () { goToDate(hit.date); });
+      box.appendChild(item);
+    });
+  }
+
+  function initSearch() {
+    var input = $('searchInput');
+    if (!input) return;
+    var timer = null;
+    input.addEventListener('input', function () {
+      clearTimeout(timer);
+      timer = setTimeout(function () { renderSearch(input.value); }, 120);
+    });
+    $('searchClear').addEventListener('click', function () {
+      input.value = '';
+      renderSearch('');
+      input.focus();
+    });
   }
 
   function renderDayDetail() {
@@ -1447,6 +1548,7 @@
     initImage();
     initDataTools();
     initWelcome();
+    initSearch();
     initFeedback();
     initShare();
     initOffline();

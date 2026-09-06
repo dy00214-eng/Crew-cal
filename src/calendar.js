@@ -400,20 +400,85 @@
     });
   }
 
+  /**
+   * 한 달 요약.
+   *
+   * 건수만 세면 "체류 3" 이 사흘인지 세 번인지 알 수 없다. 그래서 비행은 편수로,
+   * 나머지는 날수로 센다(하루에 두 번 적혀 있어도 하루). 다녀온 도시도 순서대로 모은다.
+   */
   function summarize(entriesByDate, year, month) {
     var prefix = year + '-' + pad2(month);
     var counts = { flight: 0, layover: 0, standby: 0, off: 0, training: 0, other: 0, unknown: 0 };
+    var dayCounts = {};
     var days = 0;
-    Object.keys(entriesByDate).forEach(function (date) {
+    var flightCodes = {};
+    var cities = [];
+    var seenCity = {};
+
+    Object.keys(entriesByDate).sort().forEach(function (date) {
       if (date.indexOf(prefix) !== 0) return;
+      if (!(entriesByDate[date] || []).length) return;
       days++;
+      var seenHere = {};
       entriesByDate[date].forEach(function (e) {
         var c = e.category || 'other';
         if (counts[c] == null) counts[c] = 0;
         counts[c]++;
+        if (!seenHere[c]) {
+          seenHere[c] = true;
+          dayCounts[c] = (dayCounts[c] || 0) + 1;
+        }
+        if (e.type === 'flight' && e.code) flightCodes[e.code] = true;
+        var place = airports && airports.tripPlace ? airports.tripPlace(e) : null;
+        if (place && !seenCity[place.city]) {
+          seenCity[place.city] = true;
+          cities.push(place);
+        }
       });
     });
-    return { days: days, counts: counts };
+
+    return {
+      days: days,
+      counts: counts,
+      dayCounts: dayCounts,
+      flights: Object.keys(flightCodes).length,
+      cities: cities
+    };
+  }
+
+  /**
+   * 편명·도시·코드로 지난 일정을 찾는다. "ATL 언제 갔더라" 를 답하는 자리.
+   * 찾는 말은 편명(KE35, 0035), 도시 이름(애틀랜타), 코드(LO), 날짜 조각(2026-09) 다 된다.
+   */
+  function search(entriesByDate, query, limit) {
+    var needle = String(query || '').trim().toLowerCase();
+    if (needle.length < 1) return [];
+    var digits = needle.replace(/[^0-9]/g, '');
+    var out = [];
+
+    Object.keys(entriesByDate || {}).sort().reverse().some(function (date) {
+      (entriesByDate[date] || []).forEach(function (entry) {
+        var hay = [
+          date,
+          entry.code || '',
+          entry.label || '',
+          entry.route || '',
+          entry.memo || '',
+          placeLabel(entry)
+        ].join(' ').toLowerCase();
+
+        var hit = hay.indexOf(needle) >= 0;
+        // 'KE35' 나 '35' 로도 KE0035 를 찾을 수 있게 앞의 0 을 떼고 한 번 더 본다
+        if (!hit && digits && entry.code) {
+          var codeDigits = String(entry.code).replace(/[^0-9]/g, '').replace(/^0+/, '');
+          hit = codeDigits === digits.replace(/^0+/, '');
+        }
+        if (hit) out.push({ date: date, entry: entry });
+      });
+      return limit && out.length >= limit;
+    });
+
+    return limit ? out.slice(0, limit) : out;
   }
 
   return {
@@ -425,6 +490,7 @@
     upcoming: upcoming,
     daysBetween: daysBetween,
     summarize: summarize,
+    search: search,
     formatTimeRange: formatTimeRange,
     describeTimes: describeTimes,
     koreanSide: koreanSide,

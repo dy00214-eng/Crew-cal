@@ -825,6 +825,39 @@ button.ghost.danger { color: var(--danger); }
 .ios-only { display: none; }
 .is-ios .ios-only { display: inline; }
 
+.sum-cities { flex-basis: 100%; margin-top: 6px; font-size: 13px; color: var(--cal-sub); }
+
+/* ---------- 지난 일정 찾기 ---------- */
+.search-bar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
+.search-bar input { flex: 1; min-width: 0; }
+.search-results {
+  margin-bottom: 12px;
+  border-radius: var(--r-card);
+  background: var(--surface-alt);
+  padding: 6px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.search-results .sr-empty { padding: 12px; color: var(--muted); font-size: 14px; }
+.search-results .sr-count { padding: 8px 10px 4px; color: var(--muted); font-size: 12px; }
+.sr-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: 0;
+  background: none;
+  text-align: left;
+  padding: 9px 10px;
+  border-radius: var(--r-control);
+  cursor: pointer;
+  font: inherit;
+  color: var(--text);
+}
+.sr-item:hover { background: var(--fill); }
+.sr-item .sr-date { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 13px; white-space: nowrap; }
+.sr-item .sr-what { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+
 /* ---------- 다음 근무 띠 ---------- */
 .next-duty {
   max-width: 1280px;
@@ -999,6 +1032,12 @@ button.ghost.danger { color: var(--danger); }
         <button type="button" class="seg-btn" data-view="list">목록</button>
       </div>
     </div>
+    <div class="search-bar">
+      <input type="search" id="searchInput" placeholder="편명·도시·코드로 지난 일정 찾기 (예: ATL, KE35, 체류)"
+        autocomplete="off" spellcheck="false">
+      <button type="button" id="searchClear" class="ghost small" hidden>지우기</button>
+    </div>
+    <div id="searchResults" class="search-results" hidden></div>
     <div id="calendar" class="calendar"></div>
     <div id="listView" class="list-view" hidden></div>
     <p class="local-clock" id="localClock" hidden></p>
@@ -3609,20 +3648,85 @@ button.ghost.danger { color: var(--danger); }
     });
   }
 
+  /**
+   * 한 달 요약.
+   *
+   * 건수만 세면 "체류 3" 이 사흘인지 세 번인지 알 수 없다. 그래서 비행은 편수로,
+   * 나머지는 날수로 센다(하루에 두 번 적혀 있어도 하루). 다녀온 도시도 순서대로 모은다.
+   */
   function summarize(entriesByDate, year, month) {
     var prefix = year + '-' + pad2(month);
     var counts = { flight: 0, layover: 0, standby: 0, off: 0, training: 0, other: 0, unknown: 0 };
+    var dayCounts = {};
     var days = 0;
-    Object.keys(entriesByDate).forEach(function (date) {
+    var flightCodes = {};
+    var cities = [];
+    var seenCity = {};
+
+    Object.keys(entriesByDate).sort().forEach(function (date) {
       if (date.indexOf(prefix) !== 0) return;
+      if (!(entriesByDate[date] || []).length) return;
       days++;
+      var seenHere = {};
       entriesByDate[date].forEach(function (e) {
         var c = e.category || 'other';
         if (counts[c] == null) counts[c] = 0;
         counts[c]++;
+        if (!seenHere[c]) {
+          seenHere[c] = true;
+          dayCounts[c] = (dayCounts[c] || 0) + 1;
+        }
+        if (e.type === 'flight' && e.code) flightCodes[e.code] = true;
+        var place = airports && airports.tripPlace ? airports.tripPlace(e) : null;
+        if (place && !seenCity[place.city]) {
+          seenCity[place.city] = true;
+          cities.push(place);
+        }
       });
     });
-    return { days: days, counts: counts };
+
+    return {
+      days: days,
+      counts: counts,
+      dayCounts: dayCounts,
+      flights: Object.keys(flightCodes).length,
+      cities: cities
+    };
+  }
+
+  /**
+   * 편명·도시·코드로 지난 일정을 찾는다. "ATL 언제 갔더라" 를 답하는 자리.
+   * 찾는 말은 편명(KE35, 0035), 도시 이름(애틀랜타), 코드(LO), 날짜 조각(2026-09) 다 된다.
+   */
+  function search(entriesByDate, query, limit) {
+    var needle = String(query || '').trim().toLowerCase();
+    if (needle.length < 1) return [];
+    var digits = needle.replace(/[^0-9]/g, '');
+    var out = [];
+
+    Object.keys(entriesByDate || {}).sort().reverse().some(function (date) {
+      (entriesByDate[date] || []).forEach(function (entry) {
+        var hay = [
+          date,
+          entry.code || '',
+          entry.label || '',
+          entry.route || '',
+          entry.memo || '',
+          placeLabel(entry)
+        ].join(' ').toLowerCase();
+
+        var hit = hay.indexOf(needle) >= 0;
+        // 'KE35' 나 '35' 로도 KE0035 를 찾을 수 있게 앞의 0 을 떼고 한 번 더 본다
+        if (!hit && digits && entry.code) {
+          var codeDigits = String(entry.code).replace(/[^0-9]/g, '').replace(/^0+/, '');
+          hit = codeDigits === digits.replace(/^0+/, '');
+        }
+        if (hit) out.push({ date: date, entry: entry });
+      });
+      return limit && out.length >= limit;
+    });
+
+    return limit ? out.slice(0, limit) : out;
   }
 
   return {
@@ -3634,6 +3738,7 @@ button.ghost.danger { color: var(--danger); }
     upcoming: upcoming,
     daysBetween: daysBetween,
     summarize: summarize,
+    search: search,
     formatTimeRange: formatTimeRange,
     describeTimes: describeTimes,
     koreanSide: koreanSide,
@@ -4561,14 +4666,115 @@ button.ghost.danger { color: var(--danger); }
 
   function renderMonthSummary(entriesByDate) {
     var s = calendar.summarize(entriesByDate, state.year, state.month);
-    var order = ['flight', 'layover', 'standby', 'off', 'training', 'other', 'unknown'];
-    var parts = ['<span class="sum-item">일정 있는 날 <b>' + s.days + '일</b></span>'];
-    order.forEach(function (key) {
-      if (s.counts[key]) {
-        parts.push('<span class="sum-item">' + codes.CATEGORY_LABELS[key] + ' <b>' + s.counts[key] + '</b></span>');
-      }
+    var box = $('monthSummary');
+    box.innerHTML = '';
+    if (!s.days) return;
+
+    var bits = [];
+    // 비행은 몇 편인지가, 나머지는 며칠인지가 궁금한 값이다
+    if (s.flights) bits.push(['비행', s.flights + '편']);
+    ['layover', 'standby', 'off', 'training', 'other', 'unknown'].forEach(function (key) {
+      if (s.dayCounts[key]) bits.push([codes.CATEGORY_LABELS[key], s.dayCounts[key] + '일']);
     });
-    $('monthSummary').innerHTML = parts.join('<span class="sum-item" aria-hidden="true">·</span>');
+    bits.push(['일정 있는 날', s.days + '일']);
+
+    bits.forEach(function (pair, i) {
+      if (i) {
+        var dot = document.createElement('span');
+        dot.className = 'sum-item';
+        dot.setAttribute('aria-hidden', 'true');
+        dot.textContent = '·';
+        box.appendChild(dot);
+      }
+      var item = document.createElement('span');
+      item.className = 'sum-item';
+      item.appendChild(document.createTextNode(pair[0] + ' '));
+      var strong = document.createElement('b');
+      strong.textContent = pair[1];
+      item.appendChild(strong);
+      box.appendChild(item);
+    });
+
+    if (s.cities.length) {
+      var line = document.createElement('div');
+      line.className = 'sum-cities';
+      line.textContent = '간 곳 · ' + s.cities.map(function (c) {
+        return (c.flag ? c.flag + ' ' : '') + c.city;
+      }).join(', ');
+      box.appendChild(line);
+    }
+  }
+
+  /* ---------------- 지난 일정 찾기 ---------------- */
+
+  function renderSearch(query) {
+    var box = $('searchResults');
+    var text = String(query || '').trim();
+    $('searchClear').hidden = !text;
+    if (!text) {
+      box.hidden = true;
+      box.innerHTML = '';
+      return;
+    }
+
+    var hits = calendar.search(store.getAll(), text, 60);
+    box.innerHTML = '';
+    box.hidden = false;
+
+    if (!hits.length) {
+      var none = document.createElement('p');
+      none.className = 'sr-empty';
+      none.textContent = '"' + text + '" 으로 찾은 일정이 없습니다.';
+      box.appendChild(none);
+      return;
+    }
+
+    var count = document.createElement('p');
+    count.className = 'sr-count';
+    count.textContent = hits.length + '건 (최근 것부터)';
+    box.appendChild(count);
+
+    hits.forEach(function (hit) {
+      var item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'sr-item';
+
+      var date = document.createElement('span');
+      date.className = 'sr-date';
+      date.textContent = hit.date.slice(2).replace(/-/g, '.') + ' (' + calendar.weekdayOf(hit.date) + ')';
+      item.appendChild(date);
+
+      var chip = document.createElement('span');
+      chip.className = 'chip cat-' + (hit.entry.category || 'other');
+      chip.textContent = hit.entry.code;
+      item.appendChild(chip);
+
+      var what = document.createElement('span');
+      what.className = 'sr-what';
+      what.textContent = [
+        calendar.placeLabel(hit.entry) || hit.entry.label || '',
+        calendar.describeTimes(hit.entry)
+      ].filter(Boolean).join(' · ');
+      item.appendChild(what);
+
+      item.addEventListener('click', function () { goToDate(hit.date); });
+      box.appendChild(item);
+    });
+  }
+
+  function initSearch() {
+    var input = $('searchInput');
+    if (!input) return;
+    var timer = null;
+    input.addEventListener('input', function () {
+      clearTimeout(timer);
+      timer = setTimeout(function () { renderSearch(input.value); }, 120);
+    });
+    $('searchClear').addEventListener('click', function () {
+      input.value = '';
+      renderSearch('');
+      input.focus();
+    });
   }
 
   function renderDayDetail() {
@@ -5883,6 +6089,7 @@ button.ghost.danger { color: var(--danger); }
     initImage();
     initDataTools();
     initWelcome();
+    initSearch();
     initFeedback();
     initShare();
     initOffline();

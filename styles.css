@@ -821,6 +821,39 @@ button.ghost.danger { color: var(--danger); }
 .ios-only { display: none; }
 .is-ios .ios-only { display: inline; }
 
+.sum-cities { flex-basis: 100%; margin-top: 6px; font-size: 13px; color: var(--cal-sub); }
+
+/* ---------- 지난 일정 찾기 ---------- */
+.search-bar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
+.search-bar input { flex: 1; min-width: 0; }
+.search-results {
+  margin-bottom: 12px;
+  border-radius: var(--r-card);
+  background: var(--surface-alt);
+  padding: 6px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.search-results .sr-empty { padding: 12px; color: var(--muted); font-size: 14px; }
+.search-results .sr-count { padding: 8px 10px 4px; color: var(--muted); font-size: 12px; }
+.sr-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: 0;
+  background: none;
+  text-align: left;
+  padding: 9px 10px;
+  border-radius: var(--r-control);
+  cursor: pointer;
+  font: inherit;
+  color: var(--text);
+}
+.sr-item:hover { background: var(--fill); }
+.sr-item .sr-date { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 13px; white-space: nowrap; }
+.sr-item .sr-what { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+
 /* ---------- 다음 근무 띠 ---------- */
 .next-duty {
   max-width: 1280px;

@@ -55,6 +55,12 @@
         <button type="button" class="seg-btn" data-view="list">목록</button>
       </div>
     </div>
+    <div class="search-bar">
+      <input type="search" id="searchInput" placeholder="편명·도시·코드로 지난 일정 찾기 (예: ATL, KE35, 체류)"
+        autocomplete="off" spellcheck="false">
+      <button type="button" id="searchClear" class="ghost small" hidden>지우기</button>
+    </div>
+    <div id="searchResults" class="search-results" hidden></div>
     <div id="calendar" class="calendar"></div>
     <div id="listView" class="list-view" hidden></div>
     <p class="local-clock" id="localClock" hidden></p>

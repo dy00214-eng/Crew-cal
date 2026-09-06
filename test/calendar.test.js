@@ -141,3 +141,49 @@ test('날짜 사이 일수', () => {
   assert.strictEqual(calendar.daysBetween('2026-12-31', '2027-01-02'), 2);
   assert.strictEqual(calendar.daysBetween('2026-02-28', '2026-03-01'), 1);
 });
+
+test('한 달 요약은 비행을 편수로, 나머지를 날수로 센다', () => {
+  const byDate = {
+    '2026-09-01': [
+      { type: 'flight', code: 'KE0035', route: 'ICN/ATL', category: 'flight' },
+      { type: 'duty', code: 'LO', category: 'layover' }
+    ],
+    '2026-09-02': [{ type: 'duty', code: 'LO', category: 'layover' }],
+    '2026-09-03': [
+      { type: 'flight', code: 'KE0036', route: 'ATL/ICN', category: 'flight' },
+      { type: 'duty', code: 'LO', category: 'layover' }
+    ],
+    '2026-09-04': [{ type: 'duty', code: 'PDO', category: 'off' }],
+    '2026-10-01': [{ type: 'duty', code: 'PDO', category: 'off' }]
+  };
+  const s = calendar.summarize(byDate, 2026, 9);
+  assert.strictEqual(s.days, 4);
+  assert.strictEqual(s.flights, 2);
+  assert.strictEqual(s.dayCounts.layover, 3);
+  assert.strictEqual(s.dayCounts.off, 1);
+  assert.deepStrictEqual(s.cities.map((c) => c.city), ['애틀랜타']);
+});
+
+test('빈 날짜는 일정 있는 날로 세지 않는다', () => {
+  const s = calendar.summarize({ '2026-09-01': [] }, 2026, 9);
+  assert.strictEqual(s.days, 0);
+});
+
+test('편명·도시·코드로 지난 일정을 찾는다', () => {
+  const byDate = {
+    '2026-07-14': [{ type: 'flight', code: 'KE0035', route: 'ICN/ATL' }],
+    '2026-08-02': [{ type: 'duty', code: 'LO', label: '체류' }],
+    '2026-09-01': [{ type: 'flight', code: 'KE0081', route: 'ICN/JFK' }]
+  };
+  assert.deepStrictEqual(calendar.search(byDate, 'ATL').map((r) => r.date), ['2026-07-14']);
+  assert.deepStrictEqual(calendar.search(byDate, '애틀랜타').map((r) => r.date), ['2026-07-14']);
+  assert.deepStrictEqual(calendar.search(byDate, '체류').map((r) => r.date), ['2026-08-02']);
+  // 최근 것부터 나온다
+  assert.deepStrictEqual(calendar.search(byDate, 'KE').map((r) => r.date), ['2026-09-01', '2026-07-14']);
+  // 편명은 앞의 0 을 떼고도 찾힌다
+  assert.deepStrictEqual(calendar.search(byDate, '35').map((r) => r.date), ['2026-07-14']);
+  assert.deepStrictEqual(calendar.search(byDate, 'ke81').map((r) => r.date), ['2026-09-01']);
+  // 날짜 조각으로도
+  assert.strictEqual(calendar.search(byDate, '2026-08').length, 1);
+  assert.deepStrictEqual(calendar.search(byDate, '  '), []);
+});
