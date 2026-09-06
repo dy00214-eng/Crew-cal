@@ -220,3 +220,16 @@ test('편명 숫자를 네 자리로 맞춰 같은 편을 하나로 본다', () 
   assert.strictEqual(e.code, 'KE0704');
   assert.strictEqual(e.route, 'NRT/ICN');
 });
+
+test('사전에서 이름이 바뀌면 예전에 넣어둔 일정도 새 이름으로 읽는다', () => {
+  // 예전 이름표가 그대로 남아 있는 상태를 흉내낸다
+  const saved = store.addEntry({ date: '2026-09-06', code: 'ATDO', label: '추가 휴무', category: 'off' });
+  assert.strictEqual(saved.label, '추가 휴무');
+
+  assert.strictEqual(store.getByDate('2026-09-06')[0].label, '휴무');
+  assert.strictEqual(store.getAll()['2026-09-06'][0].label, '휴무');
+
+  // 사전에 없는 코드는 그대로 둔다
+  store.addEntry({ date: '2026-09-07', code: 'ZZZZ', label: '내가 적은 것', category: 'other' });
+  assert.strictEqual(store.getByDate('2026-09-07')[0].label, '내가 적은 것');
+});

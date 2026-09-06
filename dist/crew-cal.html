@@ -3198,16 +3198,32 @@ button.ghost.danger { color: var(--danger); }
       .map(function (x) { return x.e; });
   }
 
+  /**
+   * 저장할 때 붙여둔 이름표를 지금 사전 기준으로 다시 읽는다.
+   * 사전에서 이름이 바뀌면(ATDO 를 "추가 휴무" 에서 "휴무" 로 바꾼 것처럼)
+   * 예전에 넣어둔 일정도 새 이름으로 보인다. 저장된 값은 건드리지 않는다.
+   */
+  function relabel(entry) {
+    var hit = codes.lookup(entry.code);
+    if (!hit) return entry;
+    if (entry.label === hit.label && entry.category === hit.category) return entry;
+    var out = {};
+    Object.keys(entry).forEach(function (k) { out[k] = entry[k]; });
+    out.label = hit.label;
+    out.category = hit.category;
+    return out;
+  }
+
   function getAll() {
     var all = load().entries;
     var out = {};
-    Object.keys(all).forEach(function (date) { out[date] = sortByTime(all[date]); });
+    Object.keys(all).forEach(function (date) { out[date] = sortByTime(all[date].map(relabel)); });
     return out;
   }
 
   function getByDate(date) {
     var all = load().entries;
-    return sortByTime((all[date] || []).slice());
+    return sortByTime((all[date] || []).map(relabel));
   }
 
   function getRange(fromIso, toIso) {
@@ -3334,6 +3350,7 @@ button.ghost.danger { color: var(--danger); }
     exportJson: exportJson,
     importJson: importJson,
     decorate: decorate,
+    relabel: relabel,
     normalizeCode: normalizeCode,
     sortByTime: sortByTime,
     learnFlight: learnFlight,
