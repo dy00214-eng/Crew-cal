@@ -334,3 +334,11 @@ src/vision.js     스크린샷 인식 어댑터 (Claude API 연동 자리)
 src/app.js        화면 조립
 test/             파서·저장소 테스트
 ```
+
+---
+
+## 같은 저장소에 있는 다른 앱: `imjang/`
+
+`imjang/` 은 크루캘과 별개인 **임장 노트** — 오프라인 우선 부동산 임장 기록 PWA다.
+Vite + React + TypeScript + Dexie 로 따로 서고, 크루캘 코드와는 아무것도 공유하지 않는다.
+자세한 내용은 [`imjang/README.md`](imjang/README.md) 참고.
