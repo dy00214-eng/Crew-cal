@@ -25,10 +25,12 @@ test('출발만 확인한 편은 도착을 비워 둔다', () => {
 });
 
 test('구간만 추정한 편은 시각을 비워 둔다', () => {
-  const ke38 = schedule.lookup('KE0038');
-  assert.strictEqual(ke38.route, 'ORD/ICN');
-  assert.strictEqual(ke38.start, null);
-  assert.strictEqual(ke38.end, null);
+  // KE0127 은 표에 있고 KE0128 은 없다
+  const ke128 = schedule.lookup('KE0128');
+  assert.strictEqual(ke128.route, 'FOC/ICN');
+  assert.strictEqual(ke128.derived, true);
+  assert.strictEqual(ke128.start, null);
+  assert.strictEqual(ke128.end, null);
 });
 
 test('모르는 편은 아무것도 지어내지 않는다', () => {
@@ -63,12 +65,12 @@ test('인천 출발편은 출발 시각, 도착편은 한국 도착 시각을 �
   assert.strictEqual(back.start, null);
 });
 
-test('표에 없는 짝수 편은 앞 홀수 편의 되돌아오는 구간으로 본다', () => {
+test('표에 있는 복편은 한국 도착 시각까지 돌려준다', () => {
   const back = schedule.lookup('KE0038');
   assert.strictEqual(back.route, 'ORD/ICN');
-  assert.strictEqual(back.derived, true);
-  assert.strictEqual(back.start, null);
-  assert.strictEqual(back.end, null);   // 구간만 추정하고 시각은 넣지 않는다
+  assert.strictEqual(back.derived, false);
+  assert.strictEqual(back.end, '16:50');
+  assert.strictEqual(back.endOffset, 1);
 });
 
 test('되돌아오는 편 추정은 인천에서 나가는 편에만 적용한다', () => {

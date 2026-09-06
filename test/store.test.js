@@ -197,10 +197,17 @@ test('직접 등록한 값이 기본 시간표를 이긴다', () => {
 });
 
 test('기본 시간표에 없는 짝수 편도 구간은 채워진다', () => {
-  const e = store.addEntry({ date: '2026-08-09', code: 'KE0038' });
-  assert.strictEqual(e.route, 'ORD/ICN');
+  const e = store.addEntry({ date: '2026-08-09', code: 'KE0128' });
+  assert.strictEqual(e.route, 'FOC/ICN');
   assert.strictEqual(e.start, null);
   assert.strictEqual(e.end, null);
+});
+
+test('한국으로 들어오는 편은 한국 도착 시각이 채워진다', () => {
+  const e = store.addEntry({ date: '2026-08-09', code: 'KE0038' });
+  assert.strictEqual(e.route, 'ORD/ICN');
+  assert.strictEqual(e.end, '16:50');
+  assert.strictEqual(e.endOffset, 1);
 });
 
 test('편명 숫자를 네 자리로 맞춰 같은 편을 하나로 본다', () => {

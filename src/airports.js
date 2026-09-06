@@ -15,8 +15,8 @@
   // 나라별 공항 목록. 대한항공·아시아나 취항지와 자주 쓰는 공항 위주.
   var BY_COUNTRY = {
     KR: 'ICN GMP PUS CJU TAE KWJ RSU USN YNY MWX HIN KUV WJU KPO',
-    JP: 'NRT HND KIX ITM UKB NGO CTS FUK OKA KOJ KMJ HIJ TAK KMI OIT AXT SDJ AOJ KMQ TOY FSZ MYJ NGS HKD ISG MMY TKS KCZ IZO YGJ ASJ OKJ',
-    CN: 'PEK PKX PVG SHA CAN SZX CTU TFU CKG XIY HGH NKG WUH CSX CGO TNA TAO YNT WEH DLC SHE HRB CGQ TSN KMG NNG HAK SYX XMN FOC JJN NGB HFE WNZ TYN SJW HET INC LHW XNN URC KWE KWL SWA ZUH YNJ MDG',
+    JP: 'NRT HND KIX ITM UKB NGO CTS FUK OKA KOJ KMJ HIJ TAK KMI OIT AXT SDJ AOJ KMQ TOY FSZ MYJ NGS HKD ISG MMY TKS KCZ IZO YGJ ASJ OKJ KIJ',
+    CN: 'PEK PKX PVG SHA CAN SZX CTU TFU CKG XIY HGH NKG WUH CSX CGO TNA TAO YNT WEH DLC SHE HRB CGQ TSN KMG NNG HAK SYX XMN FOC JJN NGB HFE WNZ TYN SJW HET INC LHW XNN URC KWE KWL SWA ZUH YNJ MDG DYG',
     HK: 'HKG', MO: 'MFM', TW: 'TPE TSA KHH RMQ', MN: 'ULN UBN',
     TH: 'BKK DMK HKT CNX USM KBV CEI', VN: 'SGN HAN DAD CXR PQC HPH VCA',
     PH: 'MNL CEB CRK KLO PPS TAG DVO', SG: 'SIN', MY: 'KUL PEN BKI LGK JHB KCH',
@@ -86,6 +86,7 @@
     SDJ: '센다이', AOJ: '아오모리', KMQ: '고마쓰', TOY: '도야마', FSZ: '시즈오카',
     MYJ: '마쓰야마', NGS: '나가사키', HKD: '하코다테', ISG: '이시가키', MMY: '미야코',
     TKS: '도쿠시마', KCZ: '고치', IZO: '이즈모', YGJ: '요나고', ASJ: '아마미', OKJ: '오카야마',
+    KIJ: '니가타',
 
     PEK: '베이징', PKX: '베이징', PVG: '상하이', SHA: '상하이', CAN: '광저우',
     SZX: '선전', CTU: '청두', TFU: '청두', CKG: '충칭', XIY: '시안', HGH: '항저우',
@@ -93,7 +94,7 @@
     YNT: '옌타이', WEH: '웨이하이', DLC: '다롄', SHE: '선양', HRB: '하얼빈',
     CGQ: '창춘', TSN: '톈진', KMG: '쿤밍', NNG: '난닝', HAK: '하이커우', SYX: '싼야',
     XMN: '샤먼', FOC: '푸저우', JJN: '취안저우', NGB: '닝보', HFE: '허페이',
-    WNZ: '원저우', TYN: '타이위안', SJW: '스자좡', HET: '후허하오터', INC: '인촨',
+    DYG: '장자제', WNZ: '원저우', TYN: '타이위안', SJW: '스자좡', HET: '후허하오터', INC: '인촨',
     LHW: '란저우', XNN: '시닝', URC: '우루무치', KWE: '구이양', KWL: '구이린',
     SWA: '산터우', ZUH: '주하이', YNJ: '옌지', MDG: '무단장',
 
