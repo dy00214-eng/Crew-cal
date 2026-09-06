@@ -37,9 +37,9 @@ test('한국 출발편은 출발 시각만, 한국 도착편은 한국 도착 �
   const back = { type: 'flight', route: 'ATL/ICN', start: '13:25', end: '17:50', endOffset: 1 };
 
   assert.strictEqual(calendar.formatTimeRange(out), '09:45 출발');
-  assert.strictEqual(calendar.formatTimeRange(back), '17:50+1 도착');
+  assert.strictEqual(calendar.formatTimeRange(back), '17:50+1 한국 도착');
   assert.strictEqual(calendar.describeTimes(out), '출발 09:45');
-  assert.strictEqual(calendar.describeTimes(back), '도착 17:50 (익일)');
+  assert.strictEqual(calendar.describeTimes(back), '한국 도착 17:50 (익일)');
 });
 
 test('국내선과 해외-해외 구간은 시차가 없거나 한국과 무관하니 양쪽을 보여준다', () => {
@@ -201,4 +201,20 @@ test('비행은 편명을 쓰고, 칸이 좁으면 항공사 두 글자만 뗀�
   const flight = { type: 'flight', code: 'KE0035', label: 'KE 0035편' };
   assert.strictEqual(calendar.chipText(flight), 'KE0035');
   assert.strictEqual(calendar.chipText(flight, true), '0035');
+});
+
+test('한국에 내리는 편은 "한국 도착" 이라고 못박는다', () => {
+  const back = { type: 'flight', route: 'CDG/ICN', end: '15:50', endOffset: 1 };
+  assert.strictEqual(calendar.formatTimeRange(back), '15:50+1 한국 도착');
+  assert.strictEqual(calendar.describeTimes(back), '한국 도착 15:50 (익일)');
+
+  // 한국에서 뜨는 편과 국내선은 그대로 둔다
+  const out = { type: 'flight', route: 'ICN/CDG', start: '12:05' };
+  assert.strictEqual(calendar.formatTimeRange(out), '12:05 출발');
+  const dom = { type: 'flight', route: 'GMP/CJU', start: '06:35', end: '07:45' };
+  assert.strictEqual(calendar.describeTimes(dom), '출발 06:35 → 도착 07:45');
+
+  // 툴팁처럼 전부 보여줄 때(full)는 양쪽을 그대로 쓴다
+  const full = { type: 'flight', route: 'CDG/ICN', start: '13:25', end: '15:50', endOffset: 1 };
+  assert.strictEqual(calendar.describeTimes(full, true), '출발 13:25 → 도착 15:50 (익일)');
 });

@@ -3736,7 +3736,7 @@ button.ghost.danger { color: var(--danger); }
     var side = full ? null : koreanSide(entry);
 
     if (side === 'start' && entry.start) return entry.start + ' 출발';
-    if (side === 'end' && entry.end) return entry.end + suffix + ' 도착';
+    if (side === 'end' && entry.end) return entry.end + suffix + ' 한국 도착';
 
     // \u200B(폭 없는 공백)은 칸이 좁을 때 도착 시각이 아랫줄로 넘어가게 해준다.
     if (entry.start && entry.end) return entry.start + '\u2192\u200B' + entry.end + suffix;
@@ -3780,7 +3780,7 @@ button.ghost.danger { color: var(--danger); }
     var side = full ? null : koreanSide(entry);
 
     if (side === 'start' && entry.start) return startLabel + ' ' + entry.start;
-    if (side === 'end' && entry.end) return endLabel + ' ' + entry.end + nextDay;
+    if (side === 'end' && entry.end) return '한국 ' + endLabel + ' ' + entry.end + nextDay;
 
     if (entry.start && entry.end) {
       return startLabel + ' ' + entry.start + ' \u2192 ' + endLabel + ' ' + entry.end + nextDay;
