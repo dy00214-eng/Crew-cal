@@ -70,11 +70,19 @@
     return airports ? airports.departureFlag(entry) : '';
   }
 
-  /** 국기 + 구간. '🇰🇷 ICN/JFK' */
+  /** 국기 + 구간. '🇰🇷 ICN/JFK' (기억한 편명 목록처럼 구간 자체를 보여줄 때) */
   function routeLabel(entry) {
     if (!entry || !entry.route) return '';
     var flag = departureFlag(entry);
     return (flag ? flag + ' ' : '') + entry.route;
+  }
+
+  /** 어디 가는 편인지: '🇺🇸 애틀랜타'. 한국에서 나가면 도착지, 들어오면 출발지. */
+  function placeLabel(entry) {
+    if (!airports) return '';
+    var place = airports.tripPlace(entry);
+    if (!place) return '';
+    return (place.flag ? place.flag + ' ' : '') + place.city;
   }
 
   /** 목록에 쓸 자세한 시각 표기. 비행이면 출발/도착, 그 밖에는 시작/종료로 읽는다. */
@@ -173,11 +181,18 @@
 
           var chip = document.createElement('span');
           chip.className = 'chip cat-' + (e.category || 'other');
-          var flag = departureFlag(e);
-          chip.textContent = (flag ? flag + '\u2009' : '') + shortCode(e, compact);
+          chip.textContent = shortCode(e, compact);
           chip.title = [e.code, e.label || '', airports ? airports.describeRoute(e.route) : e.route, describeTimes(e, true)]
             .filter(Boolean).join(' · ');
           item.appendChild(chip);
+
+          var placeText = placeLabel(e);
+          if (placeText) {
+            var place = document.createElement('span');
+            place.className = 'cal-place';
+            place.textContent = placeText;
+            item.appendChild(place);
+          }
 
           var timeText = formatTimeRange(e);
           if (timeText) {
@@ -268,7 +283,7 @@
 
         var text = document.createElement('span');
         text.className = 'agenda-text';
-        text.textContent = [routeLabel(e), describeTimes(e), e.memo || '']
+        text.textContent = [placeLabel(e), describeTimes(e), e.memo || '']
           .filter(Boolean).join(' · ') || (e.label || '');
         text.title = [airports ? airports.describeRoute(e.route) : '', e.label || '']
           .filter(Boolean).join(' · ');
@@ -309,6 +324,7 @@
     koreanSide: koreanSide,
     departureFlag: departureFlag,
     routeLabel: routeLabel,
+    placeLabel: placeLabel,
     iso: iso,
     pad2: pad2,
     todayIso: todayIso,

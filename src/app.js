@@ -1,4 +1,4 @@
-/** 화면 조립: 캘린더 + 3가지 입력 방식(날짜별 / 텍스트 붙여넣기 / 스크린샷) */
+/** 화면 조립: 캘린더 + 3가지 입력 방식(직접 입력 / 붙여넣기 / 스크린샷) */
 (function () {
   'use strict';
 
@@ -67,8 +67,8 @@
 
   function detailText(entry) {
     var bits = [];
-    var route = calendar.routeLabel(entry);
-    if (route) bits.push(route);
+    var place = calendar.placeLabel(entry);
+    if (place) bits.push(place);
     var times = calendar.describeTimes(entry);
     if (times) bits.push(times);
     if (entry.memo) bits.push(entry.memo);
@@ -311,7 +311,7 @@
     if (!hasEnd) box.checked = false;
   }
 
-  /* ---------------- 2) 텍스트 붙여넣기 ---------------- */
+  /* ---------------- 2) 붙여넣기 ---------------- */
 
   function initPaste() {
     syncPasteBase();
@@ -427,7 +427,7 @@
       tr.appendChild(tdCode);
 
       tr.appendChild(cell(entry.label || ''));
-      tr.appendChild(autoCell(calendar.routeLabel(entry), entry, 'route'));
+      tr.appendChild(autoCell(calendar.placeLabel(entry) || entry.route || '', entry, 'route'));
       tr.appendChild(autoCell(timeCellText(entry, 'start'), entry, 'start'));
       tr.appendChild(autoCell(timeCellText(entry, 'end'), entry, 'end'));
 
@@ -606,14 +606,14 @@
   function unavailableMessage(reason) {
     if (reason === 'no-images') {
       return '지금 보고 있는 화면에서는 이미지를 보낼 수 없습니다. claude.ai 를 웹 브라우저에서 열어 같은 링크로 들어오면 됩니다. ' +
-        '아니면 스케줄 스크린샷을 Claude 대화창에 보내 텍스트로 받은 뒤, 텍스트 붙여넣기 탭에 넣으세요.';
+        '아니면 스케줄 스크린샷을 Claude 대화창에 보내 텍스트로 받은 뒤, 붙여넣기 탭에 넣으세요.';
     }
     if (reason === 'no-sample') {
       return '지금 보고 있는 화면에서는 Claude 를 부를 수 없습니다. claude.ai 를 웹 브라우저에서 열어 같은 링크로 들어오면 됩니다. ' +
-        '아니면 스케줄 스크린샷을 Claude 대화창에 보내 텍스트로 받은 뒤, 텍스트 붙여넣기 탭에 넣으세요.';
+        '아니면 스케줄 스크린샷을 Claude 대화창에 보내 텍스트로 받은 뒤, 붙여넣기 탭에 넣으세요.';
     }
     return '이 화면은 Claude 아티팩트가 아니라 이미지 인식을 쓸 수 없습니다. ' +
-      '텍스트 붙여넣기를 쓰거나, 직접 서버를 운영한다면 아래 설정에 그 주소를 넣으세요.';
+      '붙여넣기 탭을 쓰거나, 직접 서버를 운영한다면 아래 설정에 그 주소를 넣으세요.';
   }
 
   function setImageFile(file) {
@@ -661,10 +661,8 @@
 
     var usable = state.backend.kind !== 'none';
     btn.disabled = !state.imageFile || !usable;
+    // 못 쓰는 이유 안내는 refreshBackend 가 이미 띄워 두었으므로 여기서 덮어쓰지 않는다.
     btn.title = usable ? '' : '이미지 인식을 쓸 수 없는 화면입니다.';
-    if (!usable && state.imageFile) {
-      setStatus('이 화면에서는 이미지 인식을 쓸 수 없습니다. 텍스트 붙여넣기를 쓰거나, 아래 설정에 인식 서버 주소를 넣어주세요.', '');
-    }
   }
 
   function setStatus(message, kind) {
@@ -700,7 +698,7 @@
           $('pasteInput').value = result.text;
           showTab('paste');
           runParse();
-          setStatus('읽은 내용을 텍스트 붙여넣기 탭의 미리보기로 넘겼습니다. 틀린 곳은 고친 뒤 반영하세요.', 'ok');
+          setStatus('읽은 내용을 붙여넣기 탭의 미리보기로 넘겼습니다. 틀린 곳은 고친 뒤 반영하세요.', 'ok');
           return;
         }
         var normalized = (result.entries || []).map(function (e) {
