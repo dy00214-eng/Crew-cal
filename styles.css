@@ -325,6 +325,7 @@ body {
 .cat-other { color: var(--cat-other); background: color-mix(in srgb, var(--cat-other) calc(var(--chip-tint) * 100%), transparent); }
 .cat-unknown { color: var(--cat-unknown); background: color-mix(in srgb, var(--cat-unknown) calc(var(--chip-tint) * 100%), transparent); }
 
+.cal-cell .chip { text-align: center; }
 .cal-place, .cal-time {
   font-size: 11px;
   font-weight: 500;
@@ -332,7 +333,7 @@ body {
   color: var(--cal-sub);
   word-break: keep-all;
   overflow-wrap: break-word;
-  padding-left: 2px;
+  text-align: center;
 }
 .cal-time {
   font-variant-numeric: tabular-nums;
@@ -1081,7 +1082,7 @@ button.ghost.danger { color: var(--danger); }
   .cal-cell { padding: 3px 1px 4px; }
   .cal-chips { gap: 3px; }
   .chip { font-size: 9.5px; padding: 1.5px 3px; letter-spacing: -0.2px; }
-  .cal-place, .cal-time { font-size: 10px; padding-left: 1px; }
+  .cal-place, .cal-time { font-size: 10px; }
   .cal-day { font-size: 12px; width: 20px; height: 20px; line-height: 20px; }
   .legend { gap: 9px; font-size: 11px; }
   .tab { font-size: 13px; padding: 7px 4px; }
