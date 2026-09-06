@@ -294,6 +294,17 @@ body {
   flex: none;
 }
 .cal-cell.sun .cal-day { color: var(--sun); }
+/* 공휴일은 일요일과 같은 빨강으로. 이름은 날짜 아래 작게 적는다 */
+.cal-cell.holiday .cal-day { color: var(--sun); }
+.cal-holiday {
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--sun);
+  text-align: center;
+  word-break: keep-all;
+  margin-bottom: 1px;
+}
 .cal-cell.sat .cal-day { color: var(--sat); }
 .cal-cell.today .cal-day {
   background: var(--accent);

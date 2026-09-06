@@ -1,12 +1,12 @@
 /** 월간 캘린더 렌더러 */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
-    module.exports = factory(require('./airports.js'));
+    module.exports = factory(require('./airports.js'), require('./holidays.js'));
   } else {
     root.CrewCal = root.CrewCal || {};
-    root.CrewCal.calendar = factory(root.CrewCal.airports);
+    root.CrewCal.calendar = factory(root.CrewCal.airports, root.CrewCal.holidays);
   }
-})(typeof self !== 'undefined' ? self : this, function (airports) {
+})(typeof self !== 'undefined' ? self : this, function (airports, holidays) {
   'use strict';
 
   var WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
@@ -227,19 +227,29 @@
         cell.setAttribute('role', 'button');
         cell.tabIndex = 0;
         cell.className = 'cal-cell';
+        var holiday = holidays ? holidays.nameOf(date) : null;
         if (weekday === 0) cell.classList.add('sun');
         if (weekday === 6) cell.classList.add('sat');
+        if (holiday) cell.classList.add('holiday');
         if (outside) cell.classList.add('outside');
         if (date === today) cell.classList.add('today');
         if (date === selected) cell.classList.add('selected');
         if (list.length) cell.classList.add('has-entry');
         cell.setAttribute('data-date', date);
-        cell.setAttribute('aria-label', (+date.slice(5, 7)) + '월 ' + day + '일, 일정 ' + list.length + '건');
+        cell.setAttribute('aria-label', (+date.slice(5, 7)) + '월 ' + day + '일' +
+          (holiday ? ' ' + holiday : '') + ', 일정 ' + list.length + '건');
 
         var num = document.createElement('span');
         num.className = 'cal-day';
         num.textContent = String(day);
         cell.appendChild(num);
+
+        if (holiday) {
+          var mark = document.createElement('span');
+          mark.className = 'cal-holiday';
+          mark.textContent = holiday;
+          cell.appendChild(mark);
+        }
 
         var chips = document.createElement('span');
         chips.className = 'cal-chips';
