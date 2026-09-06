@@ -21,6 +21,7 @@ export default function MapView({
   onPick,
   onSelect,
   onMove,
+  onTileTrouble,
   focus,
 }: {
   properties: Property[];
@@ -29,13 +30,17 @@ export default function MapView({
   onPick?: (lat: number, lng: number) => void;
   onSelect?: (id: string) => void;
   onMove?: (state: MapState) => void;
+  onTileTrouble?: () => void;
   focus?: [number, number] | undefined;
 }) {
   const holder = useRef<HTMLDivElement>(null);
+  const onTileTroubleRef = useRef(onTileTrouble);
+  onTileTroubleRef.current = onTileTrouble;
   const mapRef = useRef<L.Map>();
   const pinsRef = useRef<L.LayerGroup>();
   const provisionalRef = useRef<L.Marker>();
   const fittedRef = useRef(false);
+  const troubleRef = useRef({ errors: 0, reported: false });
 
   // 지도는 한 번만 만든다. 이후엔 레이어만 갈아 끼운다.
   useEffect(() => {
@@ -46,12 +51,22 @@ export default function MapView({
       zoomControl: false,
       attributionControl: true,
     });
-    L.tileLayer(tileUrlTemplate(), {
+    const tiles = L.tileLayer(tileUrlTemplate(), {
       maxZoom: TILE_MAX_ZOOM,
       attribution: TILE_ATTRIBUTION,
       // 캐시에 없는 타일은 종이색 빈칸으로 남는다. 오프라인이면 화면에서 그대로 보인다.
       className: 'tile',
     }).addTo(map);
+
+    // 타일이 계속 실패하면(잘못된 키, 막힌 도메인 등) 빈 화면만 보여주지 않고 알린다.
+    tiles.on('tileerror', () => {
+      const state = troubleRef.current;
+      state.errors += 1;
+      if (!state.reported && state.errors >= 3) {
+        state.reported = true;
+        onTileTroubleRef.current?.();
+      }
+    });
     L.control.zoom({ position: 'bottomleft' }).addTo(map);
     pinsRef.current = L.layerGroup().addTo(map);
     mapRef.current = map;

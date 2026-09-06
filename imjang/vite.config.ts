@@ -1,13 +1,24 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+import { viteSingleFile } from 'vite-plugin-singlefile';
+
+/*
+ * VITE_ARTIFACT=1 로 빌드하면 전부 index.html 한 장에 인라인한다.
+ * 링크 하나로 열어보는 미리보기용이다 — 서비스워커가 없으니 PWA(설치·오프라인)는 빠진다.
+ */
+const ARTIFACT = process.env.VITE_ARTIFACT === '1';
 
 // 정적 호스팅 어디에 올려도 되도록 상대 경로 base + HashRouter 를 쓴다.
 export default defineConfig({
   base: './',
+  resolve: ARTIFACT
+    ? { alias: { 'virtual:pwa-register': new URL('./src/lib/swStub.ts', import.meta.url).pathname } }
+    : {},
   plugins: [
     react(),
-    VitePWA({
+    ...(ARTIFACT ? [viteSingleFile()] : []),
+    ...(ARTIFACT ? [] : [VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icons/*.png'],
       manifest: {
@@ -54,6 +65,6 @@ export default defineConfig({
         ],
       },
       devOptions: { enabled: false },
-    }),
+    })]),
   ],
 });

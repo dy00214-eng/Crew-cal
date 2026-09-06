@@ -16,6 +16,7 @@
 npm install
 npm run dev        # 개발 서버
 npm run build      # dist/ 로 정적 빌드 (PWA 포함)
+npm run build:one  # dist/index.html 한 장으로 (링크 하나로 열어보는 미리보기용)
 npm run preview    # 빌드 결과 확인
 npm test           # 순수 로직 테스트 (vitest)
 npm run typecheck  # 타입 검사
@@ -24,6 +25,10 @@ npm run icons      # public/icons/*.png 다시 생성
 
 빌드 결과 `dist/` 는 그대로 정적 호스팅(Vercel / Netlify / GitHub Pages)에 올리면 된다.
 `base: './'` 와 HashRouter 를 쓰기 때문에 하위 경로에 올려도 그대로 동작한다.
+
+`build:one` 은 JS·CSS 를 전부 `index.html` 한 장에 인라인한다. 파일 하나만 건네면 열리므로
+남에게 보여줄 때 쓴다. 대신 **서비스워커가 없어 PWA(설치·오프라인 셸)와 지도 타일 캐시가 빠진다.**
+실제로 쓸 빌드는 `npm run build` 쪽이다.
 
 ### 실거래가 API 키
 

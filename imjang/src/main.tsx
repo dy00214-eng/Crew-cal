@@ -16,7 +16,8 @@ if (shareEntry) {
   const base = pathname.replace(/share\/?$/, '');
   window.location.replace(`${base}#/share${search}`);
 } else {
-  registerSW({ immediate: true });
+  // 아티팩트 미리보기 빌드에는 서비스워커가 없다.
+  if (!import.meta.env.VITE_ARTIFACT) registerSW({ immediate: true });
   const root = document.getElementById('root');
   if (root) {
     createRoot(root).render(

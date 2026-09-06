@@ -116,11 +116,16 @@ export default function SettingsPage() {
           <p className="hint">
             서버가 없습니다. 기기를 잃으면 전부 사라집니다. 임장 다녀온 날엔 내보내기를 눌러 두세요.
           </p>
+          {import.meta.env.VITE_ARTIFACT && (
+            <p className="hint" style={{ color: 'var(--stamp)' }}>
+              이 미리보기에서는 파일 내려받기가 막혀 있어 내보내기를 쓸 수 없습니다. 실제로 배포하면 동작합니다.
+            </p>
+          )}
           <div className="field-row" style={{ marginTop: 12 }}>
             <button
               type="button"
               className="btn"
-              disabled={busy}
+              disabled={busy || Boolean(import.meta.env.VITE_ARTIFACT)}
               onClick={async () => {
                 setBusy(true);
                 setNote('백업 만드는 중…');

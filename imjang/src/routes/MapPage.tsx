@@ -26,6 +26,7 @@ export default function MapPage() {
   const [focus, setFocus] = useState<[number, number]>();
   const [note, setNote] = useState<string>();
   const [saving, setSaving] = useState(false);
+  const [tileTrouble, setTileTrouble] = useState(false);
 
   const located = properties.filter((p) => p.lat != null && p.lng != null);
   const missing = properties.length - located.length;
@@ -33,6 +34,8 @@ export default function MapPage() {
   const onMove = useCallback((s: MapState) => {
     stateRef.current = s;
   }, []);
+
+  const onTileTrouble = useCallback(() => setTileTrouble(true), []);
 
   const onPick = useCallback((lat: number, lng: number) => {
     setProvisional([lat, lng]);
@@ -116,6 +119,20 @@ export default function MapPage() {
         </button>
       </div>
 
+      {tileTrouble && online && (
+        <div className="note">
+          {import.meta.env.VITE_ARTIFACT ? (
+            <>
+              <strong>이 미리보기에서는 지도 타일이 차단됩니다.</strong> 매물 말풍선과 위치 찍기는 그대로
+              동작하고, 실제로 배포하면 지도도 정상으로 뜹니다.
+            </>
+          ) : (
+            <>
+              <strong>지도 타일을 불러오지 못했습니다.</strong> 인증키와 발급할 때 등록한 도메인을 확인하세요.
+            </>
+          )}
+        </div>
+      )}
       {note && <div className="note">{note}</div>}
       {!pickId && !note && online && (
         <div className="note">
@@ -137,6 +154,7 @@ export default function MapPage() {
           onPick={onPick}
           onSelect={onSelect}
           onMove={onMove}
+          onTileTrouble={onTileTrouble}
         />
       </Suspense>
 
