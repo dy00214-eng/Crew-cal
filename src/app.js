@@ -1,0 +1,647 @@
+/** 화면 조립: 캘린더 + 3가지 입력 방식(날짜별 / 텍스트 붙여넣기 / 스크린샷) */
+(function () {
+  'use strict';
+
+  var codes = CrewCal.codes;
+  var parser = CrewCal.parser;
+  var store = CrewCal.store;
+  var calendar = CrewCal.calendar;
+  var vision = CrewCal.vision;
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  var state = {
+    year: new Date().getFullYear(),
+    month: new Date().getMonth() + 1,
+    selectedDate: calendar.todayIso(),
+    preview: null,
+    imageFile: null
+  };
+
+  var SAMPLE = [
+    '2026-09-01\tKE0035\tICN/JFK\t1030-1420',
+    '09/02  LO',
+    '3  KE0036  JFK/ICN',
+    '9월 4일 (금)  ATDO',
+    '05SEP26  STBY  0900-1700',
+    '2026-09-10 ~ 2026-09-12  VAC',
+    '2026-09-15',
+    '  KE0081  ICN/LAX',
+    '  LO'
+  ].join('\n');
+
+  /* ---------------- 공통 ---------------- */
+
+  var toastTimer = null;
+  function toast(message) {
+    var el = $('toast');
+    el.textContent = message;
+    el.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.hidden = true; }, 2600);
+  }
+
+  function monthLabel(year, month) {
+    return year + '년 ' + month + '월';
+  }
+
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+
+  function detailText(entry) {
+    var bits = [];
+    if (entry.route) bits.push(entry.route);
+    if (entry.start && entry.end) bits.push(entry.start + '–' + entry.end);
+    else if (entry.start) bits.push(entry.start);
+    if (entry.memo) bits.push(entry.memo);
+    return bits.join(' · ');
+  }
+
+  /* ---------------- 렌더 ---------------- */
+
+  function refresh() {
+    var entriesByDate = store.getAll();
+    $('monthLabel').textContent = monthLabel(state.year, state.month);
+
+    calendar.render($('calendar'), {
+      year: state.year,
+      month: state.month,
+      entriesByDate: entriesByDate,
+      selectedDate: state.selectedDate,
+      onSelect: selectDate
+    });
+
+    renderMonthSummary(entriesByDate);
+    renderDayDetail();
+  }
+
+  function renderMonthSummary(entriesByDate) {
+    var s = calendar.summarize(entriesByDate, state.year, state.month);
+    var order = ['flight', 'layover', 'standby', 'off', 'training', 'other', 'unknown'];
+    var parts = ['일정 있는 날 <b>' + s.days + '일</b>'];
+    order.forEach(function (key) {
+      if (s.counts[key]) {
+        parts.push(codes.CATEGORY_LABELS[key] + ' <b>' + s.counts[key] + '</b>');
+      }
+    });
+    $('monthSummary').innerHTML = parts.join('<span aria-hidden="true">·</span>');
+  }
+
+  function renderDayDetail() {
+    var date = state.selectedDate;
+    var list = store.getByDate(date);
+    $('dayTitle').textContent = date + ' (' + calendar.weekdayOf(date) + ') · ' + list.length + '건';
+
+    var ul = $('dayList');
+    ul.innerHTML = '';
+    if (!list.length) {
+      var empty = document.createElement('li');
+      empty.className = 'empty';
+      empty.textContent = '등록된 일정이 없습니다.';
+      ul.appendChild(empty);
+      return;
+    }
+
+    list.forEach(function (entry) {
+      var li = document.createElement('li');
+
+      var chip = document.createElement('span');
+      chip.className = 'chip cat-' + (entry.category || 'other');
+      chip.textContent = entry.code;
+      li.appendChild(chip);
+
+      var main = document.createElement('span');
+      main.className = 'entry-main';
+      main.textContent = entry.label || '';
+      var detail = detailText(entry);
+      if (detail) {
+        var sub = document.createElement('span');
+        sub.className = 'entry-sub';
+        sub.textContent = ' ' + detail;
+        main.appendChild(sub);
+      }
+      li.appendChild(main);
+
+      var del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'icon-btn';
+      del.title = '삭제';
+      del.setAttribute('aria-label', entry.code + ' 삭제');
+      del.textContent = '×';
+      del.addEventListener('click', function () {
+        store.removeEntry(date, entry.id);
+        refresh();
+        toast('삭제했습니다.');
+      });
+      li.appendChild(del);
+
+      ul.appendChild(li);
+    });
+  }
+
+  function selectDate(date) {
+    state.selectedDate = date;
+    $('singleDate').value = date;
+    refresh();
+  }
+
+  function goMonth(delta) {
+    var m = state.month + delta;
+    var y = state.year;
+    while (m > 12) { m -= 12; y++; }
+    while (m < 1) { m += 12; y--; }
+    state.year = y;
+    state.month = m;
+    syncPasteBase();
+    refresh();
+  }
+
+  function syncPasteBase() {
+    $('pasteBase').value = state.year + '-' + pad2(state.month);
+  }
+
+  /* ---------------- 탭 ---------------- */
+
+  function initTabs() {
+    var tabs = document.querySelectorAll('.tab');
+    Array.prototype.forEach.call(tabs, function (tab) {
+      tab.addEventListener('click', function () { showTab(tab.getAttribute('data-tab')); });
+    });
+  }
+
+  function showTab(name) {
+    Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (t) {
+      var on = t.getAttribute('data-tab') === name;
+      t.classList.toggle('active', on);
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('.panel'), function (p) {
+      p.classList.toggle('active', p.id === 'panel-' + name);
+    });
+  }
+
+  /* ---------------- 1) 날짜별 개별 입력 ---------------- */
+
+  function initSingleForm() {
+    var datalist = $('codeList');
+    codes.knownCodeList().forEach(function (code) {
+      var opt = document.createElement('option');
+      opt.value = code;
+      opt.label = codes.DUTY_CODES[code].label;
+      datalist.appendChild(opt);
+    });
+
+    $('singleDate').value = state.selectedDate;
+    $('singleDate').addEventListener('change', function () {
+      if (this.value) selectDate(this.value);
+    });
+
+    $('singleForm').addEventListener('submit', function (event) {
+      event.preventDefault();
+      var date = $('singleDate').value;
+      var code = $('singleCode').value.trim().toUpperCase();
+      if (!date || !code) return;
+
+      try {
+        store.addEntry({
+          date: date,
+          code: code,
+          route: $('singleRoute').value.trim().toUpperCase() || null,
+          start: $('singleStart').value || null,
+          end: $('singleEnd').value || null,
+          memo: $('singleMemo').value.trim() || null
+        });
+      } catch (e) {
+        toast(e.message);
+        return;
+      }
+
+      state.selectedDate = date;
+      state.year = +date.slice(0, 4);
+      state.month = +date.slice(5, 7);
+
+      $('singleCode').value = '';
+      $('singleRoute').value = '';
+      $('singleStart').value = '';
+      $('singleEnd').value = '';
+      $('singleMemo').value = '';
+      $('singleCode').focus();
+
+      syncPasteBase();
+      refresh();
+      toast(date + ' 에 ' + code + ' 추가');
+    });
+  }
+
+  /* ---------------- 2) 텍스트 붙여넣기 ---------------- */
+
+  function initPaste() {
+    syncPasteBase();
+
+    $('sampleBtn').addEventListener('click', function () {
+      $('pasteInput').value = SAMPLE;
+      $('pasteBase').value = '2026-09';
+      runParse();
+    });
+
+    $('clearPasteBtn').addEventListener('click', function () {
+      $('pasteInput').value = '';
+      hidePreview();
+    });
+
+    $('parseBtn').addEventListener('click', runParse);
+    $('cancelPreviewBtn').addEventListener('click', function () {
+      hidePreview();
+      toast('반영을 취소했습니다.');
+    });
+    $('applyBtn').addEventListener('click', applyPreview);
+
+    $('checkAll').addEventListener('change', function () {
+      var on = this.checked;
+      Array.prototype.forEach.call(document.querySelectorAll('#previewBody input[type=checkbox]'), function (cb) {
+        cb.checked = on;
+      });
+      updateApplyButton();
+    });
+  }
+
+  function baseYearMonth() {
+    var raw = $('pasteBase').value;
+    if (/^\d{4}-\d{2}$/.test(raw)) {
+      return { year: +raw.slice(0, 4), month: +raw.slice(5, 7) };
+    }
+    return { year: state.year, month: state.month };
+  }
+
+  function runParse() {
+    var text = $('pasteInput').value;
+    if (!text.trim()) {
+      hidePreview();
+      toast('붙여넣은 내용이 없습니다.');
+      return;
+    }
+    var base = baseYearMonth();
+    var result = parser.parse(text, base);
+    showPreview(result);
+  }
+
+  function showPreview(result) {
+    state.preview = result;
+
+    if (!result.entries.length) {
+      hidePreview();
+      toast('날짜와 코드를 찾지 못했습니다. 형식을 확인해 주세요.');
+      return;
+    }
+
+    var s = result.stats;
+    $('previewSummary').innerHTML =
+      '<b>' + s.dateCount + '일</b> · <b>' + s.entryCount + '건</b>' +
+      (s.firstDate ? ' · ' + s.firstDate + ' ~ ' + s.lastDate : '') +
+      (result.warnings.length ? ' · 확인 필요 ' + result.warnings.length + '건' : '');
+
+    var warnBox = $('previewWarnings');
+    if (result.warnings.length) {
+      var items = result.warnings.slice(0, 8).map(function (w) {
+        return '<li>' + w.line + '행: ' + escapeHtml(w.message) + ' <code>' + escapeHtml(w.text) + '</code></li>';
+      }).join('');
+      var more = result.warnings.length > 8 ? '<li>… 외 ' + (result.warnings.length - 8) + '건</li>' : '';
+      warnBox.innerHTML = '확인이 필요한 줄이 있습니다.<ul>' + items + more + '</ul>';
+      warnBox.hidden = false;
+    } else {
+      warnBox.hidden = true;
+      warnBox.innerHTML = '';
+    }
+
+    var tbody = $('previewBody');
+    tbody.innerHTML = '';
+    result.entries.forEach(function (entry) {
+      var tr = document.createElement('tr');
+      if (!entry.known) tr.className = 'unknown-row';
+
+      var tdCheck = document.createElement('td');
+      var cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = entry.known !== false; // 미확인 코드는 기본 해제
+      cb.setAttribute('data-entry-id', entry.id);
+      cb.addEventListener('change', updateApplyButton);
+      tdCheck.appendChild(cb);
+      tr.appendChild(tdCheck);
+
+      tr.appendChild(cell(entry.date + ' (' + calendar.weekdayOf(entry.date) + ')'));
+
+      var tdCode = document.createElement('td');
+      var chip = document.createElement('span');
+      chip.className = 'chip cat-' + (entry.category || 'other');
+      chip.textContent = entry.code;
+      tdCode.appendChild(chip);
+      tr.appendChild(tdCode);
+
+      tr.appendChild(cell(entry.label || ''));
+      tr.appendChild(cell(detailText(entry)));
+
+      var tdSrc = cell(entry.source || '');
+      tdSrc.className = 'src';
+      tdSrc.title = entry.source || '';
+      tr.appendChild(tdSrc);
+
+      tbody.appendChild(tr);
+    });
+
+    $('checkAll').checked = result.entries.every(function (e) { return e.known !== false; });
+    $('preview').hidden = false;
+    updateApplyButton();
+    $('preview').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    function cell(text) {
+      var td = document.createElement('td');
+      td.textContent = text;
+      return td;
+    }
+  }
+
+  function hidePreview() {
+    state.preview = null;
+    $('preview').hidden = true;
+    $('previewBody').innerHTML = '';
+  }
+
+  function selectedPreviewEntries() {
+    if (!state.preview) return [];
+    var checked = {};
+    Array.prototype.forEach.call(document.querySelectorAll('#previewBody input[type=checkbox]'), function (cb) {
+      if (cb.checked) checked[cb.getAttribute('data-entry-id')] = true;
+    });
+    return state.preview.entries.filter(function (e) { return checked[e.id]; });
+  }
+
+  function updateApplyButton() {
+    var n = selectedPreviewEntries().length;
+    var btn = $('applyBtn');
+    btn.disabled = n === 0;
+    btn.textContent = n ? '캘린더에 반영 (' + n + '건)' : '캘린더에 반영';
+  }
+
+  function applyPreview() {
+    var entries = selectedPreviewEntries();
+    if (!entries.length) return;
+
+    var mode = document.querySelector('input[name=applyMode]:checked').value;
+    if (mode === 'replace') {
+      var existing = store.countExisting(entries);
+      if (existing > 0) {
+        var ok = window.confirm('해당 날짜의 기존 일정 ' + existing + '건을 지우고 ' + entries.length + '건을 반영합니다. 계속할까요?');
+        if (!ok) return;
+      }
+    }
+
+    var res = store.applyEntries(entries, mode);
+    var first = entries[0].date;
+    state.year = +first.slice(0, 4);
+    state.month = +first.slice(5, 7);
+    state.selectedDate = first;
+    $('singleDate').value = first;
+
+    hidePreview();
+    syncPasteBase();
+    refresh();
+    toast(res.added + '건 반영' + (res.removed ? ' · 기존 ' + res.removed + '건 교체' : ''));
+  }
+
+  function escapeHtml(text) {
+    return String(text == null ? '' : text)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  /* ---------------- 3) 스크린샷 업로드 ---------------- */
+
+  function initImage() {
+    var config = vision.loadConfig();
+    $('visionEndpoint').value = config.endpoint;
+    $('visionModel').value = config.model;
+
+    var dropZone = $('dropZone');
+    var input = $('imageInput');
+
+    dropZone.addEventListener('click', function () { input.click(); });
+    dropZone.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); }
+    });
+    ['dragenter', 'dragover'].forEach(function (type) {
+      dropZone.addEventListener(type, function (e) {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+      });
+    });
+    ['dragleave', 'drop'].forEach(function (type) {
+      dropZone.addEventListener(type, function (e) {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+      });
+    });
+    dropZone.addEventListener('drop', function (e) {
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+        setImageFile(e.dataTransfer.files[0]);
+      }
+    });
+    input.addEventListener('change', function () {
+      if (input.files && input.files.length) setImageFile(input.files[0]);
+    });
+
+    $('removeImageBtn').addEventListener('click', clearImage);
+    $('analyzeBtn').addEventListener('click', runAnalyze);
+
+    $('saveVisionConfig').addEventListener('click', function () {
+      var saved = vision.saveConfig({
+        endpoint: $('visionEndpoint').value,
+        model: $('visionModel').value
+      });
+      $('visionEndpoint').value = saved.endpoint;
+      $('visionModel').value = saved.model;
+      updateAnalyzeButton();
+      toast(saved.endpoint ? '연동 설정을 저장했습니다.' : '엔드포인트를 비웠습니다.');
+    });
+
+    updateAnalyzeButton();
+  }
+
+  function setImageFile(file) {
+    var invalid = vision.validateFile(file);
+    if (invalid) {
+      setStatus(invalid, 'error');
+      return;
+    }
+    state.imageFile = file;
+    $('imageName').textContent = file.name + ' · ' + Math.round(file.size / 1024) + 'KB';
+    vision.fileToBase64(file).then(function (image) {
+      $('imageThumb').src = image.dataUrl;
+      $('imagePreview').hidden = false;
+    });
+    setStatus('', '');
+    updateAnalyzeButton();
+  }
+
+  function clearImage() {
+    state.imageFile = null;
+    $('imageInput').value = '';
+    $('imageThumb').removeAttribute('src');
+    $('imagePreview').hidden = true;
+    setStatus('', '');
+    updateAnalyzeButton();
+  }
+
+  function updateAnalyzeButton() {
+    var btn = $('analyzeBtn');
+    var configured = vision.isConfigured();
+    btn.disabled = !state.imageFile || !configured;
+    if (!configured) {
+      btn.title = '이미지 인식 서버가 아직 연결되지 않았습니다.';
+      if (state.imageFile) {
+        setStatus('이미지는 준비됐습니다. 인식 기능은 다음 단계에서 Claude API 를 연결하면 켜집니다.', '');
+      }
+    } else {
+      btn.title = '';
+    }
+  }
+
+  function setStatus(message, kind) {
+    var el = $('imageStatus');
+    el.textContent = message;
+    el.className = 'status' + (kind ? ' ' + kind : '');
+  }
+
+  function runAnalyze() {
+    if (!state.imageFile) return;
+    var base = baseYearMonth();
+    setStatus('이미지를 읽는 중…', '');
+    $('analyzeBtn').disabled = true;
+
+    vision.analyze(state.imageFile, { year: base.year, month: base.month })
+      .then(function (result) {
+        if (result.text) {
+          $('pasteInput').value = result.text;
+          showTab('paste');
+          runParse();
+          setStatus('인식 결과를 텍스트 미리보기로 넘겼습니다.', 'ok');
+          return;
+        }
+        var normalized = (result.entries || []).map(function (e) {
+          return store.decorate({
+            date: e.date,
+            code: e.code,
+            route: e.route || null,
+            start: e.start || null,
+            end: e.end || null
+          });
+        }).filter(function (e) { return /^\d{4}-\d{2}-\d{2}$/.test(e.date) && e.code; });
+
+        normalized.forEach(function (e, i) {
+          e.id = 'v' + (i + 1);
+          e.known = e.category !== 'unknown';
+          e.source = '스크린샷 인식';
+        });
+
+        showTab('paste');
+        showPreview({
+          entries: normalized,
+          warnings: [],
+          ignoredLines: [],
+          stats: statsOf(normalized)
+        });
+        setStatus('인식 결과를 미리보기로 넘겼습니다.', 'ok');
+      })
+      .catch(function (err) {
+        setStatus(err.message, 'error');
+      })
+      .then(function () {
+        updateAnalyzeButton();
+      });
+  }
+
+  function statsOf(entries) {
+    var dates = {};
+    var counts = {};
+    entries.forEach(function (e) {
+      dates[e.date] = true;
+      counts[e.category] = (counts[e.category] || 0) + 1;
+    });
+    var keys = Object.keys(dates).sort();
+    return {
+      dateCount: keys.length,
+      entryCount: entries.length,
+      firstDate: keys[0] || null,
+      lastDate: keys[keys.length - 1] || null,
+      counts: counts
+    };
+  }
+
+  /* ---------------- 백업 도구 ---------------- */
+
+  function initDataTools() {
+    $('exportBtn').addEventListener('click', function () {
+      var blob = new Blob([store.exportJson()], { type: 'application/json' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'crew-cal-' + calendar.todayIso() + '.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    });
+
+    $('importBtn').addEventListener('click', function () { $('importInput').click(); });
+    $('importInput').addEventListener('change', function () {
+      var file = this.files && this.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function () {
+        try {
+          store.importJson(String(reader.result));
+          refresh();
+          toast('백업을 불러왔습니다.');
+        } catch (e) {
+          toast('불러오기 실패: ' + e.message);
+        }
+      };
+      reader.readAsText(file);
+      this.value = '';
+    });
+
+    $('clearAllBtn').addEventListener('click', function () {
+      if (!window.confirm('저장된 모든 일정을 삭제합니다. 계속할까요?')) return;
+      store.clearAll();
+      refresh();
+      toast('전체 삭제했습니다.');
+    });
+  }
+
+  /* ---------------- 시작 ---------------- */
+
+  function init() {
+    $('prevMonth').addEventListener('click', function () { goMonth(-1); });
+    $('nextMonth').addEventListener('click', function () { goMonth(1); });
+    $('todayBtn').addEventListener('click', function () {
+      var today = calendar.todayIso();
+      state.year = +today.slice(0, 4);
+      state.month = +today.slice(5, 7);
+      state.selectedDate = today;
+      $('singleDate').value = today;
+      syncPasteBase();
+      refresh();
+    });
+
+    initTabs();
+    initSingleForm();
+    initPaste();
+    initImage();
+    initDataTools();
+    refresh();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();

@@ -1,0 +1,12 @@
+{
+  "name": "crew-cal",
+  "version": "0.1.0",
+  "description": "승무원 스케줄 캘린더 - 날짜별 입력 / 크루넷 텍스트 붙여넣기 / 스크린샷 인식",
+  "private": true,
+  "scripts": {
+    "test": "node --test \"test/**/*.test.js\"",
+    "start": "node --run serve",
+    "serve": "python3 -m http.server 8000"
+  },
+  "license": "MIT"
+}

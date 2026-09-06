@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Crew-cal · 승무원 스케줄 캘린더</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%227%22 fill=%22%232f6fed%22/%3E%3Crect x=%226%22 y=%229%22 width=%2220%22 height=%2216%22 rx=%223%22 fill=%22%23fff%22/%3E%3Crect x=%226%22 y=%229%22 width=%2220%22 height=%225%22 fill=%22%231c2333%22/%3E%3C/svg%3E">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="app-header">
+  <h1>Crew-cal</h1>
+  <div class="month-nav">
+    <button type="button" id="prevMonth" aria-label="이전 달">‹</button>
+    <span id="monthLabel">—</span>
+    <button type="button" id="nextMonth" aria-label="다음 달">›</button>
+    <button type="button" id="todayBtn" class="ghost">오늘</button>
+  </div>
+</header>
+
+<main class="layout">
+  <section class="card calendar-card">
+    <div id="calendar" class="calendar"></div>
+    <div id="monthSummary" class="month-summary"></div>
+    <ul class="legend">
+      <li><i class="dot cat-flight"></i>비행</li>
+      <li><i class="dot cat-layover"></i>체류</li>
+      <li><i class="dot cat-standby"></i>대기</li>
+      <li><i class="dot cat-off"></i>휴무</li>
+      <li><i class="dot cat-training"></i>훈련</li>
+      <li><i class="dot cat-unknown"></i>미확인</li>
+    </ul>
+  </section>
+
+  <section class="card input-card">
+    <div class="tabs" role="tablist">
+      <button type="button" class="tab active" role="tab" data-tab="single" aria-selected="true">날짜별 입력</button>
+      <button type="button" class="tab" role="tab" data-tab="paste" aria-selected="false">텍스트 붙여넣기</button>
+      <button type="button" class="tab" role="tab" data-tab="image" aria-selected="false">스크린샷</button>
+    </div>
+
+    <!-- 1) 날짜별 개별 입력 -->
+    <div class="panel active" id="panel-single" role="tabpanel">
+      <form id="singleForm" class="form-grid">
+        <label class="field">
+          <span>날짜</span>
+          <input type="date" id="singleDate" required>
+        </label>
+        <label class="field">
+          <span>코드</span>
+          <input type="text" id="singleCode" list="codeList" placeholder="KE0035, LO, ATDO, STBY…" required autocomplete="off">
+          <datalist id="codeList"></datalist>
+        </label>
+        <label class="field">
+          <span>구간 <em>(선택)</em></span>
+          <input type="text" id="singleRoute" placeholder="ICN/JFK" autocomplete="off">
+        </label>
+        <div class="field-row">
+          <label class="field">
+            <span>시작 <em>(선택)</em></span>
+            <input type="time" id="singleStart">
+          </label>
+          <label class="field">
+            <span>종료 <em>(선택)</em></span>
+            <input type="time" id="singleEnd">
+          </label>
+        </div>
+        <label class="field">
+          <span>메모 <em>(선택)</em></span>
+          <input type="text" id="singleMemo" placeholder="비고" autocomplete="off">
+        </label>
+        <div class="actions">
+          <button type="submit" class="primary">일정 추가</button>
+        </div>
+      </form>
+
+      <div class="day-detail">
+        <h3 id="dayTitle">선택한 날짜</h3>
+        <ul id="dayList" class="entry-list"></ul>
+      </div>
+    </div>
+
+    <!-- 2) 텍스트 붙여넣기 -->
+    <div class="panel" id="panel-paste" role="tabpanel">
+      <p class="hint">
+        크루넷에서 복사한 스케줄을 그대로 붙여넣으세요. 날짜와 코드(KE0035, LO, ATDO, STBY 등)를
+        자동으로 읽어 미리보기로 보여준 뒤, 확인을 누르면 캘린더에 반영합니다.
+      </p>
+      <div class="field-row">
+        <label class="field">
+          <span>기준 연·월 <em>(연도가 없는 표기 해석용)</em></span>
+          <input type="month" id="pasteBase">
+        </label>
+      </div>
+      <textarea id="pasteInput" rows="12" spellcheck="false"
+        placeholder="예)&#10;2026-09-01  KE0035  ICN/JFK  1030-1420&#10;09/02  LO&#10;3  ATDO&#10;9월 4일  STBY&#10;2026-09-10 ~ 2026-09-12  VAC"></textarea>
+      <div class="actions">
+        <button type="button" id="parseBtn" class="primary">미리보기</button>
+        <button type="button" id="sampleBtn" class="ghost">예시 넣기</button>
+        <button type="button" id="clearPasteBtn" class="ghost">지우기</button>
+      </div>
+
+      <div id="preview" class="preview" hidden>
+        <div class="preview-head">
+          <h3>파싱 결과 미리보기</h3>
+          <p id="previewSummary" class="summary"></p>
+        </div>
+        <div id="previewWarnings" class="warnings" hidden></div>
+        <div class="preview-table-wrap">
+          <table class="preview-table">
+            <thead>
+              <tr>
+                <th class="col-check"><input type="checkbox" id="checkAll" checked aria-label="전체 선택"></th>
+                <th>날짜</th>
+                <th>코드</th>
+                <th>구분</th>
+                <th>상세</th>
+                <th>원본</th>
+              </tr>
+            </thead>
+            <tbody id="previewBody"></tbody>
+          </table>
+        </div>
+        <fieldset class="apply-mode">
+          <legend>기존 일정 처리</legend>
+          <label><input type="radio" name="applyMode" value="replace" checked> 해당 날짜 기존 일정을 덮어쓰기</label>
+          <label><input type="radio" name="applyMode" value="merge"> 기존 일정에 이어 붙이기</label>
+        </fieldset>
+        <div class="actions">
+          <button type="button" id="applyBtn" class="primary">캘린더에 반영</button>
+          <button type="button" id="cancelPreviewBtn" class="ghost">취소</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3) 스크린샷 업로드 (연동 자리) -->
+    <div class="panel" id="panel-image" role="tabpanel">
+      <p class="hint">
+        스케줄 화면을 캡처해서 올리면 이미지에서 날짜와 코드를 읽어옵니다.
+        <strong>이미지 인식은 다음 단계에서 Claude API 를 붙일 예정</strong>이라 지금은 업로드와 연동 자리만 준비돼 있습니다.
+      </p>
+
+      <div id="dropZone" class="drop-zone" tabindex="0" role="button" aria-label="스크린샷 업로드">
+        <input type="file" id="imageInput" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+        <p><strong>이미지를 끌어다 놓거나 클릭</strong>해서 선택하세요</p>
+        <p class="muted">PNG · JPG · WEBP · GIF / 5MB 이하</p>
+      </div>
+
+      <div id="imagePreview" class="image-preview" hidden>
+        <img id="imageThumb" alt="업로드한 스케줄 스크린샷 미리보기">
+        <div class="image-meta">
+          <span id="imageName"></span>
+          <button type="button" id="removeImageBtn" class="ghost small">제거</button>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="button" id="analyzeBtn" class="primary" disabled>이미지에서 일정 읽기</button>
+      </div>
+      <p id="imageStatus" class="status" role="status"></p>
+
+      <details class="api-config">
+        <summary>이미지 인식 API 연동 설정</summary>
+        <p class="muted">
+          브라우저에 API 키를 두면 그대로 노출됩니다. 키는 서버에 두고, 여기에는 그 서버의
+          엔드포인트 주소만 입력하세요. 서버는 <code>{ image_base64, media_type, prompt }</code> 를 받아
+          <code>{ text }</code> 또는 <code>{ entries }</code> 로 응답하면 됩니다.
+        </p>
+        <label class="field">
+          <span>엔드포인트 URL</span>
+          <input type="url" id="visionEndpoint" placeholder="https://example.com/api/parse-schedule" autocomplete="off">
+        </label>
+        <label class="field">
+          <span>모델</span>
+          <input type="text" id="visionModel" placeholder="claude-opus-5" autocomplete="off">
+        </label>
+        <div class="actions">
+          <button type="button" id="saveVisionConfig" class="ghost small">설정 저장</button>
+        </div>
+      </details>
+    </div>
+
+    <div class="data-tools">
+      <button type="button" id="exportBtn" class="ghost small">백업 내보내기</button>
+      <button type="button" id="importBtn" class="ghost small">백업 불러오기</button>
+      <input type="file" id="importInput" accept="application/json" hidden>
+      <button type="button" id="clearAllBtn" class="ghost small danger">전체 삭제</button>
+    </div>
+  </section>
+</main>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="src/codes.js"></script>
+<script src="src/parser.js"></script>
+<script src="src/store.js"></script>
+<script src="src/calendar.js"></script>
+<script src="src/vision.js"></script>
+<script src="src/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,78 @@
+const test = require('node:test');
+const assert = require('node:assert');
+const store = require('../src/store.js');
+const parser = require('../src/parser.js');
+
+test.beforeEach(() => store.clearAll());
+
+test('개별 입력으로 추가하고 날짜별로 읽는다', () => {
+  store.addEntry({ date: '2026-09-06', code: 'ke0035', route: 'ICN/JFK' });
+  const list = store.getByDate('2026-09-06');
+  assert.strictEqual(list.length, 1);
+  assert.strictEqual(list[0].code, 'KE0035');
+  assert.strictEqual(list[0].category, 'flight');
+  assert.strictEqual(list[0].label, 'KE 0035편');
+});
+
+test('알려진 근무 코드는 라벨과 분류가 채워진다', () => {
+  const e = store.addEntry({ date: '2026-09-07', code: 'ATDO' });
+  assert.strictEqual(e.category, 'off');
+  assert.strictEqual(e.label, '추가 휴무');
+});
+
+test('날짜나 코드가 없으면 거절한다', () => {
+  assert.throws(() => store.addEntry({ code: 'LO' }), /날짜/);
+  assert.throws(() => store.addEntry({ date: '2026-09-06' }), /코드/);
+});
+
+test('삭제하면 목록에서 빠지고, 비면 날짜 키도 사라진다', () => {
+  const e = store.addEntry({ date: '2026-09-06', code: 'LO' });
+  assert.strictEqual(store.removeEntry('2026-09-06', e.id), true);
+  assert.deepStrictEqual(store.getByDate('2026-09-06'), []);
+  assert.strictEqual(Object.keys(store.getAll()).length, 0);
+  assert.strictEqual(store.removeEntry('2026-09-06', e.id), false);
+});
+
+test('replace 모드는 해당 날짜 기존 일정을 교체한다', () => {
+  store.addEntry({ date: '2026-09-06', code: 'DO' });
+  const parsed = parser.parse('2026-09-06 KE0035\n2026-09-07 LO', { year: 2026, month: 9 });
+  const res = store.applyEntries(parsed.entries, 'replace');
+  assert.strictEqual(res.added, 2);
+  assert.strictEqual(res.removed, 1);
+  assert.deepStrictEqual(store.getByDate('2026-09-06').map(e => e.code), ['KE0035']);
+});
+
+test('merge 모드는 기존에 이어 붙이되 같은 일정은 중복 저장하지 않는다', () => {
+  store.addEntry({ date: '2026-09-06', code: 'DO' });
+  const parsed = parser.parse('2026-09-06 DO\n2026-09-06 LO', { year: 2026, month: 9 });
+  const res = store.applyEntries(parsed.entries, 'merge');
+  assert.strictEqual(res.added, 1);
+  assert.deepStrictEqual(store.getByDate('2026-09-06').map(e => e.code), ['DO', 'LO']);
+});
+
+test('반영 전에 덮어쓸 기존 건수를 셀 수 있다', () => {
+  store.addEntry({ date: '2026-09-06', code: 'DO' });
+  store.addEntry({ date: '2026-09-06', code: 'LO' });
+  store.addEntry({ date: '2026-09-09', code: 'LO' });
+  const parsed = parser.parse('2026-09-06 STBY', { year: 2026, month: 9 });
+  assert.strictEqual(store.countExisting(parsed.entries), 2);
+});
+
+test('기간 조회는 범위 안의 날짜만 돌려준다', () => {
+  store.addEntry({ date: '2026-08-31', code: 'LO' });
+  store.addEntry({ date: '2026-09-01', code: 'LO' });
+  store.addEntry({ date: '2026-09-30', code: 'LO' });
+  store.addEntry({ date: '2026-10-01', code: 'LO' });
+  const range = store.getRange('2026-09-01', '2026-09-30');
+  assert.deepStrictEqual(Object.keys(range).sort(), ['2026-09-01', '2026-09-30']);
+});
+
+test('내보내기와 불러오기가 왕복한다', () => {
+  store.addEntry({ date: '2026-09-06', code: 'KE0035' });
+  const json = store.exportJson();
+  store.clearAll();
+  assert.strictEqual(Object.keys(store.getAll()).length, 0);
+  store.importJson(json);
+  assert.deepStrictEqual(store.getByDate('2026-09-06').map(e => e.code), ['KE0035']);
+  assert.throws(() => store.importJson('{"nope":1}'), /백업/);
+});
