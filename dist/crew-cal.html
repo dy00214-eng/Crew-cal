@@ -25,6 +25,7 @@
   --text: #000000;
   --muted: rgba(60, 60, 67, 0.6);       /* secondaryLabel */
   --faint: rgba(60, 60, 67, 0.3);       /* tertiaryLabel */
+  --cal-sub: rgba(28, 28, 30, 0.88);    /* 달력 칸의 도시·시각 — 작아서 진하게 쓴다 */
 
   /* 강조 */
   --accent: #007aff;                    /* systemBlue */
@@ -79,6 +80,7 @@
     --text: #ffffff;
     --muted: rgba(235, 235, 245, 0.6);
     --faint: rgba(235, 235, 245, 0.3);
+    --cal-sub: rgba(235, 235, 245, 0.85);
 
     --accent: #0a84ff;
     --accent-ink: #ffffff;
@@ -126,6 +128,7 @@
   --text: #ffffff;
   --muted: rgba(235, 235, 245, 0.6);
   --faint: rgba(235, 235, 245, 0.3);
+  --cal-sub: rgba(235, 235, 245, 0.85);
 
   --accent: #0a84ff;
   --accent-ink: #ffffff;
@@ -276,7 +279,7 @@ body {
 .cal-cell.blank { pointer-events: none; min-height: 0; }
 /* 앞뒤 달 날짜. 크루넷처럼 함께 보여주되 이 달과 구분되게 흐리게 둔다. */
 .cal-cell.outside .cal-day { color: var(--faint); font-weight: 500; }
-.cal-cell.outside .chip, .cal-cell.outside .cal-place, .cal-cell.outside .cal-time { opacity: 0.75; }
+.cal-cell.outside .chip, .cal-cell.outside .cal-place, .cal-cell.outside .cal-time { opacity: 0.85; }
 /* 고른 날은 칸 전체가 아니라 날짜 숫자에만 표시한다(칸을 채우면 줄 높이만큼 늘어난다). */
 .cal-cell.selected .cal-day { background: var(--fill-strong); }
 .cal-cell.today.selected .cal-day { background: var(--accent); color: #fff; }
@@ -324,15 +327,15 @@ body {
 .cat-unknown { color: var(--cat-unknown); background: color-mix(in srgb, var(--cat-unknown) calc(var(--chip-tint) * 100%), transparent); }
 
 .cal-place, .cal-time {
-  font-size: 10.5px;
-  line-height: 1.3;
-  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.32;
+  color: var(--cal-sub);
   word-break: keep-all;
   overflow-wrap: break-word;
   padding-left: 2px;
 }
 .cal-time {
-  color: var(--faint);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.2px;
 }
@@ -437,7 +440,7 @@ body {
 .agenda-item .chip { flex: none; font-size: 12px; padding: 3px 7px; }
 .agenda-text {
   font-size: 14px;
-  color: var(--muted);
+  color: var(--cal-sub);
   font-variant-numeric: tabular-nums;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -792,7 +795,7 @@ button.ghost.danger { color: var(--danger); }
   .cal-head, .cal-grid { gap: 3px; }
   .cal-cell { padding: 3px 2px 5px; }
   .chip { font-size: 10px; padding: 2px 4px; }
-  .cal-place, .cal-time { font-size: 10px; }
+  .cal-place, .cal-time { font-size: 10.5px; }
 }
 
 @media (max-width: 560px) {
@@ -807,7 +810,7 @@ button.ghost.danger { color: var(--danger); }
   .cal-cell { padding: 3px 1px 4px; }
   .cal-chips { gap: 3px; }
   .chip { font-size: 9.5px; padding: 1.5px 3px; letter-spacing: -0.2px; }
-  .cal-place, .cal-time { font-size: 9.5px; padding-left: 1px; }
+  .cal-place, .cal-time { font-size: 10px; padding-left: 1px; }
   .cal-day { font-size: 12px; width: 20px; height: 20px; line-height: 20px; }
   .legend { gap: 9px; font-size: 11px; }
   .tab { font-size: 13px; padding: 7px 4px; }
