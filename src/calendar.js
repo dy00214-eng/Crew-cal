@@ -203,6 +203,29 @@
     return Math.round((two - one) / 86400000);
   }
 
+  /**
+   * 날짜별로 "그날 어디에 있나". 체류하는 날에는 구간이 안 적혀 있으므로,
+   * 마지막으로 내린 공항을 다음 비행까지 이어 간다. 한국에 내리면 다시 비운다.
+   * 결과는 { 'YYYY-MM-DD': { iata, city, flag } }.
+   */
+  function tripPlaces(entriesByDate) {
+    var byDate = entriesByDate || {};
+    var out = {};
+    var current = null;
+    Object.keys(byDate).sort().forEach(function (date) {
+      (byDate[date] || []).forEach(function (e) {
+        if (e.type !== 'flight' || !e.route || !airports) return;
+        var ends = airports.splitRoute(e.route);
+        if (!ends.to) return;
+        current = airports.countryOf(ends.to) === 'KR'
+          ? null
+          : { iata: ends.to, city: airports.cityOf(ends.to), flag: airports.flagOf(ends.to) };
+      });
+      out[date] = current;
+    });
+    return out;
+  }
+
   function render(container, options) {
     var year = options.year;
     var month = options.month;
@@ -226,8 +249,7 @@
     var grid = document.createElement('div');
     grid.className = 'cal-grid';
 
-    // 칸 너비를 재서 좁으면 짧은 표기로 바꾼다
-    var compact = (container.clientWidth || 0) / 7 < 62;
+    var places = tripPlaces(entriesByDate);
 
     var lead = firstWeekday(year, month);
     var total = daysInMonth(year, month);
@@ -272,23 +294,36 @@
 
         var chips = document.createElement('span');
         chips.className = 'cal-chips';
+        var dayHasFlight = list.some(function (e) { return e.type === 'flight'; });
+        var staying = places[date] || null;
+
         list.slice(0, 3).forEach(function (e) {
           var item = document.createElement('span');
           item.className = 'cal-item';
+          item.title = [e.code, e.label || '', airports ? airports.describeRoute(e.route) : e.route,
+            describeTimes(e, true)].filter(Boolean).join(' · ');
 
-          var chip = document.createElement('span');
-          chip.className = 'chip cat-' + (e.category || 'other');
-          chip.textContent = chipText(e, compact);
-          chip.title = [e.code, e.label || '', airports ? airports.describeRoute(e.route) : e.route, describeTimes(e, true)]
-            .filter(Boolean).join(' · ');
-          item.appendChild(chip);
+          // 도시가 주인공이다. 비행하는 날은 그 편이 가는 곳, 체류하는 날은 머무는 곳.
+          var place = e.type === 'flight' ? (airports ? airports.tripPlace(e) : null)
+            : (e.category === 'layover' && !dayHasFlight ? staying : null);
 
-          var placeText = placeLabel(e);
-          if (placeText) {
-            var place = document.createElement('span');
-            place.className = 'cal-place';
-            place.textContent = placeText;
-            item.appendChild(place);
+          if (place) {
+            if (place.flag) {
+              var flag = document.createElement('span');
+              flag.className = 'cal-flag';
+              flag.textContent = place.flag;
+              item.appendChild(flag);
+            }
+            var city = document.createElement('span');
+            city.className = 'cal-city cat-' + (e.category || 'other');
+            city.textContent = place.city;
+            item.appendChild(city);
+          } else {
+            var title = document.createElement('span');
+            title.className = 'cal-title cat-' + (e.category || 'other');
+            // 구간을 모르는 비행은 편명이 곧 제목이다
+            title.textContent = e.type === 'flight' ? e.code : (e.label || e.code);
+            item.appendChild(title);
           }
 
           var timeText = hideTimes[date + '|' + e.code] ? '' : formatTimeRange(e);
@@ -298,11 +333,24 @@
             time.textContent = timeText;
             item.appendChild(time);
           }
+
+          // 큰 글씨 밑에는 작은 글씨로 한 줄. 도시 밑에는 편명(체류면 '체류'),
+          // 휴무·대기처럼 이름이 제목인 경우에는 원래 코드를 적는다.
+          var subText = place
+            ? (e.type === 'flight' ? e.code : (e.label || ''))
+            : (e.type === 'flight' ? '' : (e.code !== e.label ? e.code : ''));
+          if (subText) {
+            var sub = document.createElement('span');
+            sub.className = 'cal-code';
+            sub.textContent = subText;
+            item.appendChild(sub);
+          }
+
           chips.appendChild(item);
         });
         if (list.length > 3) {
           var more = document.createElement('span');
-          more.className = 'chip more';
+          more.className = 'cal-more';
           more.textContent = '+' + (list.length - 3);
           chips.appendChild(more);
         }
@@ -616,6 +664,7 @@
     placeLabel: placeLabel,
     chipText: chipText,
     dayCategory: dayCategory,
+    tripPlaces: tripPlaces,
     iso: iso,
     pad2: pad2,
     todayIso: todayIso,
