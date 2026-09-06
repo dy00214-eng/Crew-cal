@@ -93,6 +93,19 @@
     return lines.join('\n').trim() + '\n';
   }
 
+  /**
+   * 메일 앱을 열 주소를 만든다. 제목과 본문이 채워진 채로 열린다.
+   * 본문이 너무 길면 메일 앱이 통째로 무시하는 폰이 있어 적당히 자른다.
+   */
+  function mailtoUrl(address, text, limit) {
+    var max = limit || 3000;
+    var body = String(text || '');
+    if (body.length > max) body = body.slice(0, max) + '\n…(뒷부분 줄임)';
+    return 'mailto:' + address +
+      '?subject=' + encodeURIComponent('[크루캘] 의견') +
+      '&body=' + encodeURIComponent(body);
+  }
+
   /** 보낼 만한 내용인지. 고른 종류만 있고 아무 말도 없으면 받아도 알 수가 없다. */
   function isSendable(input) {
     var data = input || {};
@@ -104,6 +117,7 @@
     kindLabel: kindLabel,
     suggestsSchedule: suggestsSchedule,
     compose: compose,
+    mailtoUrl: mailtoUrl,
     isSendable: isSendable
   };
 });

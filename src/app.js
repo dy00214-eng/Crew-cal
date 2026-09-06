@@ -1030,8 +1030,15 @@
   var APP_VERSION = '2026-09-06';
 
   /**
+   * 의견을 받을 메일 주소. 저장소가 공개라 통짜로 적어두면 스팸 크롤러가 긁어가므로
+   * 조각으로 나눠 두고 쓸 때 합친다. 완전히 숨는 건 아니고, 기계가 훑는 걸 막는 정도다.
+   */
+  var MAIL_TO = ['dy00214', 'gmail', 'com'].join('\u0000')
+    .replace('\u0000', '@').replace('\u0000', '.');
+
+  /**
    * 의견이 모이는 카톡 오픈채팅방 주소.
-   * 채워 넣으면 "보내기" 가 글을 복사하고 이 방을 연다. 비워두면 폰 공유창을 쓴다.
+   * 채워 넣으면 메일 대신 이 방을 연다. 둘 다 비우면 폰 공유창을 쓴다.
    */
   var OPEN_CHAT = '';
 
@@ -1100,6 +1107,15 @@
       $('feedbackMessage').value = '';
     }
 
+    // 메일 주소가 정해져 있으면 내용이 채워진 채로 메일 앱을 연다. 보내기만 누르면 된다.
+    if (!copyOnly && MAIL_TO && !OPEN_CHAT) {
+      window.location.href = feedback.mailtoUrl(MAIL_TO, text);
+      $('feedbackStatus').textContent = '메일 앱을 열었습니다. 그대로 보내기만 누르시면 됩니다.';
+      $('feedbackStatus').className = 'status ok';
+      $('feedbackMessage').value = '';
+      return;
+    }
+
     // 오픈채팅방이 정해져 있으면, 글을 복사해 주고 그 방을 열어준다.
     // 복사와 방 열기를 같은 누름 안에서 시작해야 사파리가 창을 막지 않는다.
     if (!copyOnly && OPEN_CHAT) {
@@ -1160,6 +1176,15 @@
       $('feedbackHint').textContent =
         '쓰다가 이상한 점이 있으면 적어 주세요. 보내기를 누르면 글이 복사되고 ' +
         '크루캘 오픈채팅방이 열립니다. 방에 붙여넣기만 하면 됩니다.';
+    } else if (MAIL_TO) {
+      $('feedbackSend').textContent = '메일로 보내기';
+      $('feedbackHint').textContent =
+        '쓰다가 이상한 점이 있으면 적어 주세요. 보내기를 누르면 내용이 채워진 채로 ' +
+        '메일 앱이 열립니다. 그대로 보내기만 누르시면 만든 사람에게 갑니다.';
+      // 메일은 보낸 사람 주소가 함께 가므로, 익명이라고 적어두면 거짓말이 된다
+      $('feedbackPrivacy').textContent =
+        '메일로 가기 때문에 보내는 분의 메일 주소가 함께 보입니다. ' +
+        '그 밖에는 위에 적은 내용과 브라우저 종류·화면 크기만 들어갑니다.';
     }
     $('feedbackBtn').addEventListener('click', openFeedback);
     $('feedbackClose').addEventListener('click', closeFeedback);

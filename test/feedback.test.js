@@ -53,3 +53,18 @@ test('아무 말도 없으면 보내지 않는다', () => {
   assert.strictEqual(feedback.isSendable({ kind: 'parse', schedule: '6 TVL' }), true);
   assert.strictEqual(feedback.isSendable(), false);
 });
+
+test('메일 앱 주소는 제목과 본문을 채워서 연다', () => {
+  const url = feedback.mailtoUrl('a@b.com', '[크루캘 의견]\n\n종류: 그 밖에');
+  assert.match(url, /^mailto:a@b\.com\?subject=/);
+  assert.match(url, /&body=/);
+  const body = decodeURIComponent(url.split('&body=')[1]);
+  assert.strictEqual(body, '[크루캘 의견]\n\n종류: 그 밖에');
+});
+
+test('본문이 너무 길면 잘라서 넘긴다', () => {
+  const url = feedback.mailtoUrl('a@b.com', 'ㄱ'.repeat(200), 50);
+  const body = decodeURIComponent(url.split('&body=')[1]);
+  assert.strictEqual(body.length, 50 + '\n…(뒷부분 줄임)'.length);
+  assert.match(body, /…\(뒷부분 줄임\)$/);
+});
