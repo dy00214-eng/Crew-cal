@@ -380,3 +380,8 @@ test('연월이 적힌 날짜는 되돌아가도 그대로 쓴다', () => {
   const r = parse('2026-05-31\tLO\n2026-05-01\tATDO', { year: 2026, month: 5 });
   assert.deepStrictEqual(r.entries.map(e => e.date), ['2026-05-01', '2026-05-31']);
 });
+
+test('근무 이름은 한글로 짧게 쓴다', () => {
+  const r = parse('2026-09-06 LO STBY DO');
+  assert.deepStrictEqual(r.entries.map(e => e.label), ['체류', '대기', '휴무']);
+});

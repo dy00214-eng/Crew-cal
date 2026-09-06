@@ -14,7 +14,7 @@
 
   // 나라별 공항 목록. 대한항공·아시아나 취항지와 자주 쓰는 공항 위주.
   var BY_COUNTRY = {
-    KR: 'ICN GMP PUS CJU TAE KWJ RSU USN YNY MWX HIN KUV WJU KPO',
+    KR: 'ICN GMP PUS CJU TAE KWJ RSU USN YNY MWX HIN KUV WJU KPO CJJ',
     JP: 'NRT HND KIX ITM UKB NGO CTS FUK OKA KOJ KMJ HIJ TAK KMI OIT AXT SDJ AOJ KMQ TOY FSZ MYJ NGS HKD ISG MMY TKS KCZ IZO YGJ ASJ OKJ KIJ',
     CN: 'PEK PKX PVG SHA CAN SZX CTU TFU CKG XIY HGH NKG WUH CSX CGO TNA TAO YNT WEH DLC SHE HRB CGQ TSN KMG NNG HAK SYX XMN FOC JJN NGB HFE WNZ TYN SJW HET INC LHW XNN URC KWE KWL SWA ZUH YNJ MDG DYG',
     HK: 'HKG', MO: 'MFM', TW: 'TPE TSA KHH RMQ', MN: 'ULN UBN',
@@ -78,7 +78,7 @@
   var CITY_NAMES = {
     ICN: '인천', GMP: '김포', PUS: '부산', CJU: '제주', TAE: '대구', KWJ: '광주',
     RSU: '여수', USN: '울산', YNY: '양양', MWX: '무안', HIN: '사천', KUV: '군산',
-    WJU: '원주', KPO: '포항',
+    WJU: '원주', KPO: '포항', CJJ: '청주',
 
     NRT: '도쿄', HND: '도쿄', KIX: '오사카', ITM: '오사카', UKB: '고베', NGO: '나고야',
     CTS: '삿포로', FUK: '후쿠오카', OKA: '오키나와', KOJ: '가고시마', KMJ: '구마모토',

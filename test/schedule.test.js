@@ -130,3 +130,22 @@ test('국내선은 두 공항 전광판의 시각을 합쳐 출발·도착을 �
   assert.strictEqual(gmp.start, '07:00');
   assert.strictEqual(gmp.end, '08:05');
 });
+
+test('제주 출발·도착편도 표에 있다', () => {
+  assert.strictEqual(schedule.lookup('KE2125').route, 'CJU/NRT');
+  assert.strictEqual(schedule.lookup('KE2125').start, '12:55');
+  assert.strictEqual(schedule.lookup('KE2126').route, 'NRT/CJU');
+  assert.strictEqual(schedule.lookup('KE1704').route, 'CJU/CJJ');
+});
+
+test('김포-제주 국내선은 양쪽 전광판을 합쳐 출발·도착을 모두 갖는다', () => {
+  const out = schedule.lookup('KE1007');
+  assert.strictEqual(out.route, 'GMP/CJU');
+  assert.strictEqual(out.start, '06:35');
+  assert.strictEqual(out.end, '07:50');
+
+  const back = schedule.lookup('KE1136');
+  assert.strictEqual(back.route, 'CJU/GMP');
+  assert.strictEqual(back.start, '08:35');
+  assert.strictEqual(back.end, '09:50');
+});

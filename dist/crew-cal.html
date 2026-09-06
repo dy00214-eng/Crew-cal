@@ -1099,9 +1099,9 @@ button.ghost.danger { color: var(--danger); }
     UL: { label: '무급 휴가', category: 'off' },
 
     // 대기 계열
-    STBY: { label: '대기(스탠바이)', category: 'standby' },
-    SBY: { label: '대기(스탠바이)', category: 'standby' },
-    STB: { label: '대기(스탠바이)', category: 'standby' },
+    STBY: { label: '대기', category: 'standby' },
+    SBY: { label: '대기', category: 'standby' },
+    STB: { label: '대기', category: 'standby' },
     HSBY: { label: '자택 대기', category: 'standby' },
     ASBY: { label: '공항 대기', category: 'standby' },
     RES: { label: '예비', category: 'standby' },
@@ -1111,11 +1111,11 @@ button.ghost.danger { color: var(--danger); }
     TVL: { label: '비행 근무', category: 'flight' },
 
     // 체류 / 비행 부속
-    LO: { label: '레이오버(체류)', category: 'layover' },
-    LAYOVER: { label: '레이오버(체류)', category: 'layover' },
-    LOFF: { label: '체류지 휴식', category: 'layover' },
-    DH: { label: '데드헤드(탑승 이동)', category: 'flight' },
-    DHD: { label: '데드헤드(탑승 이동)', category: 'flight' },
+    LO: { label: '체류', category: 'layover' },
+    LAYOVER: { label: '체류', category: 'layover' },
+    LOFF: { label: '체류 휴식', category: 'layover' },
+    DH: { label: '탑승 이동', category: 'flight' },
+    DHD: { label: '탑승 이동', category: 'flight' },
     BRF: { label: '브리핑', category: 'flight' },
     BLK: { label: '블럭', category: 'other' },
 
@@ -1214,7 +1214,7 @@ button.ghost.danger { color: var(--danger); }
 
   // 나라별 공항 목록. 대한항공·아시아나 취항지와 자주 쓰는 공항 위주.
   var BY_COUNTRY = {
-    KR: 'ICN GMP PUS CJU TAE KWJ RSU USN YNY MWX HIN KUV WJU KPO',
+    KR: 'ICN GMP PUS CJU TAE KWJ RSU USN YNY MWX HIN KUV WJU KPO CJJ',
     JP: 'NRT HND KIX ITM UKB NGO CTS FUK OKA KOJ KMJ HIJ TAK KMI OIT AXT SDJ AOJ KMQ TOY FSZ MYJ NGS HKD ISG MMY TKS KCZ IZO YGJ ASJ OKJ KIJ',
     CN: 'PEK PKX PVG SHA CAN SZX CTU TFU CKG XIY HGH NKG WUH CSX CGO TNA TAO YNT WEH DLC SHE HRB CGQ TSN KMG NNG HAK SYX XMN FOC JJN NGB HFE WNZ TYN SJW HET INC LHW XNN URC KWE KWL SWA ZUH YNJ MDG DYG',
     HK: 'HKG', MO: 'MFM', TW: 'TPE TSA KHH RMQ', MN: 'ULN UBN',
@@ -1278,7 +1278,7 @@ button.ghost.danger { color: var(--danger); }
   var CITY_NAMES = {
     ICN: '인천', GMP: '김포', PUS: '부산', CJU: '제주', TAE: '대구', KWJ: '광주',
     RSU: '여수', USN: '울산', YNY: '양양', MWX: '무안', HIN: '사천', KUV: '군산',
-    WJU: '원주', KPO: '포항',
+    WJU: '원주', KPO: '포항', CJJ: '청주',
 
     NRT: '도쿄', HND: '도쿄', KIX: '오사카', ITM: '오사카', UKB: '고베', NGO: '나고야',
     CTS: '삿포로', FUK: '후쿠오카', OKA: '오키나와', KOJ: '가고시마', KMJ: '구마모토',
@@ -1671,13 +1671,49 @@ button.ghost.danger { color: var(--danger); }
     '2134': ['NGO', '21:30']
   };
 
+  /* 제주에서 나가는 편: 편명 -> [도착 공항, 출발 시각] */
+  var CJU_OUT = {
+    '1136': ['GMP', '08:35'], '1150': ['GMP', '09:00'], '1174': ['GMP', '10:25'],
+    '1188': ['GMP', '11:20'], '1206': ['GMP', '12:05'], '1214': ['GMP', '13:05'],
+    '1238': ['GMP', '14:40'], '1244': ['GMP', '15:20'], '1246': ['GMP', '15:35'],
+    '1264': ['GMP', '16:05'], '1268': ['GMP', '16:50'], '1272': ['GMP', '17:00'],
+    '1294': ['GMP', '18:15'],
+    '1512': ['PUS', '08:45'], '1538': ['PUS', '15:00'], '1550': ['PUS', '18:20'],
+    '1570': ['TAE', '09:15'], '1576': ['TAE', '16:35'], '1586': ['HIN', '13:20'],
+    '1596': ['USN', '13:10'],
+    '1608': ['KWJ', '09:10'], '1610': ['KWJ', '11:35'], '1612': ['KWJ', '13:05'],
+    '1620': ['KWJ', '16:05'], '1636': ['RSU', '11:40'],
+    '1704': ['CJJ', '07:20'], '1712': ['CJJ', '12:15'], '1722': ['CJJ', '14:50'],
+    '1766': ['CJJ', '18:25'],
+    '2065': ['PEK', '15:35'], '2125': ['NRT', '12:55']
+  };
+
+  /* 제주로 들어오는 편: 편명 -> [출발 공항, 제주 도착 시각] */
+  var CJU_IN = {
+    '1007': ['GMP', '07:50'], '1017': ['GMP', '08:20'], '1019': ['GMP', '08:25'],
+    '1045': ['GMP', '09:35'], '1073': ['GMP', '11:25'], '1075': ['GMP', '11:55'],
+    '1079': ['GMP', '11:50'], '1081': ['GMP', '12:25'], '1107': ['GMP', '14:00'],
+    '1113': ['GMP', '14:30'], '1141': ['GMP', '15:15'], '1143': ['GMP', '16:10'],
+    '1165': ['GMP', '17:50'], '1177': ['GMP', '18:45'],
+    '1505': ['PUS', '08:00'], '1515': ['PUS', '10:55'], '1517': ['PUS', '11:25'],
+    '1543': ['PUS', '17:40'],
+    '1569': ['TAE', '12:10'], '1585': ['HIN', '16:25'], '1595': ['USN', '16:10'],
+    '1607': ['KWJ', '11:35'], '1611': ['KWJ', '14:05'], '1613': ['KWJ', '15:30'],
+    '1619': ['KWJ', '18:30'], '1635': ['RSU', '14:10'],
+    '1717': ['CJJ', '15:15'], '1725': ['CJJ', '18:30'],
+    '2066': ['PEK', '14:25'], '2126': ['NRT', '19:05']
+  };
+
   /* 국내선이나 한국을 거치지 않는 편처럼 양쪽 시각을 다 아는 편 */
   var FULL = {
     '1402': ['PUS/ICN', '07:00', '08:10', 0]
   };
 
   // 짝 편명으로 구간을 뒤집을 때 기준이 되는 국내 출발지
-  var KR_HUBS = { ICN: true, GMP: true, PUS: true, CJU: true, TAE: true, KWJ: true, USN: true };
+  var KR_HUBS = {
+    ICN: true, GMP: true, PUS: true, CJU: true, TAE: true, KWJ: true,
+    USN: true, CJJ: true, RSU: true, HIN: true, WJU: true, KUV: true
+  };
 
   var TABLE = {};
 
@@ -1702,6 +1738,8 @@ button.ghost.danger { color: var(--danger); }
   Object.keys(GMP_IN).forEach(function (n) { put(n, GMP_IN[n][0] + '/GMP', null, GMP_IN[n][1], 0); });
   Object.keys(PUS_OUT).forEach(function (n) { put(n, 'PUS/' + PUS_OUT[n][0], PUS_OUT[n][1], null, 0); });
   Object.keys(PUS_IN).forEach(function (n) { put(n, PUS_IN[n][0] + '/PUS', null, PUS_IN[n][1], 0); });
+  Object.keys(CJU_OUT).forEach(function (n) { put(n, 'CJU/' + CJU_OUT[n][0], CJU_OUT[n][1], null, 0); });
+  Object.keys(CJU_IN).forEach(function (n) { put(n, CJU_IN[n][0] + '/CJU', null, CJU_IN[n][1], 0); });
   Object.keys(FULL).forEach(function (n) {
     TABLE['KE' + n] = { route: FULL[n][0], start: FULL[n][1], end: FULL[n][2], endOffset: FULL[n][3] || 0 };
   });

@@ -41,9 +41,9 @@
     UL: { label: '무급 휴가', category: 'off' },
 
     // 대기 계열
-    STBY: { label: '대기(스탠바이)', category: 'standby' },
-    SBY: { label: '대기(스탠바이)', category: 'standby' },
-    STB: { label: '대기(스탠바이)', category: 'standby' },
+    STBY: { label: '대기', category: 'standby' },
+    SBY: { label: '대기', category: 'standby' },
+    STB: { label: '대기', category: 'standby' },
     HSBY: { label: '자택 대기', category: 'standby' },
     ASBY: { label: '공항 대기', category: 'standby' },
     RES: { label: '예비', category: 'standby' },
@@ -53,11 +53,11 @@
     TVL: { label: '비행 근무', category: 'flight' },
 
     // 체류 / 비행 부속
-    LO: { label: '레이오버(체류)', category: 'layover' },
-    LAYOVER: { label: '레이오버(체류)', category: 'layover' },
-    LOFF: { label: '체류지 휴식', category: 'layover' },
-    DH: { label: '데드헤드(탑승 이동)', category: 'flight' },
-    DHD: { label: '데드헤드(탑승 이동)', category: 'flight' },
+    LO: { label: '체류', category: 'layover' },
+    LAYOVER: { label: '체류', category: 'layover' },
+    LOFF: { label: '체류 휴식', category: 'layover' },
+    DH: { label: '탑승 이동', category: 'flight' },
+    DHD: { label: '탑승 이동', category: 'flight' },
     BRF: { label: '브리핑', category: 'flight' },
     BLK: { label: '블럭', category: 'other' },
 
