@@ -69,6 +69,7 @@
     <div id="calendar" class="calendar"></div>
     <div id="listView" class="list-view" hidden></div>
     <div id="yearView" class="year-view" hidden></div>
+    <div id="yearSummary" class="month-summary" hidden></div>
     <div id="monthSummary" class="month-summary"></div>
     <ul class="legend">
       <li><i class="dot cat-flight"></i>비행 · 체류</li>
@@ -303,6 +304,7 @@
     </details>
 
     <div class="data-tools">
+      <button type="button" id="imageBtn" class="ghost small">이미지로 저장</button>
       <button type="button" id="icsBtn" class="ghost small">캘린더 앱에 넣기</button>
       <button type="button" id="exportBtn" class="ghost small">백업 내보내기</button>
       <button type="button" id="importBtn" class="ghost small">백업 불러오기</button>
@@ -368,6 +370,7 @@
 <script src="src/parser.js"></script>
 <script src="src/store.js"></script>
 <script src="src/calendar.js"></script>
+<script src="src/poster.js"></script>
 <script src="src/ics.js"></script>
 <script src="src/vision.js"></script>
 <script src="src/feedback.js"></script>

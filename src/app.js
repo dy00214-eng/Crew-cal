@@ -9,6 +9,7 @@
   var vision = CrewCal.vision;
   var feedback = CrewCal.feedback;
   var ics = CrewCal.ics;
+  var poster = CrewCal.poster;
   var airports = CrewCal.airports;
   var holidays = CrewCal.holidays;
   var clock = CrewCal.clock;
@@ -124,6 +125,7 @@
 
     // 연간 화면에서는 달 이름 대신 해를 보여준다
     if (mode === 'year') $('monthLabel').textContent = state.year + '년';
+    renderYearSummary(mode === 'year' ? entriesByDate : null);
 
     renderMonthSummary(entriesByDate);
     renderNextDuty(entriesByDate);
@@ -177,6 +179,57 @@
       line.className = 'sum-cities';
       line.textContent = '간 곳 · ' + s.cities.map(function (c) {
         return (c.flag ? c.flag + ' ' : '') + c.city;
+      }).join(', ');
+      box.appendChild(line);
+    }
+  }
+
+  /** 연간 보기 아래에 한 해를 정리해 붙인다. 어디를 몇 번 갔는지가 궁금한 자리다. */
+  function renderYearSummary(entriesByDate) {
+    var box = $('yearSummary');
+    if (!box) return;
+    box.innerHTML = '';
+    if (!entriesByDate) { box.hidden = true; return; }
+
+    var s = calendar.summarizeYear(entriesByDate, state.year);
+    box.hidden = false;
+    if (!s.days) {
+      var empty = document.createElement('div');
+      empty.className = 'sum-cities';
+      empty.textContent = state.year + '년에 등록된 일정이 없습니다.';
+      box.appendChild(empty);
+      return;
+    }
+
+    var bits = [];
+    if (s.flights) bits.push(['비행', s.flights + '편']);
+    ['layover', 'standby', 'training', 'vacation', 'off', 'other', 'unknown'].forEach(function (key) {
+      if (s.dayCounts[key]) bits.push([codes.CATEGORY_LABELS[key], s.dayCounts[key] + '일']);
+    });
+    bits.push(['일정 있는 날', s.days + '일']);
+
+    bits.forEach(function (pair, i) {
+      if (i) {
+        var dot = document.createElement('span');
+        dot.className = 'sum-item';
+        dot.setAttribute('aria-hidden', 'true');
+        dot.textContent = '·';
+        box.appendChild(dot);
+      }
+      var item = document.createElement('span');
+      item.className = 'sum-item';
+      item.appendChild(document.createTextNode(pair[0] + ' '));
+      var strong = document.createElement('b');
+      strong.textContent = pair[1];
+      item.appendChild(strong);
+      box.appendChild(item);
+    });
+
+    if (s.places.length) {
+      var line = document.createElement('div');
+      line.className = 'sum-cities';
+      line.textContent = '다녀온 곳 · ' + s.places.map(function (p) {
+        return (p.flag ? p.flag + ' ' : '') + p.city + ' ' + p.count + '번';
       }).join(', ');
       box.appendChild(line);
     }
@@ -1077,6 +1130,68 @@
     toast(made.count + '건 · 받은 파일을 열면 캘린더에 추가됩니다.');
   }
 
+  /**
+   * 보고 있는 달을 그림 한 장으로 만들어 공유하거나 저장한다.
+   * 폰에서는 공유창이 열려 카톡·사진으로 바로 넘길 수 있고, 안 되면 내려받는다.
+   */
+  function exportImage() {
+    var entriesByDate = store.getAll();
+    var canvas = document.createElement('canvas');
+    try {
+      poster.draw(canvas, {
+        year: state.year,
+        month: state.month,
+        entriesByDate: entriesByDate,
+        hideTimes: state.hideTimes
+      });
+    } catch (e) {
+      toast('그림을 만들지 못했습니다.');
+      return;
+    }
+
+    var name = poster.filename(state.year, state.month);
+    if (!canvas.toBlob) {
+      openImageTab(canvas.toDataURL('image/png'));
+      return;
+    }
+
+    canvas.toBlob(function (blob) {
+      if (!blob) { toast('그림을 만들지 못했습니다.'); return; }
+
+      var file = null;
+      try { file = new File([blob], name, { type: 'image/png' }); } catch (e) { file = null; }
+      if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({ files: [file], title: state.year + '년 ' + state.month + '월 스케줄' })
+          .catch(function () { /* 공유창을 닫은 경우 */ });
+        return;
+      }
+
+      // 아티팩트 뷰어처럼 내려받기가 막힌 화면에서는 새 탭으로 열어 길게 눌러 저장하게 한다
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      if ('download' in a) {
+        a.href = url;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+        toast('이미지를 저장했습니다.');
+        return;
+      }
+      openImageTab(url);
+    }, 'image/png');
+  }
+
+  function openImageTab(src) {
+    var win = window.open('', '_blank');
+    if (!win) { toast('새 창이 막혀 있습니다. 허용한 뒤 다시 눌러주세요.'); return; }
+    win.document.write('<title>스케줄 이미지</title>' +
+      '<body style="margin:0;background:#111"><img src="' + src + '" style="width:100%">');
+    win.document.close();
+    toast('사진을 길게 눌러 저장하세요.');
+  }
+
   function saveViaLink(filename, text, type) {
     var blob = new Blob([text], { type: type || 'application/json' });
     var url = URL.createObjectURL(blob);
@@ -1163,6 +1278,7 @@
 
     $('exportBtn').addEventListener('click', exportBackup);
     $('icsBtn').addEventListener('click', exportIcs);
+    $('imageBtn').addEventListener('click', exportImage);
 
     $('importBtn').addEventListener('click', function () { $('importInput').click(); });
     $('importInput').addEventListener('change', function () {

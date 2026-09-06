@@ -6,7 +6,7 @@
  * 새 버전이 올라오면 다음 번에 열 때 반영된다. 일정 자체는 여기 담기지 않고
  * 브라우저 저장소(localStorage)에 그대로 남는다.
  */
-var VERSION = 'crew-cal-v6';
+var VERSION = 'crew-cal-v7';
 var SHELL = [
   './',
   './index.html',
@@ -25,6 +25,7 @@ var SHELL = [
   './src/store.js',
   './src/calendar.js',
   './src/ics.js',
+  './src/poster.js',
   './src/vision.js',
   './src/feedback.js',
   './src/app.js'

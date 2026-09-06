@@ -497,6 +497,53 @@
    * 나머지는 날수로 센다(하루에 두 번 적혀 있어도 하루). 다녀온 도시도 순서대로 모은다.
    */
   /**
+   * 한 해 요약. 어디를 몇 번 갔는지와 날수를 센다.
+   *
+   * 비행 편수는 크루넷이 이틀에 걸쳐 적어둔 도착편을 한 번만 센다.
+   * "간 곳" 은 한국에서 뜨는 편만 세어 한 번 다녀온 것을 한 번으로 잡는다
+   * (나가는 편과 들어오는 편을 다 세면 갈 때마다 두 번이 된다).
+   */
+  function summarizeYear(entriesByDate, year) {
+    var byDate = entriesByDate || {};
+    var hidden = suppressedTimes(byDate);
+    var prefix = String(year) + '-';
+    var dayCounts = {};
+    var days = 0;
+    var flights = 0;
+    var visits = {};
+
+    Object.keys(byDate).sort().forEach(function (date) {
+      if (date.indexOf(prefix) !== 0) return;
+      var list = byDate[date] || [];
+      if (!list.length) return;
+      days++;
+      var seenHere = {};
+      list.forEach(function (e) {
+        var c = e.category || 'other';
+        if (!seenHere[c]) { seenHere[c] = true; dayCounts[c] = (dayCounts[c] || 0) + 1; }
+        if (e.type !== 'flight') return;
+        if (hidden[date + '|' + e.code]) return;      // 도착일 쪽에서 이미 셌다
+        flights++;
+        if (!airports) return;
+        var ends = airports.splitRoute(e.route);
+        if (!ends.from || airports.countryOf(ends.from) !== 'KR') return;   // 나가는 편만
+        var place = airports.tripPlace(e);
+        if (!place) return;
+        if (!visits[place.city]) visits[place.city] = { city: place.city, flag: place.flag, count: 0 };
+        visits[place.city].count++;
+      });
+    });
+
+    var places = Object.keys(visits).map(function (city) { return visits[city]; });
+    places.sort(function (a, b) {
+      if (a.count !== b.count) return b.count - a.count;
+      return a.city < b.city ? -1 : 1;
+    });
+
+    return { year: year, days: days, flights: flights, dayCounts: dayCounts, places: places };
+  }
+
+  /**
    * 한 해를 열두 개의 작은 달로 그린다. 칸마다 그날의 성격을 점으로만 찍는다.
    * 휴가를 어디에 붙일지, 어느 달이 빡셌는지 한눈에 보라고 만든 화면이다.
    * 날짜를 누르면 그 달로 넘어간다.
@@ -656,6 +703,7 @@
     upcoming: upcoming,
     daysBetween: daysBetween,
     summarize: summarize,
+    summarizeYear: summarizeYear,
     search: search,
     formatTimeRange: formatTimeRange,
     describeTimes: describeTimes,
