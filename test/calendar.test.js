@@ -187,3 +187,18 @@ test('편명·도시·코드로 지난 일정을 찾는다', () => {
   assert.strictEqual(calendar.search(byDate, '2026-08').length, 1);
   assert.deepStrictEqual(calendar.search(byDate, '  '), []);
 });
+
+test('달력 칸에는 근무 코드 대신 한글 이름을 쓴다', () => {
+  assert.strictEqual(calendar.chipText({ type: 'duty', code: 'ATDO', label: '휴무' }), '휴무');
+  assert.strictEqual(calendar.chipText({ type: 'duty', code: 'LO', label: '체류' }), '체류');
+  assert.strictEqual(calendar.chipText({ type: 'duty', code: 'STBY', label: '대기' }), '대기');
+  // 이름을 모르는 코드는 코드를 그대로 보여준다
+  assert.strictEqual(calendar.chipText({ type: 'duty', code: 'ZZZZ' }), 'ZZZZ');
+  assert.strictEqual(calendar.chipText(), '');
+});
+
+test('비행은 편명을 쓰고, 칸이 좁으면 항공사 두 글자만 뗀다', () => {
+  const flight = { type: 'flight', code: 'KE0035', label: 'KE 0035편' };
+  assert.strictEqual(calendar.chipText(flight), 'KE0035');
+  assert.strictEqual(calendar.chipText(flight, true), '0035');
+});

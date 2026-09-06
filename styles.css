@@ -311,9 +311,10 @@ body {
   border-radius: var(--r-chip);
   color: var(--cat-other);
   background: color-mix(in srgb, var(--cat-other) calc(var(--chip-tint) * 100%), transparent);
-  white-space: nowrap;
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 .chip.more { background: transparent; color: var(--faint); padding-left: 2px; }
 .cat-flight { color: var(--cat-flight); background: color-mix(in srgb, var(--cat-flight) calc(var(--chip-tint) * 100%), transparent); }

@@ -117,10 +117,17 @@
     return endLabel + ' ' + entry.end + nextDay;
   }
 
-  /** 칸이 좁을 때 쓰는 짧은 표기. KE0035 -> 0035 (전체 코드는 툴팁과 목록에 남는다) */
-  function shortCode(entry, compact) {
-    if (!compact || entry.type !== 'flight') return entry.code;
-    return entry.code.replace(/^[A-Z]{2}(?=\d)/, '');
+  /**
+   * 칸에 쓸 이름.
+   * 비행이 아닌 근무는 코드 대신 한글 이름을 쓴다. 달력에서는 ATDO 보다 휴무가 읽기 쉽고,
+   * 원래 코드는 길게 눌러 뜨는 설명과 날짜별 목록에 그대로 남는다.
+   * 비행은 편명이 곧 정보라 그대로 두되, 칸이 좁으면 항공사 두 글자만 뗀다(KE0035 -> 0035).
+   */
+  function chipText(entry, compact) {
+    if (!entry) return '';
+    if (entry.type !== 'flight') return entry.label || entry.code || '';
+    if (!compact) return entry.code;
+    return String(entry.code).replace(/^[A-Z]{2}(?=\d)/, '');
   }
 
   function nextDay(date) {
@@ -242,7 +249,7 @@
 
           var chip = document.createElement('span');
           chip.className = 'chip cat-' + (e.category || 'other');
-          chip.textContent = shortCode(e, compact);
+          chip.textContent = chipText(e, compact);
           chip.title = [e.code, e.label || '', airports ? airports.describeRoute(e.route) : e.route, describeTimes(e, true)]
             .filter(Boolean).join(' · ');
           item.appendChild(chip);
@@ -351,6 +358,7 @@
     }
 
     var today = todayIso();
+    var hideTimes = options.hideTimes || {};
 
     dates.forEach(function (date) {
       var row = document.createElement('button');
@@ -379,14 +387,15 @@
 
         var chip = document.createElement('span');
         chip.className = 'chip cat-' + (e.category || 'other');
-        chip.textContent = e.code;
+        chip.textContent = chipText(e);
+        chip.title = e.code;
         item.appendChild(chip);
 
         var text = document.createElement('span');
         text.className = 'agenda-text';
         var times = hideTimes[date + '|' + e.code] ? '' : describeTimes(e);
         text.textContent = [placeLabel(e), times, e.memo || '']
-          .filter(Boolean).join(' · ') || (e.label || '');
+          .filter(Boolean).join(' · ') || (e.type === 'flight' ? (e.label || '') : '');
         text.title = [airports ? airports.describeRoute(e.route) : '', e.label || '']
           .filter(Boolean).join(' · ');
         item.appendChild(text);
@@ -574,6 +583,7 @@
     skipTime: skipTime,
     routeLabel: routeLabel,
     placeLabel: placeLabel,
+    chipText: chipText,
     iso: iso,
     pad2: pad2,
     todayIso: todayIso,
