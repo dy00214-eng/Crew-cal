@@ -353,7 +353,7 @@ body {
 .cat-unknown { color: var(--cat-unknown); background: color-mix(in srgb, var(--cat-unknown) calc(var(--chip-tint) * 100%), transparent); }
 
 .cal-cell .chip { text-align: center; }
-.cal-flag { font-size: 13px; line-height: 1.2; text-align: center; }
+.cal-flag { font-size: 12px; line-height: 1.25; text-align: center; letter-spacing: -0.5px; }
 .cal-city, .cal-title {
   background: none;
   padding: 0;

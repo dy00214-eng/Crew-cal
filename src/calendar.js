@@ -308,10 +308,10 @@
             : (e.category === 'layover' && !dayHasFlight ? staying : null);
 
           if (place) {
-            if (place.flag) {
+            if (place.flag || e.type === 'flight') {
               var flag = document.createElement('span');
               flag.className = 'cal-flag';
-              flag.textContent = place.flag;
+              flag.textContent = (e.type === 'flight' ? '\u2708\uFE0F ' : '') + (place.flag || '');
               item.appendChild(flag);
             }
             var city = document.createElement('span');
@@ -322,7 +322,9 @@
             var title = document.createElement('span');
             title.className = 'cal-title cat-' + (e.category || 'other');
             // 구간을 모르는 비행은 편명이 곧 제목이다
-            title.textContent = e.type === 'flight' ? e.code : (e.label || e.code);
+            title.textContent = e.type === 'flight'
+              ? '\u2708\uFE0F ' + e.code
+              : (e.label || e.code);
             item.appendChild(title);
           }
 
