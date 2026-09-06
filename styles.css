@@ -270,6 +270,9 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 .cal-cell.blank { pointer-events: none; min-height: 0; }
+/* 앞뒤 달 날짜. 크루넷처럼 함께 보여주되 이 달과 구분되게 흐리게 둔다. */
+.cal-cell.outside .cal-day { color: var(--faint); font-weight: 500; }
+.cal-cell.outside .chip, .cal-cell.outside .cal-place, .cal-cell.outside .cal-time { opacity: 0.75; }
 /* 고른 날은 칸 전체가 아니라 날짜 숫자에만 표시한다(칸을 채우면 줄 높이만큼 늘어난다). */
 .cal-cell.selected .cal-day { background: var(--fill-strong); }
 .cal-cell.today.selected .cal-day { background: var(--accent); color: #fff; }
@@ -409,11 +412,14 @@ body {
 }
 .agenda-row:last-child { border-bottom: none; }
 .agenda-row.selected { background: var(--fill); border-radius: 10px; }
+.agenda-row.outside .agenda-date b { color: var(--faint); font-weight: 500; }
+.agenda-row.outside .chip, .agenda-row.outside .agenda-text { opacity: 0.75; }
+.agenda-date .cal-month { font-size: 10px; color: var(--faint); margin-right: 1px; }
 .agenda-date {
   display: flex;
   align-items: baseline;
-  gap: 4px;
-  width: 48px;
+  gap: 3px;
+  width: 62px;
   flex: none;
   font-variant-numeric: tabular-nums;
 }

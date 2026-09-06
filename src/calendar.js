@@ -152,17 +152,11 @@
     var total = daysInMonth(year, month);
     var today = todayIso();
 
-    for (var i = 0; i < lead; i++) {
-      var blank = document.createElement('div');
-      blank.className = 'cal-cell blank';
-      grid.appendChild(blank);
-    }
-
-    for (var day = 1; day <= total; day++) {
-      (function (day) {
-        var date = iso(year, month, day);
+    // 크루넷처럼 앞뒤 달 날짜도 함께 그린다. 달을 넘겨 이어지는 비행·체류가 잘리지 않는다.
+    gridDates(year, month).forEach(function (slot) {
+      (function (day, date, outside) {
         var list = entriesByDate[date] || [];
-        var weekday = (lead + day - 1) % 7;
+        var weekday = new Date(date + 'T00:00:00Z').getUTCDay();
 
         // button 요소는 브라우저가 내용 상자를 오그라뜨려 칩이 칸 너비를 못 채운다.
         var cell = document.createElement('div');
@@ -171,11 +165,12 @@
         cell.className = 'cal-cell';
         if (weekday === 0) cell.classList.add('sun');
         if (weekday === 6) cell.classList.add('sat');
+        if (outside) cell.classList.add('outside');
         if (date === today) cell.classList.add('today');
         if (date === selected) cell.classList.add('selected');
         if (list.length) cell.classList.add('has-entry');
         cell.setAttribute('data-date', date);
-        cell.setAttribute('aria-label', month + '월 ' + day + '일, 일정 ' + list.length + '건');
+        cell.setAttribute('aria-label', (+date.slice(5, 7)) + '월 ' + day + '일, 일정 ' + list.length + '건');
 
         var num = document.createElement('span');
         num.className = 'cal-day';
@@ -228,10 +223,40 @@
           }
         });
         grid.appendChild(cell);
-      })(day);
-    }
+      })(slot.day, slot.date, slot.outside);
+    });
 
     container.appendChild(grid);
+  }
+
+  /**
+   * 달력에 그릴 날짜. 앞은 지난달 말일로 채우고, 뒤는 마지막 주가 찰 때까지 다음 달 초로 채운다.
+   * 31일 비행 - 1일 체류처럼 달을 넘겨 이어지는 일정이 함께 보인다.
+   */
+  function gridDates(year, month) {
+    var out = [];
+    var lead = firstWeekday(year, month);
+    var total = daysInMonth(year, month);
+
+    var pm = month - 1, py = year;
+    if (pm < 1) { pm = 12; py -= 1; }
+    var prevTotal = daysInMonth(py, pm);
+
+    var nm = month + 1, ny = year;
+    if (nm > 12) { nm = 1; ny += 1; }
+
+    for (var i = lead; i > 0; i--) {
+      var d = prevTotal - i + 1;
+      out.push({ day: d, date: iso(py, pm, d), outside: true });
+    }
+    for (var day = 1; day <= total; day++) {
+      out.push({ day: day, date: iso(year, month, day), outside: false });
+    }
+    var trail = (7 - ((lead + total) % 7)) % 7;
+    for (var n = 1; n <= trail; n++) {
+      out.push({ day: n, date: iso(ny, nm, n), outside: true });
+    }
+    return out;
   }
 
   /**
@@ -247,9 +272,17 @@
 
     container.innerHTML = '';
 
-    var prefix = year + '-' + pad2(month);
+    // 달력과 같은 범위를 쓴다(앞뒤 달 날짜 포함)
+    var span = gridDates(year, month);
+    var inSpan = {};
+    var outsideDates = {};
+    span.forEach(function (c) {
+      inSpan[c.date] = true;
+      if (c.outside) outsideDates[c.date] = true;
+    });
+
     var dates = Object.keys(entriesByDate)
-      .filter(function (d) { return d.indexOf(prefix) === 0 && entriesByDate[d].length; })
+      .filter(function (d) { return inSpan[d] && entriesByDate[d].length; })
       .sort();
 
     if (!dates.length) {
@@ -271,11 +304,13 @@
       if (weekday === 6) row.classList.add('sat');
       if (date === today) row.classList.add('today');
       if (date === selected) row.classList.add('selected');
+      if (outsideDates[date]) row.classList.add('outside');
       row.setAttribute('data-date', date);
 
       var day = document.createElement('span');
       day.className = 'agenda-date';
-      day.innerHTML = '<b>' + (+date.slice(8, 10)) + '</b><small>' + WEEKDAYS[weekday] + '</small>';
+      day.innerHTML = (outsideDates[date] ? '<small class="cal-month">' + (+date.slice(5, 7)) + '월</small>' : '') +
+        '<b>' + (+date.slice(8, 10)) + '</b><small>' + WEEKDAYS[weekday] + '</small>';
       row.appendChild(day);
 
       var items = document.createElement('span');
@@ -327,6 +362,7 @@
     WEEKDAYS: WEEKDAYS,
     render: render,
     renderList: renderList,
+    gridDates: gridDates,
     summarize: summarize,
     formatTimeRange: formatTimeRange,
     describeTimes: describeTimes,
