@@ -32,6 +32,30 @@
     return isNaN(d) ? '' : WEEKDAYS[d.getUTCDay()];
   }
 
+  /** 달력 칸에 넣을 짧은 시각 표기: '10:30→14:20', '23:50→06:20+1' */
+  function formatTimeRange(entry) {
+    if (!entry) return '';
+    var suffix = entry.endOffset ? '+' + entry.endOffset : '';
+    if (entry.start && entry.end) return entry.start + '\u2192' + entry.end + suffix;
+    if (entry.start) return entry.start + ' 출발';
+    if (entry.end) return entry.end + suffix + ' 도착';
+    return '';
+  }
+
+  /** 목록에 쓸 자세한 시각 표기. 비행이면 출발/도착, 그 밖에는 시작/종료로 읽는다. */
+  function describeTimes(entry) {
+    if (!entry || (!entry.start && !entry.end)) return '';
+    var flight = entry.type === 'flight' || entry.category === 'flight';
+    var startLabel = flight ? '출발' : '시작';
+    var endLabel = flight ? '도착' : '종료';
+    var nextDay = entry.endOffset ? ' (익일)' : '';
+    if (entry.start && entry.end) {
+      return startLabel + ' ' + entry.start + ' \u2192 ' + endLabel + ' ' + entry.end + nextDay;
+    }
+    if (entry.start) return startLabel + ' ' + entry.start;
+    return endLabel + ' ' + entry.end + nextDay;
+  }
+
   function render(container, options) {
     var year = options.year;
     var month = options.month;
@@ -89,11 +113,24 @@
         var chips = document.createElement('span');
         chips.className = 'cal-chips';
         list.slice(0, 3).forEach(function (e) {
+          var item = document.createElement('span');
+          item.className = 'cal-item';
+
           var chip = document.createElement('span');
           chip.className = 'chip cat-' + (e.category || 'other');
           chip.textContent = e.code;
-          chip.title = (e.label || '') + (e.route ? ' · ' + e.route : '');
-          chips.appendChild(chip);
+          chip.title = [e.label || '', e.route || '', describeTimes(e)]
+            .filter(Boolean).join(' · ');
+          item.appendChild(chip);
+
+          var timeText = formatTimeRange(e);
+          if (timeText) {
+            var time = document.createElement('span');
+            time.className = 'cal-time';
+            time.textContent = timeText;
+            item.appendChild(time);
+          }
+          chips.appendChild(item);
         });
         if (list.length > 3) {
           var more = document.createElement('span');
@@ -131,6 +168,8 @@
     WEEKDAYS: WEEKDAYS,
     render: render,
     summarize: summarize,
+    formatTimeRange: formatTimeRange,
+    describeTimes: describeTimes,
     iso: iso,
     pad2: pad2,
     todayIso: todayIso,

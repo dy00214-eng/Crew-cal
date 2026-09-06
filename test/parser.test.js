@@ -84,17 +84,95 @@ test('탭·다중 공백·쉼표 구분을 모두 처리한다', () => {
   assert.deepStrictEqual(codesOn(r, '2026-09-06'), ['KE0035', 'LO', 'STBY']);
 });
 
-test('구간과 시각을 항공편에 붙인다', () => {
+test('구간과 출발·도착 시각을 항공편에 붙인다', () => {
   const r = parse('2026-09-06 KE0035 ICN/JFK 1030-1420');
   const e = r.entries[0];
   assert.strictEqual(e.route, 'ICN/JFK');
   assert.strictEqual(e.start, '10:30');
   assert.strictEqual(e.end, '14:20');
+  assert.strictEqual(e.endOffset, 0);
 });
 
 test('HH:MM-HH:MM 시각 표기', () => {
   const r = parse('2026-09-06 KE0035 09:30-14:20');
   assert.strictEqual(r.entries[0].start, '09:30');
+  assert.strictEqual(r.entries[0].end, '14:20');
+});
+
+test('+1 이 붙으면 도착을 익일로 표시한다', () => {
+  const r = parse('2026-09-06 KE0036 JFK/ICN 2350-0620+1\n2026-09-08 KE0038 23:50-06:20+1');
+  assert.strictEqual(r.entries[0].start, '23:50');
+  assert.strictEqual(r.entries[0].end, '06:20');
+  assert.strictEqual(r.entries[0].endOffset, 1);
+  assert.strictEqual(r.entries[1].endOffset, 1);
+});
+
+test('+1 이 따로 떨어져 있어도 익일로 본다', () => {
+  const r = parse('2026-09-06 KE0036 2350-0620 +1');
+  assert.strictEqual(r.entries[0].endOffset, 1);
+});
+
+test('한 줄에 시각이 두 번 나오면 출발 -> 도착 순으로 채운다', () => {
+  const r = parse('2026-09-06 KE0035 10:30 14:20');
+  assert.strictEqual(r.entries[0].start, '10:30');
+  assert.strictEqual(r.entries[0].end, '14:20');
+});
+
+test('편명이 있는 줄의 3~4자리 숫자는 출발·도착 시각으로 읽는다', () => {
+  const r = parse('2026-09-06\tKE0035\tICN/JFK\t1030\t1420');
+  assert.strictEqual(r.entries[0].start, '10:30');
+  assert.strictEqual(r.entries[0].end, '14:20');
+});
+
+test('STD/STA · DEP/ARR 라벨로 출발·도착을 구분한다', () => {
+  const r = parse([
+    '2026-09-06 KE0081 STD 1420 STA 0850+1',
+    '2026-09-07 KE0082 DEP 09:30 ARR 18:40',
+    '2026-09-08 KE0083 DEP1030 ARR:1420'
+  ].join('\n'));
+  assert.deepStrictEqual(
+    r.entries.map(e => [e.start, e.end, e.endOffset]),
+    [['14:20', '08:50', 1], ['09:30', '18:40', 0], ['10:30', '14:20', 0]]
+  );
+});
+
+test('한글 출발/도착 라벨도 읽는다', () => {
+  const r = parse('2026-09-06 KE0035 출발 09:30 도착 18:40');
+  assert.strictEqual(r.entries[0].start, '09:30');
+  assert.strictEqual(r.entries[0].end, '18:40');
+});
+
+test('라벨이 도착만 있으면 도착 시각만 채운다', () => {
+  const r = parse('2026-09-06 KE0035 STA 1420');
+  assert.strictEqual(r.entries[0].start, null);
+  assert.strictEqual(r.entries[0].end, '14:20');
+});
+
+test('시각이 아닌 숫자는 시각으로 잡지 않는다', () => {
+  const r = parse('2026-09-06 KE0035 9999');
+  assert.strictEqual(r.entries[0].start, null);
+  assert.strictEqual(r.entries[0].end, null);
+});
+
+test('비행이 아닌 근무에도 시작·종료 시각을 붙인다', () => {
+  const r = parse('2026-09-06 STBY 0900-1700');
+  assert.strictEqual(r.entries[0].code, 'STBY');
+  assert.strictEqual(r.entries[0].start, '09:00');
+  assert.strictEqual(r.entries[0].end, '17:00');
+});
+
+test('편이 두 개면 시각이 각 편에 나뉘어 붙는다', () => {
+  const r = parse('2026-09-06 KE0035 1030-1420 KE0036 1620-1830');
+  assert.deepStrictEqual(
+    r.entries.map(e => [e.code, e.start, e.end]),
+    [['KE0035', '10:30', '14:20'], ['KE0036', '16:20', '18:30']]
+  );
+});
+
+test('시각 사이의 - 를 날짜 범위로 오해하지 않는다', () => {
+  const r = parse('2026-09-06 KE0035 10:30 - 14:20');
+  assert.strictEqual(r.entries.length, 1);
+  assert.strictEqual(r.entries[0].start, '10:30');
   assert.strictEqual(r.entries[0].end, '14:20');
 });
 
@@ -194,4 +272,5 @@ test('크루넷 표 형태 전체 흐름', () => {
   assert.deepStrictEqual(codesOn(r, '2026-09-01'), ['KE0035']);
   assert.deepStrictEqual(codesOn(r, '2026-09-05'), ['STBY']);
   assert.strictEqual(r.entries.find(e => e.date === '2026-09-05').start, '09:00');
+  assert.strictEqual(r.entries.find(e => e.date === '2026-09-05').end, '17:00');
 });

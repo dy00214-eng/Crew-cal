@@ -21,12 +21,12 @@
   var SAMPLE = [
     '2026-09-01\tKE0035\tICN/JFK\t1030-1420',
     '09/02  LO',
-    '3  KE0036  JFK/ICN',
+    '3  KE0036  JFK/ICN  2350-0620+1',
     '9월 4일 (금)  ATDO',
     '05SEP26  STBY  0900-1700',
     '2026-09-10 ~ 2026-09-12  VAC',
     '2026-09-15',
-    '  KE0081  ICN/LAX',
+    '  KE0081  ICN/LAX  STD 1420  STA 0850+1',
     '  LO'
   ].join('\n');
 
@@ -50,10 +50,22 @@
   function detailText(entry) {
     var bits = [];
     if (entry.route) bits.push(entry.route);
-    if (entry.start && entry.end) bits.push(entry.start + '–' + entry.end);
-    else if (entry.start) bits.push(entry.start);
+    var times = calendar.describeTimes(entry);
+    if (times) bits.push(times);
     if (entry.memo) bits.push(entry.memo);
     return bits.join(' · ');
+  }
+
+  /** 미리보기 표의 출발/도착 칸 */
+  function timeCellText(entry, which) {
+    if (which === 'start') return entry.start || '';
+    if (!entry.end) return '';
+    return entry.end + (entry.endOffset ? ' (익일)' : '');
+  }
+
+  function looksLikeFlight(code) {
+    return /^[A-Z]{2}\s?-?\d{1,4}[A-Z]?$/.test(String(code || '').trim().toUpperCase())
+      && !codes.lookup(code);
   }
 
   /* ---------------- 렌더 ---------------- */
@@ -195,6 +207,10 @@
       if (this.value) selectDate(this.value);
     });
 
+    $('singleCode').addEventListener('input', syncTimeLabels);
+    $('singleEnd').addEventListener('input', syncNextDayBox);
+    syncTimeLabels();
+
     $('singleForm').addEventListener('submit', function (event) {
       event.preventDefault();
       var date = $('singleDate').value;
@@ -208,6 +224,7 @@
           route: $('singleRoute').value.trim().toUpperCase() || null,
           start: $('singleStart').value || null,
           end: $('singleEnd').value || null,
+          endOffset: ($('singleEnd').value && $('singleNextDay').checked) ? 1 : 0,
           memo: $('singleMemo').value.trim() || null
         });
       } catch (e) {
@@ -223,13 +240,30 @@
       $('singleRoute').value = '';
       $('singleStart').value = '';
       $('singleEnd').value = '';
+      $('singleNextDay').checked = false;
       $('singleMemo').value = '';
+      syncTimeLabels();
       $('singleCode').focus();
 
       syncPasteBase();
       refresh();
       toast(date + ' 에 ' + code + ' 추가');
     });
+  }
+
+  /** 편명이면 출발/도착, 그 밖의 근무면 시작/종료로 라벨을 바꾼다. */
+  function syncTimeLabels() {
+    var flight = looksLikeFlight($('singleCode').value);
+    $('startLabel').innerHTML = (flight ? '출발 시각' : '시작 시각') + ' <em>(선택)</em>';
+    $('endLabel').innerHTML = (flight ? '도착 시각' : '종료 시각') + ' <em>(선택)</em>';
+    syncNextDayBox();
+  }
+
+  function syncNextDayBox() {
+    var box = $('singleNextDay');
+    var hasEnd = !!$('singleEnd').value;
+    box.disabled = !hasEnd;
+    if (!hasEnd) box.checked = false;
   }
 
   /* ---------------- 2) 텍스트 붙여넣기 ---------------- */
@@ -337,7 +371,9 @@
       tr.appendChild(tdCode);
 
       tr.appendChild(cell(entry.label || ''));
-      tr.appendChild(cell(detailText(entry)));
+      tr.appendChild(cell(entry.route || ''));
+      tr.appendChild(cell(timeCellText(entry, 'start')));
+      tr.appendChild(cell(timeCellText(entry, 'end')));
 
       var tdSrc = cell(entry.source || '');
       tdSrc.className = 'src';
@@ -530,8 +566,9 @@
             date: e.date,
             code: e.code,
             route: e.route || null,
-            start: e.start || null,
-            end: e.end || null
+            start: e.start || e.dep || null,
+            end: e.end || e.arr || null,
+            endOffset: e.endOffset || 0
           });
         }).filter(function (e) { return /^\d{4}-\d{2}-\d{2}$/.test(e.date) && e.code; });
 

@@ -69,10 +69,12 @@
       category: entry.category || null,
       label: entry.label || null,
       route: entry.route || null,
-      start: entry.start || null,
-      end: entry.end || null,
+      start: entry.start || entry.dep || null,   // 출발(시작) 시각 HH:MM
+      end: entry.end || entry.arr || null,       // 도착(종료) 시각 HH:MM
+      endOffset: +(entry.endOffset || entry.arrOffset || 0) || 0, // 도착이 익일이면 1
       memo: entry.memo || null
     };
+    if (!out.end) out.endOffset = 0;
     if (!out.type || !out.category || !out.label) {
       var flight = out.code.match(/^([A-Z]{2})(\d{1,4})([A-Z])?$/);
       if (flight && !codes.lookup(out.code)) {
@@ -89,20 +91,36 @@
     return out;
   }
 
+  /** 하루치 일정을 출발(시작) 시각 순으로. 시각이 없는 건은 뒤로 보낸다. */
+  function sortByTime(list) {
+    return list
+      .map(function (e, i) { return { e: e, i: i }; })
+      .sort(function (a, b) {
+        var at = a.e.start || '99:99';
+        var bt = b.e.start || '99:99';
+        if (at !== bt) return at < bt ? -1 : 1;
+        return a.i - b.i;
+      })
+      .map(function (x) { return x.e; });
+  }
+
   function getAll() {
-    return load().entries;
+    var all = load().entries;
+    var out = {};
+    Object.keys(all).forEach(function (date) { out[date] = sortByTime(all[date]); });
+    return out;
   }
 
   function getByDate(date) {
     var all = load().entries;
-    return (all[date] || []).slice();
+    return sortByTime((all[date] || []).slice());
   }
 
   function getRange(fromIso, toIso) {
     var all = load().entries;
     var out = {};
     Object.keys(all).forEach(function (d) {
-      if (d >= fromIso && d <= toIso) out[d] = all[d].slice();
+      if (d >= fromIso && d <= toIso) out[d] = sortByTime(all[d].slice());
     });
     return out;
   }
@@ -218,6 +236,7 @@
     exportJson: exportJson,
     importJson: importJson,
     decorate: decorate,
+    sortByTime: sortByTime,
     newId: newId
   };
 });

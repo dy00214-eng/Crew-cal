@@ -83,10 +83,26 @@
     'NO', 'AC', 'REG', 'PIC', 'CA', 'FA', 'TOTAL', 'REMARK', 'REMARKS'
   ].forEach(function (t) { IGNORED_TOKENS[t] = true; });
 
+  // 시각 앞에 붙는 라벨. 파서가 출발/도착 시각을 구분하는 데 쓴다.
+  var TIME_LABELS = {
+    STD: 'start', ETD: 'start', ATD: 'start', DEP: 'start', DEPT: 'start',
+    DEPARTURE: 'start', OUT: 'start', OFFBLK: 'start',
+    '출발': 'start', '출발시각': 'start', '출발시간': 'start', '출': 'start',
+    STA: 'end', ETA: 'end', ATA: 'end', ARR: 'end', ARRV: 'end',
+    ARRIVAL: 'end', IN: 'end', ONBLK: 'end',
+    '도착': 'end', '도착시각': 'end', '도착시간': 'end', '도': 'end'
+  };
+
   var MONTHS = {
     JAN: 1, FEB: 2, MAR: 3, APR: 4, MAY: 5, JUN: 6,
     JUL: 7, AUG: 8, SEP: 9, SEPT: 9, OCT: 10, NOV: 11, DEC: 12
   };
+
+  function timeLabel(token) {
+    if (!token) return null;
+    var key = String(token).toUpperCase().replace(/[.:\-_]+$/, '');
+    return TIME_LABELS[key] || null;
+  }
 
   function lookup(code) {
     if (!code) return null;
@@ -108,7 +124,9 @@
     DUTY_CODES: DUTY_CODES,
     CATEGORY_LABELS: CATEGORY_LABELS,
     IGNORED_TOKENS: IGNORED_TOKENS,
+    TIME_LABELS: TIME_LABELS,
     MONTHS: MONTHS,
+    timeLabel: timeLabel,
     lookup: lookup,
     describe: describe,
     knownCodeList: knownCodeList

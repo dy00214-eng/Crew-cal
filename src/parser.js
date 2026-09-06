@@ -31,9 +31,11 @@
     airline: /^[A-Z]{2}$/,
     digits: /^\d{1,4}$/,
     route: /^[A-Z]{3}(?:[/\-][A-Z]{3})+$/,
-    clock: /^(\d{1,2}):([0-5]\d)$/,
-    clockRange: /^(\d{1,2}):([0-5]\d)\s*[-~]\s*(\d{1,2}):([0-5]\d)$/,
-    compactRange: /^(\d{3,4})[-~](\d{3,4})$/,
+    clock: /^(\d{1,2}):([0-5]\d)(?:\s*\+(\d))?$/,
+    clockRange: /^(\d{1,2}):([0-5]\d)[-~](\d{1,2}):([0-5]\d)(?:\+(\d))?$/,
+    compactRange: /^(\d{3,4})[-~](\d{3,4})(?:\+(\d))?$/,
+    compactClock: /^(\d{3,4})(?:\+(\d))?$/,
+    dayOffset: /^\+(\d)$/,
     dutyLike: /^[A-Z]{1,6}$/,
     rangeSep: /^[~]$/
   };
@@ -62,6 +64,57 @@
     // 남은 "6일" 형태는 일자 마커로 변환
     s = s.replace(/(^|[^\d])(\d{1,2})\s*일(?![0-9])/g, '$1 @D$2 ');
     return s;
+  }
+
+  /** '1030' / '930' -> '10:30' / '09:30'. 시각으로 볼 수 없으면 null. */
+  function toClock(digits) {
+    var raw = String(digits);
+    if (!/^\d{3,4}$/.test(raw)) return null;
+    var s = raw.length === 3 ? '0' + raw : raw;
+    var h = +s.slice(0, 2);
+    var m = +s.slice(2, 4);
+    if (h > 23 || m > 59) return null;
+    return pad2(h) + ':' + pad2(m);
+  }
+
+  /** 'HH:MM' 정규화. 시각이 아니면 null. */
+  function toClockFromParts(hour, minute) {
+    var h = +hour, m = +minute;
+    if (h > 23 || m > 59) return null;
+    return pad2(h) + ':' + pad2(m);
+  }
+
+  /** 라벨 없이 쓰인 시각 토큰 하나를 읽는다. ('10:30', '1030', '0850+1') */
+  function readClockToken(token) {
+    if (!token) return null;
+    var t = String(token).toUpperCase().replace(/[LZ]$/, '');
+    var m = t.match(RE.clock);
+    if (m) {
+      var value = toClockFromParts(m[1], m[2]);
+      return value ? { value: value, offset: m[3] ? +m[3] : 0 } : null;
+    }
+    m = t.match(RE.compactClock);
+    if (m) {
+      var compact = toClock(m[1]);
+      return compact ? { value: compact, offset: m[2] ? +m[2] : 0 } : null;
+    }
+    return null;
+  }
+
+  /** 'STD 1030' / '출발 10:30' / 'ARR14:20' 처럼 라벨이 붙은 시각. */
+  function readLabeledTime(token, nextToken) {
+    var joined = String(token).toUpperCase().match(/^([A-Z가-힣]{1,8})[:\-]?(\d{1,2}:?[0-5]?\d(?:\+\d)?)$/);
+    if (joined) {
+      var which = codes.timeLabel(joined[1]);
+      var parsed = which && readClockToken(joined[2]);
+      if (parsed) return { which: which, time: parsed, consumed: 1 };
+    }
+    var label = codes.timeLabel(token);
+    if (label) {
+      var next = readClockToken(nextToken);
+      if (next) return { which: label, time: next, consumed: 2 };
+    }
+    return null;
   }
 
   function tokenize(line) {
@@ -227,7 +280,6 @@
       var pendingRange = false;
       var unknownTokens = [];
       var lastRoute = null;
-      var lastTime = null;
 
       for (var i = 0; i < tokens.length; i++) {
         var token = tokens[i];
@@ -250,20 +302,41 @@
           continue;
         }
 
-        // 2) 날짜 범위 구분자
+        // 2) 날짜 범위 구분자 (뒤에 날짜가 와야 범위로 본다)
         if (RE.rangeSep.test(token) || upper === '-' || upper === 'TO') {
-          if (lineDates.length) { pendingRange = true; continue; }
+          if (lineDates.length && parseDateToken(tokens[i + 1] || '', ctx, false)) {
+            pendingRange = true;
+            continue;
+          }
         }
 
-        // 3) 시간
-        var timeMatch = upper.match(RE.clockRange) || upper.match(RE.compactRange);
-        if (timeMatch) {
-          lastTime = normalizeTimeRange(upper);
-          applyDetail(items, { start: lastTime.start, end: lastTime.end });
+        // 3) 출발/도착 라벨이 붙은 시각 (STD 1030 / 출발 10:30 / ARR14:20)
+        var labeled = readLabeledTime(token, tokens[i + 1]);
+        if (labeled) {
+          applyTime(items, labeled.time, labeled.which);
+          i += labeled.consumed - 1;
           continue;
         }
-        if (RE.clock.test(upper)) {
-          applyDetail(items, { start: upper });
+
+        // 4) 시각 범위 (1030-1420, 09:30-14:20, 2350-0620+1)
+        var range = readTimeRange(upper);
+        if (range) {
+          applyTime(items, range.start, 'start');
+          applyTime(items, range.end, 'end');
+          continue;
+        }
+
+        // 5) 단독 시각. 한 줄에 두 번 나오면 출발 -> 도착 순으로 채운다.
+        var clock = upper.match(RE.clock) ? readClockToken(upper) : null;
+        if (clock) {
+          applyTime(items, clock, 'auto');
+          continue;
+        }
+
+        // 6) '+1' 만 따로 떨어져 있으면 직전 도착 시각을 익일로 표시
+        var offsetOnly = upper.match(RE.dayOffset);
+        if (offsetOnly) {
+          markNextDay(items, +offsetOnly[1]);
           continue;
         }
 
@@ -297,10 +370,19 @@
           continue;
         }
 
-        // 7) 무시 대상
+        // 7) 편명이 이미 나온 줄에서 3~4자리 숫자는 출발/도착 시각으로 본다
+        if (/^\d{3,4}(\+\d)?$/.test(upper) && hasFlight(items) && needsTime(items)) {
+          var implicit = readClockToken(upper);
+          if (implicit) {
+            applyTime(items, implicit, 'auto');
+            continue;
+          }
+        }
+
+        // 8) 무시 대상
         if (codes.IGNORED_TOKENS[upper] || /^\d+$/.test(upper)) continue;
 
-        // 8) 정체불명 코드 후보 -> 사용자에게 판단을 넘긴다
+        // 9) 정체불명 코드 후보 -> 사용자에게 판단을 넘긴다
         if (RE.dutyLike.test(upper) && upper.length >= 2) {
           var item = makeDutyItem(upper);
           items.push(item);
@@ -349,6 +431,7 @@
             route: item.route || null,
             start: item.start || null,
             end: item.end || null,
+            endOffset: item.endOffset || 0,
             source: trimmed
           });
         });
@@ -367,34 +450,69 @@
       stats: summarize(entries)
     };
 
-    function applyDetail(list, detail) {
-      if (!list.length) return;
-      var target = null;
+    function timeTarget(list) {
+      if (!list.length) return null;
       for (var k = list.length - 1; k >= 0; k--) {
-        if (list[k].type === 'flight') { target = list[k]; break; }
+        if (list[k].type === 'flight') return list[k];
       }
-      if (!target) target = list[list.length - 1];
+      return list[list.length - 1];
+    }
+
+    function applyDetail(list, detail) {
+      var target = timeTarget(list);
+      if (!target) return;
       Object.keys(detail).forEach(function (k) {
         if (detail[k] != null && target[k] == null) target[k] = detail[k];
       });
     }
+
+    /**
+     * 시각을 붙인다.
+     *  which 'start' 출발(시작) / 'end' 도착(종료)
+     *  which 'auto' 한 줄에 시각이 두 번 나오면 출발 -> 도착 순으로 채운다.
+     */
+    function applyTime(list, time, which) {
+      var target = timeTarget(list);
+      if (!target || !time) return;
+      var slot = which;
+      if (slot === 'auto') slot = target.start == null ? 'start' : (target.end == null ? 'end' : null);
+      if (!slot || target[slot] != null) return;
+      target[slot] = time.value;
+      if (slot === 'end' && time.offset) target.endOffset = time.offset;
+    }
+
+    function markNextDay(list, days) {
+      var target = timeTarget(list);
+      if (target && target.end) target.endOffset = days;
+    }
+
+    function hasFlight(list) {
+      return list.some(function (item) { return item.type === 'flight'; });
+    }
+
+    function needsTime(list) {
+      var target = timeTarget(list);
+      return !!target && (target.start == null || target.end == null);
+    }
   }
 
-  function normalizeTimeRange(token) {
+  /** '1030-1420', '09:30-14:20', '2350-0620+1' -> { start, end } */
+  function readTimeRange(token) {
     var m = token.match(RE.clockRange);
     if (m) {
-      return { start: pad2(+m[1]) + ':' + m[2], end: pad2(+m[3]) + ':' + m[4] };
+      var s1 = toClockFromParts(m[1], m[2]);
+      var e1 = toClockFromParts(m[3], m[4]);
+      if (!s1 || !e1) return null;
+      return { start: { value: s1, offset: 0 }, end: { value: e1, offset: m[5] ? +m[5] : 0 } };
     }
     m = token.match(RE.compactRange);
     if (m) {
-      return { start: toClock(m[1]), end: toClock(m[2]) };
+      var s2 = toClock(m[1]);
+      var e2 = toClock(m[2]);
+      if (!s2 || !e2) return null;
+      return { start: { value: s2, offset: 0 }, end: { value: e2, offset: m[3] ? +m[3] : 0 } };
     }
-    return { start: null, end: null };
-  }
-
-  function toClock(digits) {
-    var s = digits.length === 3 ? '0' + digits : digits;
-    return s.slice(0, 2) + ':' + s.slice(2, 4);
+    return null;
   }
 
   function summarize(entries) {
@@ -421,6 +539,8 @@
     preprocessLine: preprocessLine,
     tokenize: tokenize,
     expandRange: expandRange,
+    readClockToken: readClockToken,
+    readTimeRange: readTimeRange,
     isoDate: isoDate,
     isValidDate: isValidDate
   };

@@ -57,14 +57,18 @@
         </label>
         <div class="field-row">
           <label class="field">
-            <span>시작 <em>(선택)</em></span>
+            <span id="startLabel">출발 시각 <em>(선택)</em></span>
             <input type="time" id="singleStart">
           </label>
           <label class="field">
-            <span>종료 <em>(선택)</em></span>
+            <span id="endLabel">도착 시각 <em>(선택)</em></span>
             <input type="time" id="singleEnd">
           </label>
         </div>
+        <label class="check-field">
+          <input type="checkbox" id="singleNextDay">
+          <span>도착이 익일 (예: 23:50 출발 → 06:20 도착)</span>
+        </label>
         <label class="field">
           <span>메모 <em>(선택)</em></span>
           <input type="text" id="singleMemo" placeholder="비고" autocomplete="off">
@@ -83,8 +87,8 @@
     <!-- 2) 텍스트 붙여넣기 -->
     <div class="panel" id="panel-paste" role="tabpanel">
       <p class="hint">
-        크루넷에서 복사한 스케줄을 그대로 붙여넣으세요. 날짜와 코드(KE0035, LO, ATDO, STBY 등)를
-        자동으로 읽어 미리보기로 보여준 뒤, 확인을 누르면 캘린더에 반영합니다.
+        크루넷에서 복사한 스케줄을 그대로 붙여넣으세요. 날짜와 코드(KE0035, LO, ATDO, STBY 등)에
+        더해 구간과 출발·도착 시각까지 읽어 미리보기로 보여준 뒤, 확인을 누르면 캘린더에 반영합니다.
       </p>
       <div class="field-row">
         <label class="field">
@@ -93,7 +97,7 @@
         </label>
       </div>
       <textarea id="pasteInput" rows="12" spellcheck="false"
-        placeholder="예)&#10;2026-09-01  KE0035  ICN/JFK  1030-1420&#10;09/02  LO&#10;3  ATDO&#10;9월 4일  STBY&#10;2026-09-10 ~ 2026-09-12  VAC"></textarea>
+        placeholder="예)&#10;2026-09-01  KE0035  ICN/JFK  1030-1420&#10;09/02  KE0036  JFK/ICN  2350-0620+1&#10;3  ATDO&#10;9월 4일  STBY  09:00-17:00&#10;05  KE0081  ICN/LAX  STD 1420  STA 0850+1&#10;2026-09-10 ~ 2026-09-12  VAC"></textarea>
       <div class="actions">
         <button type="button" id="parseBtn" class="primary">미리보기</button>
         <button type="button" id="sampleBtn" class="ghost">예시 넣기</button>
@@ -114,7 +118,9 @@
                 <th>날짜</th>
                 <th>코드</th>
                 <th>구분</th>
-                <th>상세</th>
+                <th>구간</th>
+                <th>출발</th>
+                <th>도착</th>
                 <th>원본</th>
               </tr>
             </thead>

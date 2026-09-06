@@ -76,3 +76,35 @@ test('내보내기와 불러오기가 왕복한다', () => {
   assert.deepStrictEqual(store.getByDate('2026-09-06').map(e => e.code), ['KE0035']);
   assert.throws(() => store.importJson('{"nope":1}'), /백업/);
 });
+
+test('출발·도착 시각과 익일 도착 표시를 저장한다', () => {
+  const e = store.addEntry({ date: '2026-09-06', code: 'KE0036', start: '23:50', end: '06:20', endOffset: 1 });
+  assert.strictEqual(e.start, '23:50');
+  assert.strictEqual(e.end, '06:20');
+  assert.strictEqual(e.endOffset, 1);
+});
+
+test('dep/arr 이름으로 넣어도 출발·도착으로 받는다', () => {
+  const e = store.addEntry({ date: '2026-09-06', code: 'KE0035', dep: '10:30', arr: '14:20' });
+  assert.strictEqual(e.start, '10:30');
+  assert.strictEqual(e.end, '14:20');
+});
+
+test('도착 시각이 없으면 익일 표시는 지운다', () => {
+  const e = store.addEntry({ date: '2026-09-06', code: 'STBY', start: '09:00', endOffset: 1 });
+  assert.strictEqual(e.endOffset, 0);
+});
+
+test('하루치 일정은 출발 시각 순으로, 시각 없는 건은 뒤로 보낸다', () => {
+  store.addEntry({ date: '2026-09-06', code: 'LO' });
+  store.addEntry({ date: '2026-09-06', code: 'KE0036', start: '23:50' });
+  store.addEntry({ date: '2026-09-06', code: 'KE0035', start: '10:30' });
+  assert.deepStrictEqual(
+    store.getByDate('2026-09-06').map(e => e.code),
+    ['KE0035', 'KE0036', 'LO']
+  );
+  assert.deepStrictEqual(
+    store.getAll()['2026-09-06'].map(e => e.code),
+    ['KE0035', 'KE0036', 'LO']
+  );
+});
