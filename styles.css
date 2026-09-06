@@ -112,6 +112,7 @@
 
 body {
   margin: 0;
+  -webkit-text-size-adjust: 100%;
   background: var(--bg);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo",
@@ -157,14 +158,10 @@ body {
   margin: 0 auto;
   align-items: start;
 }
-@media (max-width: 900px) {
-  .layout { grid-template-columns: 1fr; padding: 12px; }
-}
-/* 칸이 좁아지면 시각은 접는다. 아래 일정 목록과 툴팁에는 그대로 남는다. */
-@media (max-width: 560px) {
-  .cal-time { display: none; }
-  .cal-cell { min-height: 72px; }
-}
+/* 그리드 칸은 기본이 min-width:auto 라, 넓은 표가 들어오면 칸 자체가 늘어나
+   페이지가 가로로 스크롤된다. 칸을 줄어들 수 있게 만들고 표는 안에서 스크롤시킨다. */
+.layout > .card { min-width: 0; }
+
 
 .card {
   background: var(--surface);
@@ -195,6 +192,7 @@ body {
   gap: 4px;
   overflow: hidden;
 }
+.cal-cell.blank { pointer-events: none; }
 .cal-cell.blank { border: none; background: transparent; cursor: default; min-height: 0; }
 .cal-cell:hover:not(.blank) { border-color: var(--accent); }
 .cal-cell.today { box-shadow: inset 0 0 0 2px var(--accent-soft); }
@@ -246,10 +244,71 @@ body {
   gap: 10px;
 }
 .month-summary b { color: var(--text); }
+.month-summary .sum-item { white-space: nowrap; }
 
 .legend { list-style: none; display: flex; flex-wrap: wrap; gap: 12px; padding: 12px 0 0; margin: 0; font-size: 12px; color: var(--muted); }
 .legend li { display: flex; align-items: center; gap: 5px; }
 .dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+/* ---------- 보기 전환 ---------- */
+.card-head { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+.seg-btn {
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  color: var(--muted);
+  padding: 6px 14px;
+  cursor: pointer;
+}
+.seg-btn + .seg-btn { border-left: 1px solid var(--line); }
+.seg-btn.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+
+/* ---------- 목록 보기 ---------- */
+.list-view { display: flex; flex-direction: column; }
+.list-empty { color: var(--muted); font-size: 13px; padding: 20px 4px; margin: 0; }
+.agenda-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  padding: 9px 6px;
+  cursor: pointer;
+}
+.agenda-row:last-child { border-bottom: none; }
+.agenda-row:hover { background: var(--surface-alt); }
+.agenda-row.selected { background: var(--accent-soft); }
+.agenda-date {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  width: 46px;
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+.agenda-date b { font-size: 16px; }
+.agenda-date small { font-size: 11px; color: var(--muted); }
+.agenda-row.sun .agenda-date b, .agenda-row.sun .agenda-date small { color: var(--sun); }
+.agenda-row.sat .agenda-date b, .agenda-row.sat .agenda-date small { color: var(--sat); }
+.agenda-row.today .agenda-date b { color: var(--accent); }
+.agenda-items { display: flex; flex-direction: column; gap: 5px; min-width: 0; flex: 1; }
+.agenda-item { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.agenda-item .chip { flex: none; }
+.agenda-text {
+  font-size: 12.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 /* ---------- 탭 ---------- */
 .tabs { display: flex; gap: 6px; border-bottom: 1px solid var(--line); margin-bottom: 14px; }
@@ -367,7 +426,7 @@ button.ghost.danger { color: var(--danger); }
 }
 .warnings ul { margin: 4px 0 0; padding-left: 18px; }
 
-.preview-table-wrap { max-height: 340px; overflow: auto; border: 1px solid var(--line); border-radius: 10px; margin-top: 10px; }
+.preview-table-wrap { max-height: 340px; overflow-x: auto; overflow-y: auto; border: 1px solid var(--line); border-radius: 10px; margin-top: 10px; }
 .preview-table { width: 100%; min-width: 700px; border-collapse: collapse; font-size: 12.5px; }
 .preview-table th, .preview-table td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
 .preview-table thead th { position: sticky; top: 0; background: var(--surface-alt); z-index: 1; font-size: 12px; color: var(--muted); }
@@ -436,4 +495,40 @@ button.ghost.danger { color: var(--danger); }
 
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+/* ---------- 반응형 ---------- */
+/* 기본 규칙을 덮어써야 하므로 반응형 블록은 항상 파일 끝에 둔다. */
+
+@media (max-width: 900px) {
+  .layout { grid-template-columns: minmax(0, 1fr); padding: 12px; }
+}
+
+/* 좁은 화면에서는 칸 너비를 벌기 위해 바깥 여백부터 줄인다 */
+@media (max-width: 640px) {
+  .layout { padding: 8px; gap: 10px; }
+  .card { padding: 10px; border-radius: 12px; }
+  .cal-head, .cal-grid { gap: 3px; }
+  .cal-cell { padding: 4px 3px; border-radius: 8px; }
+  .chip { font-size: 10px; padding: 2px 3px; border-radius: 4px; }
+  .cal-day { font-size: 12px; }
+}
+
+/* 칸이 좁아지면 시각은 접는다. 목록 보기와 아래 일정 목록에는 그대로 남는다. */
+@media (max-width: 560px) {
+  .cal-time { display: none; }
+  .cal-cell { min-height: 70px; }
+}
+
+/* 폰 세로 화면. KE0035 는 0035 로 줄여 넣으므로 네 글자가 들어갈 만큼만 확보한다. */
+@media (max-width: 460px) {
+  .layout { padding: 6px; }
+  .card { padding: 8px; }
+  .calendar-card { padding: 8px 6px; }
+  .cal-head, .cal-grid { gap: 2px; }
+  .cal-cell { padding: 3px 2px; }
+  .cal-chips { gap: 2px; }
+  .chip { font-size: 9.5px; padding: 1px 2px; letter-spacing: -0.2px; }
+  .cal-day { font-size: 11px; }
+  .legend { gap: 8px; font-size: 11px; }
 }

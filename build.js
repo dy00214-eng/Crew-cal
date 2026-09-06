@@ -4,7 +4,8 @@
  *   node build.js            -> dist/crew-cal.html
  *
  * 만들어진 파일은 <head> 없이 본문만 담은 조각이라 아티팩트로 그대로 올릴 수 있고,
- * 맨 앞에 charset 을 두어 파일을 브라우저로 바로 열어도 한글이 깨지지 않는다.
+ * 맨 앞에 charset 과 viewport 를 두어, 파일을 브라우저로 바로 열어도 한글이 깨지지 않고
+ * 폰에서 모바일 레이아웃으로 뜬다. (아티팩트에서는 같은 메타가 이미 있어 무시된다.)
  */
 const fs = require('fs');
 const path = require('path');
@@ -30,6 +31,7 @@ const scripts = scriptSrcs
 
 const out = [
   '<meta charset="utf-8">',
+  '<meta name="viewport" content="width=device-width, initial-scale=1">',
   '<title>' + title + '</title>',
   '<style>',
   styles.trimEnd(),

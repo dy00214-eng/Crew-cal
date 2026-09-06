@@ -16,6 +16,7 @@
     selectedDate: calendar.todayIso(),
     preview: null,
     imageFile: null,
+    view: 'calendar',
     backend: null,
     analyzing: false,
     abort: null
@@ -34,6 +35,20 @@
   ].join('\n');
 
   /* ---------------- 공통 ---------------- */
+
+  var VIEW_KEY = 'crew-cal.view.v1';
+
+  function loadView() {
+    try {
+      var saved = localStorage.getItem(VIEW_KEY);
+      if (saved === 'list' || saved === 'calendar') return saved;
+    } catch (e) { /* 저장소를 못 읽으면 달력으로 */ }
+    return 'calendar';
+  }
+
+  function saveView(view) {
+    try { localStorage.setItem(VIEW_KEY, view); } catch (e) { /* 저장 실패는 무시 */ }
+  }
 
   var toastTimer = null;
   function toast(message) {
@@ -77,13 +92,19 @@
     var entriesByDate = store.getAll();
     $('monthLabel').textContent = monthLabel(state.year, state.month);
 
-    calendar.render($('calendar'), {
+    var viewOptions = {
       year: state.year,
       month: state.month,
       entriesByDate: entriesByDate,
       selectedDate: state.selectedDate,
       onSelect: selectDate
-    });
+    };
+
+    var listMode = state.view === 'list';
+    $('calendar').hidden = listMode;
+    $('listView').hidden = !listMode;
+    if (listMode) calendar.renderList($('listView'), viewOptions);
+    else calendar.render($('calendar'), viewOptions);
 
     renderMonthSummary(entriesByDate);
     renderDayDetail();
@@ -92,13 +113,13 @@
   function renderMonthSummary(entriesByDate) {
     var s = calendar.summarize(entriesByDate, state.year, state.month);
     var order = ['flight', 'layover', 'standby', 'off', 'training', 'other', 'unknown'];
-    var parts = ['일정 있는 날 <b>' + s.days + '일</b>'];
+    var parts = ['<span class="sum-item">일정 있는 날 <b>' + s.days + '일</b></span>'];
     order.forEach(function (key) {
       if (s.counts[key]) {
-        parts.push(codes.CATEGORY_LABELS[key] + ' <b>' + s.counts[key] + '</b>');
+        parts.push('<span class="sum-item">' + codes.CATEGORY_LABELS[key] + ' <b>' + s.counts[key] + '</b></span>');
       }
     });
-    $('monthSummary').innerHTML = parts.join('<span aria-hidden="true">·</span>');
+    $('monthSummary').innerHTML = parts.join('<span class="sum-item" aria-hidden="true">·</span>');
   }
 
   function renderDayDetail() {
@@ -175,6 +196,25 @@
   }
 
   /* ---------------- 탭 ---------------- */
+
+  function initViewToggle() {
+    state.view = loadView();
+    Array.prototype.forEach.call(document.querySelectorAll('.seg-btn'), function (btn) {
+      btn.addEventListener('click', function () {
+        state.view = btn.getAttribute('data-view');
+        saveView(state.view);
+        syncViewButtons();
+        refresh();
+      });
+    });
+    syncViewButtons();
+  }
+
+  function syncViewButtons() {
+    Array.prototype.forEach.call(document.querySelectorAll('.seg-btn'), function (btn) {
+      btn.classList.toggle('active', btn.getAttribute('data-view') === state.view);
+    });
+  }
 
   function initTabs() {
     var tabs = document.querySelectorAll('.tab');
@@ -508,11 +548,16 @@
 
   /** 이미지 인식을 어느 경로로 할 수 있는지 확인하고 안내 문구를 맞춘다. */
   function refreshBackend() {
+    setStatus('이미지 인식을 쓸 수 있는지 확인하는 중…', '');
     vision.resolveBackend().then(function (backend) {
       state.backend = backend;
       updateAnalyzeButton();
-      if (backend.kind === 'sample' && !state.imageFile) {
-        setStatus('이 화면에서는 Claude 가 이미지를 바로 읽습니다. 스케줄 화면을 올려보세요.', '');
+      if (backend.kind === 'sample') {
+        setStatus('Claude 가 이미지를 바로 읽습니다. 스케줄 화면을 올려보세요.', 'ok');
+      } else if (backend.kind === 'endpoint') {
+        setStatus('설정해 둔 인식 서버로 보냅니다.', 'ok');
+      } else {
+        setStatus('이 화면에서는 이미지 인식을 쓸 수 없습니다. 텍스트 붙여넣기를 쓰거나, 아래 설정에 인식 서버 주소를 넣어주세요.', 'error');
       }
     });
   }
@@ -766,6 +811,7 @@
     });
 
     initDownloads();
+    initViewToggle();
     initTabs();
     initSingleForm();
     initPaste();

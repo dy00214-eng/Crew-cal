@@ -20,7 +20,14 @@
 
 <main class="layout">
   <section class="card calendar-card">
+    <div class="card-head">
+      <div class="seg" role="group" aria-label="보기 방식">
+        <button type="button" class="seg-btn active" data-view="calendar">달력</button>
+        <button type="button" class="seg-btn" data-view="list">목록</button>
+      </div>
+    </div>
     <div id="calendar" class="calendar"></div>
+    <div id="listView" class="list-view" hidden></div>
     <div id="monthSummary" class="month-summary"></div>
     <ul class="legend">
       <li><i class="dot cat-flight"></i>비행</li>

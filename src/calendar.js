@@ -56,6 +56,12 @@
     return endLabel + ' ' + entry.end + nextDay;
   }
 
+  /** 칸이 좁을 때 쓰는 짧은 표기. KE0035 -> 0035 (전체 코드는 툴팁과 목록에 남는다) */
+  function shortCode(entry, compact) {
+    if (!compact || entry.type !== 'flight') return entry.code;
+    return entry.code.replace(/^[A-Z]{2}(?=\d)/, '');
+  }
+
   function render(container, options) {
     var year = options.year;
     var month = options.month;
@@ -78,6 +84,9 @@
     var grid = document.createElement('div');
     grid.className = 'cal-grid';
 
+    // 칸 너비를 재서 좁으면 짧은 표기로 바꾼다
+    var compact = (container.clientWidth || 0) / 7 < 62;
+
     var lead = firstWeekday(year, month);
     var total = daysInMonth(year, month);
     var today = todayIso();
@@ -94,8 +103,10 @@
         var list = entriesByDate[date] || [];
         var weekday = (lead + day - 1) % 7;
 
-        var cell = document.createElement('button');
-        cell.type = 'button';
+        // button 요소는 브라우저가 내용 상자를 오그라뜨려 칩이 칸 너비를 못 채운다.
+        var cell = document.createElement('div');
+        cell.setAttribute('role', 'button');
+        cell.tabIndex = 0;
         cell.className = 'cal-cell';
         if (weekday === 0) cell.classList.add('sun');
         if (weekday === 6) cell.classList.add('sat');
@@ -118,8 +129,8 @@
 
           var chip = document.createElement('span');
           chip.className = 'chip cat-' + (e.category || 'other');
-          chip.textContent = e.code;
-          chip.title = [e.label || '', e.route || '', describeTimes(e)]
+          chip.textContent = shortCode(e, compact);
+          chip.title = [e.code, e.label || '', e.route || '', describeTimes(e)]
             .filter(Boolean).join(' · ');
           item.appendChild(chip);
 
@@ -141,11 +152,88 @@
         cell.appendChild(chips);
 
         cell.addEventListener('click', function () { onSelect(date); });
+        cell.addEventListener('keydown', function (event) {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            onSelect(date);
+          }
+        });
         grid.appendChild(cell);
       })(day);
     }
 
     container.appendChild(grid);
+  }
+
+  /**
+   * 월간 목록 보기. 달력 칸이 좁은 화면에서 한눈에 훑기 위한 화면이라
+   * 코드를 줄이지 않고 구간과 시각까지 그대로 편다.
+   */
+  function renderList(container, options) {
+    var year = options.year;
+    var month = options.month;
+    var entriesByDate = options.entriesByDate || {};
+    var selected = options.selectedDate;
+    var onSelect = options.onSelect || function () {};
+
+    container.innerHTML = '';
+
+    var prefix = year + '-' + pad2(month);
+    var dates = Object.keys(entriesByDate)
+      .filter(function (d) { return d.indexOf(prefix) === 0 && entriesByDate[d].length; })
+      .sort();
+
+    if (!dates.length) {
+      var empty = document.createElement('p');
+      empty.className = 'list-empty';
+      empty.textContent = month + '월에 등록된 일정이 없습니다.';
+      container.appendChild(empty);
+      return;
+    }
+
+    var today = todayIso();
+
+    dates.forEach(function (date) {
+      var row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'agenda-row';
+      var weekday = new Date(date + 'T00:00:00Z').getUTCDay();
+      if (weekday === 0) row.classList.add('sun');
+      if (weekday === 6) row.classList.add('sat');
+      if (date === today) row.classList.add('today');
+      if (date === selected) row.classList.add('selected');
+      row.setAttribute('data-date', date);
+
+      var day = document.createElement('span');
+      day.className = 'agenda-date';
+      day.innerHTML = '<b>' + (+date.slice(8, 10)) + '</b><small>' + WEEKDAYS[weekday] + '</small>';
+      row.appendChild(day);
+
+      var items = document.createElement('span');
+      items.className = 'agenda-items';
+
+      entriesByDate[date].forEach(function (e) {
+        var item = document.createElement('span');
+        item.className = 'agenda-item';
+
+        var chip = document.createElement('span');
+        chip.className = 'chip cat-' + (e.category || 'other');
+        chip.textContent = e.code;
+        item.appendChild(chip);
+
+        var text = document.createElement('span');
+        text.className = 'agenda-text';
+        text.textContent = [e.route || '', describeTimes(e), e.memo || '']
+          .filter(Boolean).join(' · ') || (e.label || '');
+        item.appendChild(text);
+
+        items.appendChild(item);
+      });
+
+      row.appendChild(items);
+      row.addEventListener('click', function () { onSelect(date); });
+      container.appendChild(row);
+    });
   }
 
   function summarize(entriesByDate, year, month) {
@@ -167,6 +255,7 @@
   return {
     WEEKDAYS: WEEKDAYS,
     render: render,
+    renderList: renderList,
     summarize: summarize,
     formatTimeRange: formatTimeRange,
     describeTimes: describeTimes,

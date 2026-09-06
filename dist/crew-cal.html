@@ -1,4 +1,5 @@
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Crew-cal</title>
 <style>
 :root {
@@ -115,6 +116,7 @@
 
 body {
   margin: 0;
+  -webkit-text-size-adjust: 100%;
   background: var(--bg);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo",
@@ -160,14 +162,10 @@ body {
   margin: 0 auto;
   align-items: start;
 }
-@media (max-width: 900px) {
-  .layout { grid-template-columns: 1fr; padding: 12px; }
-}
-/* 칸이 좁아지면 시각은 접는다. 아래 일정 목록과 툴팁에는 그대로 남는다. */
-@media (max-width: 560px) {
-  .cal-time { display: none; }
-  .cal-cell { min-height: 72px; }
-}
+/* 그리드 칸은 기본이 min-width:auto 라, 넓은 표가 들어오면 칸 자체가 늘어나
+   페이지가 가로로 스크롤된다. 칸을 줄어들 수 있게 만들고 표는 안에서 스크롤시킨다. */
+.layout > .card { min-width: 0; }
+
 
 .card {
   background: var(--surface);
@@ -198,6 +196,7 @@ body {
   gap: 4px;
   overflow: hidden;
 }
+.cal-cell.blank { pointer-events: none; }
 .cal-cell.blank { border: none; background: transparent; cursor: default; min-height: 0; }
 .cal-cell:hover:not(.blank) { border-color: var(--accent); }
 .cal-cell.today { box-shadow: inset 0 0 0 2px var(--accent-soft); }
@@ -249,10 +248,71 @@ body {
   gap: 10px;
 }
 .month-summary b { color: var(--text); }
+.month-summary .sum-item { white-space: nowrap; }
 
 .legend { list-style: none; display: flex; flex-wrap: wrap; gap: 12px; padding: 12px 0 0; margin: 0; font-size: 12px; color: var(--muted); }
 .legend li { display: flex; align-items: center; gap: 5px; }
 .dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+/* ---------- 보기 전환 ---------- */
+.card-head { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+.seg-btn {
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  color: var(--muted);
+  padding: 6px 14px;
+  cursor: pointer;
+}
+.seg-btn + .seg-btn { border-left: 1px solid var(--line); }
+.seg-btn.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+
+/* ---------- 목록 보기 ---------- */
+.list-view { display: flex; flex-direction: column; }
+.list-empty { color: var(--muted); font-size: 13px; padding: 20px 4px; margin: 0; }
+.agenda-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  padding: 9px 6px;
+  cursor: pointer;
+}
+.agenda-row:last-child { border-bottom: none; }
+.agenda-row:hover { background: var(--surface-alt); }
+.agenda-row.selected { background: var(--accent-soft); }
+.agenda-date {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  width: 46px;
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+.agenda-date b { font-size: 16px; }
+.agenda-date small { font-size: 11px; color: var(--muted); }
+.agenda-row.sun .agenda-date b, .agenda-row.sun .agenda-date small { color: var(--sun); }
+.agenda-row.sat .agenda-date b, .agenda-row.sat .agenda-date small { color: var(--sat); }
+.agenda-row.today .agenda-date b { color: var(--accent); }
+.agenda-items { display: flex; flex-direction: column; gap: 5px; min-width: 0; flex: 1; }
+.agenda-item { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.agenda-item .chip { flex: none; }
+.agenda-text {
+  font-size: 12.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 /* ---------- 탭 ---------- */
 .tabs { display: flex; gap: 6px; border-bottom: 1px solid var(--line); margin-bottom: 14px; }
@@ -370,7 +430,7 @@ button.ghost.danger { color: var(--danger); }
 }
 .warnings ul { margin: 4px 0 0; padding-left: 18px; }
 
-.preview-table-wrap { max-height: 340px; overflow: auto; border: 1px solid var(--line); border-radius: 10px; margin-top: 10px; }
+.preview-table-wrap { max-height: 340px; overflow-x: auto; overflow-y: auto; border: 1px solid var(--line); border-radius: 10px; margin-top: 10px; }
 .preview-table { width: 100%; min-width: 700px; border-collapse: collapse; font-size: 12.5px; }
 .preview-table th, .preview-table td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
 .preview-table thead th { position: sticky; top: 0; background: var(--surface-alt); z-index: 1; font-size: 12px; color: var(--muted); }
@@ -440,6 +500,42 @@ button.ghost.danger { color: var(--danger); }
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+
+/* ---------- 반응형 ---------- */
+/* 기본 규칙을 덮어써야 하므로 반응형 블록은 항상 파일 끝에 둔다. */
+
+@media (max-width: 900px) {
+  .layout { grid-template-columns: minmax(0, 1fr); padding: 12px; }
+}
+
+/* 좁은 화면에서는 칸 너비를 벌기 위해 바깥 여백부터 줄인다 */
+@media (max-width: 640px) {
+  .layout { padding: 8px; gap: 10px; }
+  .card { padding: 10px; border-radius: 12px; }
+  .cal-head, .cal-grid { gap: 3px; }
+  .cal-cell { padding: 4px 3px; border-radius: 8px; }
+  .chip { font-size: 10px; padding: 2px 3px; border-radius: 4px; }
+  .cal-day { font-size: 12px; }
+}
+
+/* 칸이 좁아지면 시각은 접는다. 목록 보기와 아래 일정 목록에는 그대로 남는다. */
+@media (max-width: 560px) {
+  .cal-time { display: none; }
+  .cal-cell { min-height: 70px; }
+}
+
+/* 폰 세로 화면. KE0035 는 0035 로 줄여 넣으므로 네 글자가 들어갈 만큼만 확보한다. */
+@media (max-width: 460px) {
+  .layout { padding: 6px; }
+  .card { padding: 8px; }
+  .calendar-card { padding: 8px 6px; }
+  .cal-head, .cal-grid { gap: 2px; }
+  .cal-cell { padding: 3px 2px; }
+  .cal-chips { gap: 2px; }
+  .chip { font-size: 9.5px; padding: 1px 2px; letter-spacing: -0.2px; }
+  .cal-day { font-size: 11px; }
+  .legend { gap: 8px; font-size: 11px; }
+}
 </style>
 <header class="app-header">
   <h1>Crew-cal</h1>
@@ -453,7 +549,14 @@ button.ghost.danger { color: var(--danger); }
 
 <main class="layout">
   <section class="card calendar-card">
+    <div class="card-head">
+      <div class="seg" role="group" aria-label="보기 방식">
+        <button type="button" class="seg-btn active" data-view="calendar">달력</button>
+        <button type="button" class="seg-btn" data-view="list">목록</button>
+      </div>
+    </div>
     <div id="calendar" class="calendar"></div>
+    <div id="listView" class="list-view" hidden></div>
     <div id="monthSummary" class="month-summary"></div>
     <ul class="legend">
       <li><i class="dot cat-flight"></i>비행</li>
@@ -1619,6 +1722,12 @@ button.ghost.danger { color: var(--danger); }
     return endLabel + ' ' + entry.end + nextDay;
   }
 
+  /** 칸이 좁을 때 쓰는 짧은 표기. KE0035 -> 0035 (전체 코드는 툴팁과 목록에 남는다) */
+  function shortCode(entry, compact) {
+    if (!compact || entry.type !== 'flight') return entry.code;
+    return entry.code.replace(/^[A-Z]{2}(?=\d)/, '');
+  }
+
   function render(container, options) {
     var year = options.year;
     var month = options.month;
@@ -1641,6 +1750,9 @@ button.ghost.danger { color: var(--danger); }
     var grid = document.createElement('div');
     grid.className = 'cal-grid';
 
+    // 칸 너비를 재서 좁으면 짧은 표기로 바꾼다
+    var compact = (container.clientWidth || 0) / 7 < 62;
+
     var lead = firstWeekday(year, month);
     var total = daysInMonth(year, month);
     var today = todayIso();
@@ -1657,8 +1769,10 @@ button.ghost.danger { color: var(--danger); }
         var list = entriesByDate[date] || [];
         var weekday = (lead + day - 1) % 7;
 
-        var cell = document.createElement('button');
-        cell.type = 'button';
+        // button 요소는 브라우저가 내용 상자를 오그라뜨려 칩이 칸 너비를 못 채운다.
+        var cell = document.createElement('div');
+        cell.setAttribute('role', 'button');
+        cell.tabIndex = 0;
         cell.className = 'cal-cell';
         if (weekday === 0) cell.classList.add('sun');
         if (weekday === 6) cell.classList.add('sat');
@@ -1681,8 +1795,8 @@ button.ghost.danger { color: var(--danger); }
 
           var chip = document.createElement('span');
           chip.className = 'chip cat-' + (e.category || 'other');
-          chip.textContent = e.code;
-          chip.title = [e.label || '', e.route || '', describeTimes(e)]
+          chip.textContent = shortCode(e, compact);
+          chip.title = [e.code, e.label || '', e.route || '', describeTimes(e)]
             .filter(Boolean).join(' · ');
           item.appendChild(chip);
 
@@ -1704,11 +1818,88 @@ button.ghost.danger { color: var(--danger); }
         cell.appendChild(chips);
 
         cell.addEventListener('click', function () { onSelect(date); });
+        cell.addEventListener('keydown', function (event) {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            onSelect(date);
+          }
+        });
         grid.appendChild(cell);
       })(day);
     }
 
     container.appendChild(grid);
+  }
+
+  /**
+   * 월간 목록 보기. 달력 칸이 좁은 화면에서 한눈에 훑기 위한 화면이라
+   * 코드를 줄이지 않고 구간과 시각까지 그대로 편다.
+   */
+  function renderList(container, options) {
+    var year = options.year;
+    var month = options.month;
+    var entriesByDate = options.entriesByDate || {};
+    var selected = options.selectedDate;
+    var onSelect = options.onSelect || function () {};
+
+    container.innerHTML = '';
+
+    var prefix = year + '-' + pad2(month);
+    var dates = Object.keys(entriesByDate)
+      .filter(function (d) { return d.indexOf(prefix) === 0 && entriesByDate[d].length; })
+      .sort();
+
+    if (!dates.length) {
+      var empty = document.createElement('p');
+      empty.className = 'list-empty';
+      empty.textContent = month + '월에 등록된 일정이 없습니다.';
+      container.appendChild(empty);
+      return;
+    }
+
+    var today = todayIso();
+
+    dates.forEach(function (date) {
+      var row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'agenda-row';
+      var weekday = new Date(date + 'T00:00:00Z').getUTCDay();
+      if (weekday === 0) row.classList.add('sun');
+      if (weekday === 6) row.classList.add('sat');
+      if (date === today) row.classList.add('today');
+      if (date === selected) row.classList.add('selected');
+      row.setAttribute('data-date', date);
+
+      var day = document.createElement('span');
+      day.className = 'agenda-date';
+      day.innerHTML = '<b>' + (+date.slice(8, 10)) + '</b><small>' + WEEKDAYS[weekday] + '</small>';
+      row.appendChild(day);
+
+      var items = document.createElement('span');
+      items.className = 'agenda-items';
+
+      entriesByDate[date].forEach(function (e) {
+        var item = document.createElement('span');
+        item.className = 'agenda-item';
+
+        var chip = document.createElement('span');
+        chip.className = 'chip cat-' + (e.category || 'other');
+        chip.textContent = e.code;
+        item.appendChild(chip);
+
+        var text = document.createElement('span');
+        text.className = 'agenda-text';
+        text.textContent = [e.route || '', describeTimes(e), e.memo || '']
+          .filter(Boolean).join(' · ') || (e.label || '');
+        item.appendChild(text);
+
+        items.appendChild(item);
+      });
+
+      row.appendChild(items);
+      row.addEventListener('click', function () { onSelect(date); });
+      container.appendChild(row);
+    });
   }
 
   function summarize(entriesByDate, year, month) {
@@ -1730,6 +1921,7 @@ button.ghost.danger { color: var(--danger); }
   return {
     WEEKDAYS: WEEKDAYS,
     render: render,
+    renderList: renderList,
     summarize: summarize,
     formatTimeRange: formatTimeRange,
     describeTimes: describeTimes,
@@ -2058,6 +2250,7 @@ button.ghost.danger { color: var(--danger); }
     selectedDate: calendar.todayIso(),
     preview: null,
     imageFile: null,
+    view: 'calendar',
     backend: null,
     analyzing: false,
     abort: null
@@ -2076,6 +2269,20 @@ button.ghost.danger { color: var(--danger); }
   ].join('\n');
 
   /* ---------------- 공통 ---------------- */
+
+  var VIEW_KEY = 'crew-cal.view.v1';
+
+  function loadView() {
+    try {
+      var saved = localStorage.getItem(VIEW_KEY);
+      if (saved === 'list' || saved === 'calendar') return saved;
+    } catch (e) { /* 저장소를 못 읽으면 달력으로 */ }
+    return 'calendar';
+  }
+
+  function saveView(view) {
+    try { localStorage.setItem(VIEW_KEY, view); } catch (e) { /* 저장 실패는 무시 */ }
+  }
 
   var toastTimer = null;
   function toast(message) {
@@ -2119,13 +2326,19 @@ button.ghost.danger { color: var(--danger); }
     var entriesByDate = store.getAll();
     $('monthLabel').textContent = monthLabel(state.year, state.month);
 
-    calendar.render($('calendar'), {
+    var viewOptions = {
       year: state.year,
       month: state.month,
       entriesByDate: entriesByDate,
       selectedDate: state.selectedDate,
       onSelect: selectDate
-    });
+    };
+
+    var listMode = state.view === 'list';
+    $('calendar').hidden = listMode;
+    $('listView').hidden = !listMode;
+    if (listMode) calendar.renderList($('listView'), viewOptions);
+    else calendar.render($('calendar'), viewOptions);
 
     renderMonthSummary(entriesByDate);
     renderDayDetail();
@@ -2134,13 +2347,13 @@ button.ghost.danger { color: var(--danger); }
   function renderMonthSummary(entriesByDate) {
     var s = calendar.summarize(entriesByDate, state.year, state.month);
     var order = ['flight', 'layover', 'standby', 'off', 'training', 'other', 'unknown'];
-    var parts = ['일정 있는 날 <b>' + s.days + '일</b>'];
+    var parts = ['<span class="sum-item">일정 있는 날 <b>' + s.days + '일</b></span>'];
     order.forEach(function (key) {
       if (s.counts[key]) {
-        parts.push(codes.CATEGORY_LABELS[key] + ' <b>' + s.counts[key] + '</b>');
+        parts.push('<span class="sum-item">' + codes.CATEGORY_LABELS[key] + ' <b>' + s.counts[key] + '</b></span>');
       }
     });
-    $('monthSummary').innerHTML = parts.join('<span aria-hidden="true">·</span>');
+    $('monthSummary').innerHTML = parts.join('<span class="sum-item" aria-hidden="true">·</span>');
   }
 
   function renderDayDetail() {
@@ -2217,6 +2430,25 @@ button.ghost.danger { color: var(--danger); }
   }
 
   /* ---------------- 탭 ---------------- */
+
+  function initViewToggle() {
+    state.view = loadView();
+    Array.prototype.forEach.call(document.querySelectorAll('.seg-btn'), function (btn) {
+      btn.addEventListener('click', function () {
+        state.view = btn.getAttribute('data-view');
+        saveView(state.view);
+        syncViewButtons();
+        refresh();
+      });
+    });
+    syncViewButtons();
+  }
+
+  function syncViewButtons() {
+    Array.prototype.forEach.call(document.querySelectorAll('.seg-btn'), function (btn) {
+      btn.classList.toggle('active', btn.getAttribute('data-view') === state.view);
+    });
+  }
 
   function initTabs() {
     var tabs = document.querySelectorAll('.tab');
@@ -2550,11 +2782,16 @@ button.ghost.danger { color: var(--danger); }
 
   /** 이미지 인식을 어느 경로로 할 수 있는지 확인하고 안내 문구를 맞춘다. */
   function refreshBackend() {
+    setStatus('이미지 인식을 쓸 수 있는지 확인하는 중…', '');
     vision.resolveBackend().then(function (backend) {
       state.backend = backend;
       updateAnalyzeButton();
-      if (backend.kind === 'sample' && !state.imageFile) {
-        setStatus('이 화면에서는 Claude 가 이미지를 바로 읽습니다. 스케줄 화면을 올려보세요.', '');
+      if (backend.kind === 'sample') {
+        setStatus('Claude 가 이미지를 바로 읽습니다. 스케줄 화면을 올려보세요.', 'ok');
+      } else if (backend.kind === 'endpoint') {
+        setStatus('설정해 둔 인식 서버로 보냅니다.', 'ok');
+      } else {
+        setStatus('이 화면에서는 이미지 인식을 쓸 수 없습니다. 텍스트 붙여넣기를 쓰거나, 아래 설정에 인식 서버 주소를 넣어주세요.', 'error');
       }
     });
   }
@@ -2808,6 +3045,7 @@ button.ghost.danger { color: var(--danger); }
     });
 
     initDownloads();
+    initViewToggle();
     initTabs();
     initSingleForm();
     initPaste();
