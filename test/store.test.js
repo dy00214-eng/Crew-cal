@@ -17,7 +17,7 @@ test('개별 입력으로 추가하고 날짜별로 읽는다', () => {
 test('알려진 근무 코드는 라벨과 분류가 채워진다', () => {
   const e = store.addEntry({ date: '2026-09-07', code: 'ATDO' });
   assert.strictEqual(e.category, 'off');
-  assert.strictEqual(e.label, '추가 휴무');
+  assert.strictEqual(e.label, '휴무');
 });
 
 test('날짜나 코드가 없으면 거절한다', () => {

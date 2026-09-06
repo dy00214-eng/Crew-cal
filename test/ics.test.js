@@ -125,10 +125,10 @@ test('자정 직전 출발은 다음 날로 끝난다', () => {
 test('비행이 아닌 근무는 한글 이름만 제목으로 쓴다', () => {
   const out = build({
     '2026-09-02': [{ type: 'duty', category: 'layover', code: 'LO', label: '체류' }],
-    '2026-09-03': [{ type: 'duty', category: 'off', code: 'ATDO', label: '추가 휴무' }]
+    '2026-09-03': [{ type: 'duty', category: 'off', code: 'ATDO', label: '휴무' }]
   });
   assert.match(out.text, /SUMMARY:체류/);
-  assert.match(out.text, /SUMMARY:추가 휴무/);
+  assert.match(out.text, /SUMMARY:휴무/);
   assert.doesNotMatch(out.text, /SUMMARY:LO 체류/);
   // 코드는 설명에 남는다
   assert.match(out.text, /DESCRIPTION:체류/);
