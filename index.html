@@ -216,10 +216,11 @@
     </div>
 
     <details id="flightBook" class="flight-book">
-      <summary>기억한 편명 <span id="flightCount">0</span>개</summary>
+      <summary>편명 시각 <span id="flightCount">0</span>개 기억함</summary>
       <p class="muted">
-        구간이나 시각을 한 번 넣은 편명은 기억해 두었다가, 다음에 코드만 들어오면 그대로 채웁니다.
-        크루넷 월간 화면처럼 시각이 없는 스케줄에도 시각이 붙습니다.
+        대한항공 주요 편은 <b id="builtinCount">0</b>편이 기본으로 들어 있어, 코드만 넣어도 구간·시각이 붙습니다.
+        여기에 등록한 값은 언제나 기본 시간표보다 우선합니다.
+        <span id="builtinNote"></span> 실제 로스터가 다르면 아래에 등록해 덮어쓰세요.
       </p>
       <label class="field">
         <span>한꺼번에 등록 <em>(한 줄에 하나: 편명 구간 출발-도착)</em></span>
@@ -245,9 +246,10 @@
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
 <script src="src/codes.js"></script>
+<script src="src/airports.js"></script>
+<script src="src/schedule.js"></script>
 <script src="src/parser.js"></script>
 <script src="src/store.js"></script>
-<script src="src/airports.js"></script>
 <script src="src/calendar.js"></script>
 <script src="src/vision.js"></script>
 <script src="src/app.js"></script>

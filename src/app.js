@@ -382,8 +382,8 @@
 
     var memoBox = $('previewMemo');
     if (autoFilled) {
-      memoBox.textContent = '기억해둔 편명의 구간·시각을 ' + autoFilled + '건 채웠습니다. ' +
-        '표에서 확인하고, 다르면 붙여넣은 텍스트에 직접 적어주세요.';
+      memoBox.textContent = '편명으로 구간·시각을 ' + autoFilled + '건 채웠습니다(기본 시간표와 등록해둔 값). ' +
+        '점선 친 칸이 채워 넣은 값이니 확인하고, 다르면 텍스트에 직접 적어주세요.';
       memoBox.hidden = false;
     } else {
       memoBox.hidden = true;
@@ -824,6 +824,8 @@
   function renderFlightBook() {
     var list = store.flightList();
     $('flightCount').textContent = list.length;
+    $('builtinCount').textContent = CrewCal.schedule.size();
+    $('builtinNote').textContent = CrewCal.schedule.SOURCE_NOTE + '.';
 
     var ul = $('flightList');
     ul.innerHTML = '';

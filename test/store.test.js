@@ -165,16 +165,33 @@ test('편명 기억은 따로 지울 수 있다', () => {
 });
 
 test('이미 저장된 일정에도 기억한 값을 소급해서 채운다', () => {
+  // 기본 시간표에 없는 편명이라야 소급 적용을 제대로 확인할 수 있다
   store.applyEntries([
-    { date: '2026-09-02', code: 'KE0035', type: 'flight' },
-    { date: '2026-09-16', code: 'KE0035', type: 'flight' },
+    { date: '2026-09-02', code: 'KE7701', type: 'flight' },
+    { date: '2026-09-16', code: 'KE7701', type: 'flight' },
     { date: '2026-09-03', code: 'LO', type: 'duty' }
   ], 'replace');
-  store.learnFlight({ code: 'KE0035', type: 'flight', route: 'ICN/ATL', start: '09:45', end: '10:20' });
+  assert.strictEqual(store.getByDate('2026-09-02')[0].start, null);
+
+  store.learnFlight({ code: 'KE7701', type: 'flight', route: 'ICN/ATL', start: '09:45', end: '10:20' });
 
   assert.strictEqual(store.enrichAll(), 2);
   assert.strictEqual(store.getByDate('2026-09-02')[0].start, '09:45');
   assert.strictEqual(store.getByDate('2026-09-16')[0].route, 'ICN/ATL');
   assert.strictEqual(store.getByDate('2026-09-03')[0].start, null);
   assert.strictEqual(store.enrichAll(), 0);   // 다시 돌려도 바뀌는 게 없다
+});
+
+test('기본 시간표에 있는 편은 등록 없이도 채워진다', () => {
+  const e = store.addEntry({ date: '2026-09-19', code: 'KE0901' });
+  assert.strictEqual(e.route, 'ICN/CDG');
+  assert.strictEqual(e.start, '12:05');
+  assert.strictEqual(e.end, '18:30');
+});
+
+test('직접 등록한 값이 기본 시간표를 이긴다', () => {
+  store.learnFlight({ code: 'KE0901', type: 'flight', route: 'ICN/CDG', start: '13:00', end: '19:30' });
+  const e = store.addEntry({ date: '2026-09-19', code: 'KE0901' });
+  assert.strictEqual(e.start, '13:00');
+  assert.strictEqual(e.end, '19:30');
 });

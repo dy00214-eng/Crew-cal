@@ -3,12 +3,12 @@
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
-    module.exports = factory(require('./codes.js'));
+    module.exports = factory(require('./codes.js'), require('./schedule.js'));
   } else {
     root.CrewCal = root.CrewCal || {};
-    root.CrewCal.store = factory(root.CrewCal.codes);
+    root.CrewCal.store = factory(root.CrewCal.codes, root.CrewCal.schedule);
   }
-})(typeof self !== 'undefined' ? self : this, function (codes) {
+})(typeof self !== 'undefined' ? self : this, function (codes, schedule) {
   'use strict';
 
   var KEY = 'crew-cal.schedule.v1';
@@ -113,9 +113,20 @@
     return data[entry.code];
   }
 
+  /** 기본 시간표. 스크립트 순서에 상관없도록 쓸 때 찾는다. */
+  function builtinSchedule() {
+    if (schedule) return schedule;
+    if (typeof self !== 'undefined' && self.CrewCal && self.CrewCal.schedule) return self.CrewCal.schedule;
+    return null;
+  }
+
+  /** 사용자가 등록한 값이 먼저, 없으면 기본 시간표에서 찾는다. */
   function recallFlight(code) {
     if (!code) return null;
-    return loadFlights()[String(code).toUpperCase()] || null;
+    var mine = loadFlights()[String(code).toUpperCase()];
+    if (mine) return mine;
+    var table = builtinSchedule();
+    return table ? table.lookup(code) : null;
   }
 
   /** 코드만 있는 항공편에 기억해둔 구간·시각을 채운다. 채운 항목은 표시를 남긴다. */

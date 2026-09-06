@@ -782,10 +782,11 @@ button.ghost.danger { color: var(--danger); }
     </div>
 
     <details id="flightBook" class="flight-book">
-      <summary>기억한 편명 <span id="flightCount">0</span>개</summary>
+      <summary>편명 시각 <span id="flightCount">0</span>개 기억함</summary>
       <p class="muted">
-        구간이나 시각을 한 번 넣은 편명은 기억해 두었다가, 다음에 코드만 들어오면 그대로 채웁니다.
-        크루넷 월간 화면처럼 시각이 없는 스케줄에도 시각이 붙습니다.
+        대한항공 주요 편은 <b id="builtinCount">0</b>편이 기본으로 들어 있어, 코드만 넣어도 구간·시각이 붙습니다.
+        여기에 등록한 값은 언제나 기본 시간표보다 우선합니다.
+        <span id="builtinNote"></span> 실제 로스터가 다르면 아래에 등록해 덮어쓰세요.
       </p>
       <label class="field">
         <span>한꺼번에 등록 <em>(한 줄에 하나: 편명 구간 출발-도착)</em></span>
@@ -942,6 +943,271 @@ button.ghost.danger { color: var(--danger); }
     lookup: lookup,
     describe: describe,
     knownCodeList: knownCodeList
+  };
+});
+</script>
+<script>
+/**
+ * 공항(IATA) -> 나라. 편명 옆에 출발하는 나라 국기를 붙이는 데 쓴다.
+ * 국기는 나라 코드 두 글자를 리저널 인디케이터로 바꿔 만든다(이미지 파일 없음).
+ */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) {
+    module.exports = factory();
+  } else {
+    root.CrewCal = root.CrewCal || {};
+    root.CrewCal.airports = factory();
+  }
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  // 나라별 공항 목록. 대한항공·아시아나 취항지와 자주 쓰는 공항 위주.
+  var BY_COUNTRY = {
+    KR: 'ICN GMP PUS CJU TAE KWJ RSU USN YNY MWX HIN KUV WJU KPO',
+    JP: 'NRT HND KIX ITM UKB NGO CTS FUK OKA KOJ KMJ HIJ TAK KMI OIT AXT SDJ AOJ KMQ TOY FSZ MYJ NGS HKD ISG MMY TKS KCZ IZO YGJ ASJ OKJ',
+    CN: 'PEK PKX PVG SHA CAN SZX CTU TFU CKG XIY HGH NKG WUH CSX CGO TNA TAO YNT WEH DLC SHE HRB CGQ TSN KMG NNG HAK SYX XMN FOC JJN NGB HFE WNZ TYN SJW HET INC LHW XNN URC KWE KWL SWA ZUH YNJ MDG',
+    HK: 'HKG', MO: 'MFM', TW: 'TPE TSA KHH RMQ', MN: 'ULN UBN',
+    TH: 'BKK DMK HKT CNX USM KBV CEI', VN: 'SGN HAN DAD CXR PQC HPH VCA',
+    PH: 'MNL CEB CRK KLO PPS TAG DVO', SG: 'SIN', MY: 'KUL PEN BKI LGK JHB KCH',
+    ID: 'CGK DPS SUB JOG UPG BTH SRG', MM: 'RGN MDL', KH: 'PNH REP', LA: 'VTE LPQ',
+    BN: 'BWN', TL: 'DIL',
+    IN: 'DEL BOM MAA BLR HYD CCU COK AMD', LK: 'CMB', NP: 'KTM', BD: 'DAC',
+    MV: 'MLE', PK: 'ISB LHE KHI', BT: 'PBH',
+    AE: 'DXB AUH SHJ', QA: 'DOH', SA: 'RUH JED DMM', KW: 'KWI', BH: 'BAH',
+    OM: 'MCT', IL: 'TLV', JO: 'AMM', IQ: 'BGW EBL', IR: 'IKA',
+    TR: 'IST SAW ESB AYT ADB', CY: 'LCA', GE: 'TBS', AM: 'EVN', AZ: 'GYD',
+    UZ: 'TAS SKD', KZ: 'ALA NQZ TSE', KG: 'FRU',
+    RU: 'SVO DME VKO LED VVO KHV UUS IKT OVB KZN',
+    GB: 'LHR LGW LCY STN MAN EDI GLA BHX', IE: 'DUB',
+    FR: 'CDG ORY NCE LYS MRS TLS BOD', DE: 'FRA MUC BER DUS HAM CGN STR HAJ NUE LEJ',
+    NL: 'AMS EIN', BE: 'BRU CRL', LU: 'LUX', CH: 'ZRH GVA BSL', AT: 'VIE SZG',
+    IT: 'FCO MXP LIN VCE NAP BLQ FLR PSA CTA', ES: 'MAD BCN AGP PMI VLC SVQ',
+    PT: 'LIS OPO FNC', GR: 'ATH SKG JTR HER', MT: 'MLA',
+    CZ: 'PRG', HU: 'BUD', PL: 'WAW KRK GDN', SK: 'BTS', SI: 'LJU',
+    HR: 'ZAG DBV SPU', RS: 'BEG', RO: 'OTP CLJ', BG: 'SOF VAR',
+    SE: 'ARN GOT', DK: 'CPH BLL', NO: 'OSL BGO TRD', FI: 'HEL RVN', IS: 'KEF',
+    EE: 'TLL', LV: 'RIX', LT: 'VNO', UA: 'KBP IEV', BY: 'MSQ',
+    US: 'JFK EWR LGA BOS IAD DCA BWI PHL PIT CLT ATL MCO MIA FLL TPA MSY IAH DFW AUS DEN SLC PHX LAS LAX SFO SJC SAN SMF SEA PDX ORD DTW MSP STL MCI CLE CVG IND BNA RDU MEM OAK ANC HNL OGG KOA LIH SNA ONT BUR RSW JAX ABQ OMA BOI TUS',
+    CA: 'YYZ YVR YUL YYC YEG YOW YHZ YWG', MX: 'MEX CUN GDL MTY SJD PVR',
+    GU: 'GUM', MP: 'SPN', PW: 'ROR',
+    BR: 'GRU GIG BSB CNF', AR: 'EZE AEP', CL: 'SCL', PE: 'LIM', CO: 'BOG CTG',
+    EC: 'UIO GYE', PA: 'PTY', CR: 'SJO', DO: 'PUJ SDQ', CU: 'HAV',
+    AU: 'SYD MEL BNE PER ADL OOL CNS DRW', NZ: 'AKL CHC ZQN WLG',
+    FJ: 'NAN', PF: 'PPT', NC: 'NOU', WS: 'APW', PG: 'POM',
+    EG: 'CAI HRG SSH', MA: 'CMN RAK', TN: 'TUN', ZA: 'JNB CPT DUR',
+    KE: 'NBO MBA', ET: 'ADD', NG: 'LOS ABV', TZ: 'JRO DAR', MU: 'MRU', SC: 'SEZ'
+  };
+
+  var COUNTRY_NAMES = {
+    KR: '대한민국', JP: '일본', CN: '중국', HK: '홍콩', MO: '마카오', TW: '대만', MN: '몽골',
+    TH: '태국', VN: '베트남', PH: '필리핀', SG: '싱가포르', MY: '말레이시아', ID: '인도네시아',
+    MM: '미얀마', KH: '캄보디아', LA: '라오스', BN: '브루나이', TL: '동티모르',
+    IN: '인도', LK: '스리랑카', NP: '네팔', BD: '방글라데시', MV: '몰디브', PK: '파키스탄', BT: '부탄',
+    AE: '아랍에미리트', QA: '카타르', SA: '사우디아라비아', KW: '쿠웨이트', BH: '바레인',
+    OM: '오만', IL: '이스라엘', JO: '요르단', IQ: '이라크', IR: '이란',
+    TR: '튀르키예', CY: '키프로스', GE: '조지아', AM: '아르메니아', AZ: '아제르바이잔',
+    UZ: '우즈베키스탄', KZ: '카자흐스탄', KG: '키르기스스탄', RU: '러시아',
+    GB: '영국', IE: '아일랜드', FR: '프랑스', DE: '독일', NL: '네덜란드', BE: '벨기에',
+    LU: '룩셈부르크', CH: '스위스', AT: '오스트리아', IT: '이탈리아', ES: '스페인',
+    PT: '포르투갈', GR: '그리스', MT: '몰타', CZ: '체코', HU: '헝가리', PL: '폴란드',
+    SK: '슬로바키아', SI: '슬로베니아', HR: '크로아티아', RS: '세르비아', RO: '루마니아',
+    BG: '불가리아', SE: '스웨덴', DK: '덴마크', NO: '노르웨이', FI: '핀란드', IS: '아이슬란드',
+    EE: '에스토니아', LV: '라트비아', LT: '리투아니아', UA: '우크라이나', BY: '벨라루스',
+    US: '미국', CA: '캐나다', MX: '멕시코', GU: '괌', MP: '북마리아나제도', PW: '팔라우',
+    BR: '브라질', AR: '아르헨티나', CL: '칠레', PE: '페루', CO: '콜롬비아', EC: '에콰도르',
+    PA: '파나마', CR: '코스타리카', DO: '도미니카공화국', CU: '쿠바',
+    AU: '호주', NZ: '뉴질랜드', FJ: '피지', PF: '프랑스령 폴리네시아', NC: '뉴칼레도니아',
+    WS: '사모아', PG: '파푸아뉴기니',
+    EG: '이집트', MA: '모로코', TN: '튀니지', ZA: '남아프리카공화국', KE: '케냐',
+    ET: '에티오피아', NG: '나이지리아', TZ: '탄자니아', MU: '모리셔스', SC: '세이셸'
+  };
+
+  var AIRPORT_COUNTRY = {};
+  Object.keys(BY_COUNTRY).forEach(function (country) {
+    BY_COUNTRY[country].split(/\s+/).forEach(function (iata) {
+      if (iata) AIRPORT_COUNTRY[iata] = country;
+    });
+  });
+
+  /** 나라 코드 -> 국기 이모지. 'KR' -> 🇰🇷 */
+  function flagOfCountry(country) {
+    if (!country || !/^[A-Za-z]{2}$/.test(country)) return '';
+    var upper = country.toUpperCase();
+    return String.fromCodePoint(
+      0x1F1E6 + upper.charCodeAt(0) - 65,
+      0x1F1E6 + upper.charCodeAt(1) - 65
+    );
+  }
+
+  function countryOf(iata) {
+    if (!iata) return null;
+    return AIRPORT_COUNTRY[String(iata).toUpperCase()] || null;
+  }
+
+  function countryName(country) {
+    return COUNTRY_NAMES[country] || country || '';
+  }
+
+  /** 공항 코드 -> 국기. 모르는 공항이면 빈 문자열. */
+  function flagOf(iata) {
+    return flagOfCountry(countryOf(iata));
+  }
+
+  /** 'ICN/JFK' 또는 'ICN-JFK' 에서 출발 공항과 도착 공항을 뽑는다. */
+  function splitRoute(route) {
+    if (!route) return { from: null, to: null };
+    var parts = String(route).toUpperCase().split(/[/\-–>]+/).filter(Boolean);
+    return {
+      from: parts[0] || null,
+      to: parts.length > 1 ? parts[parts.length - 1] : null
+    };
+  }
+
+  /** 일정 하나의 출발 국기. 구간을 모르면 빈 문자열. */
+  function departureFlag(entry) {
+    if (!entry || !entry.route) return '';
+    return flagOf(splitRoute(entry.route).from);
+  }
+
+  /** 툴팁에 쓸 설명. 'ICN 대한민국 → JFK 미국' */
+  function describeRoute(route) {
+    var parts = splitRoute(route);
+    if (!parts.from) return '';
+    var out = parts.from;
+    var fromCountry = countryOf(parts.from);
+    if (fromCountry) out += ' ' + countryName(fromCountry);
+    if (parts.to) {
+      out += ' → ' + parts.to;
+      var toCountry = countryOf(parts.to);
+      if (toCountry) out += ' ' + countryName(toCountry);
+    }
+    return out;
+  }
+
+  return {
+    AIRPORT_COUNTRY: AIRPORT_COUNTRY,
+    COUNTRY_NAMES: COUNTRY_NAMES,
+    countryOf: countryOf,
+    countryName: countryName,
+    flagOf: flagOf,
+    flagOfCountry: flagOfCountry,
+    splitRoute: splitRoute,
+    departureFlag: departureFlag,
+    describeRoute: describeRoute
+  };
+});
+</script>
+<script>
+/**
+ * 대한항공 기본 시간표.
+ *
+ * 편명만 있는 스케줄에 구간과 시각을 채우기 위한 밑자료다. 공개 시간표에서 확인한 값만
+ * 담았고, 확인하지 못한 값은 비워 둔다(지어내지 않는다). 사용자가 직접 넣거나
+ * "편명 기억" 에 등록한 값이 항상 이 표보다 우선한다.
+ *
+ * 계절과 요일에 따라 시간표가 바뀌므로 실제 로스터가 언제나 우선이다.
+ * 기준: 2026년 9월 운항 스케줄.
+ */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) {
+    module.exports = factory();
+  } else {
+    root.CrewCal = root.CrewCal || {};
+    root.CrewCal.schedule = factory();
+  }
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  var SOURCE_NOTE = '공개 시간표 기준 (2026년 9월)';
+
+  // 편명: [구간, 출발, 도착, 익일도착]
+  // 출발·도착을 모두 확인한 편
+  var FULL = {
+    KE0035: ['ICN/ATL', '09:45', '10:20', 0],
+    KE0036: ['ATL/ICN', '13:25', '17:50', 1],
+    KE0053: ['ICN/HNL', '21:05', '10:55', 0],
+    KE0054: ['HNL/ICN', '13:05', '18:25', 1],
+    KE0471: ['ICN/SGN', '09:05', '12:35', 0],
+    KE0472: ['SGN/ICN', '13:55', '21:25', 0],
+    KE0805: ['ICN/TSN', '10:15', '11:15', 0],
+    KE0806: ['TSN/ICN', '11:30', '14:20', 0],
+    KE0901: ['ICN/CDG', '12:05', '18:30', 0],
+    KE0902: ['CDG/ICN', '20:30', '15:30', 1],
+    KE1401: ['ICN/PUS', '06:35', '07:45', 0],
+    KE1402: ['PUS/ICN', '07:00', '08:10', 0],
+    KE2071: ['PUS/PVG', '08:35', '09:30', 0],
+    KE2072: ['PVG/PUS', '11:00', '13:17', 0]
+  };
+
+  // 구간과 출발 시각만 확인한 편 (인천 출발 전광판 기준)
+  var DEPARTURE_ONLY = {
+    KE0017: ['ICN/LAX', '14:30'],
+    KE0033: ['ICN/ATL', '08:45'],
+    KE0041: ['ICN/SEA', '16:40'],
+    KE0165: ['ICN/WUH', '08:40'],
+    KE0257: ['ICN/ANC', '22:05'],
+    KE0497: ['ICN/DEL', '12:50'],
+    KE0509: ['ICN/AMS', '11:05'],
+    KE0711: ['ICN/NRT', '13:00'],
+    KE0791: ['ICN/FUK', '11:05'],
+    KE0833: ['ICN/SHE', '14:35'],
+    KE0835: ['ICN/SZX', '08:40'],
+    KE0843: ['ICN/TAO', '13:05'],
+    KE0873: ['ICN/DLC', '13:00'],
+    KE0881: ['ICN/PVG', '08:25'],
+    KE0887: ['ICN/PVG', '11:10'],
+    KE0921: ['ICN/LIS', '12:45'],
+    KE1403: ['ICN/PUS', '08:20'],
+    KE1405: ['ICN/PUS', '17:10'],
+    KE2041: ['ICN/ULN', '08:35'],
+    KE8053: ['ICN/HNL', null]
+  };
+
+  var TABLE = {};
+
+  Object.keys(FULL).forEach(function (code) {
+    var row = FULL[code];
+    TABLE[code] = { route: row[0], start: row[1], end: row[2], endOffset: row[3] || 0 };
+  });
+
+  Object.keys(DEPARTURE_ONLY).forEach(function (code) {
+    var row = DEPARTURE_ONLY[code];
+    TABLE[code] = { route: row[0], start: row[1] || null, end: null, endOffset: 0 };
+  });
+
+  /** 편명을 표기 차이와 상관없이 찾는다. KE35, KE035, KE0035 모두 같은 편으로 본다. */
+  function normalize(code) {
+    var m = String(code || '').toUpperCase().match(/^([A-Z]{2})(\d{1,4})([A-Z]?)$/);
+    if (!m) return null;
+    var digits = m[2];
+    while (digits.length < 4) digits = '0' + digits;
+    return m[1] + digits;
+  }
+
+  function lookup(code) {
+    var key = normalize(code);
+    if (!key) return null;
+    var hit = TABLE[key];
+    if (!hit) return null;
+    return {
+      route: hit.route,
+      start: hit.start,
+      end: hit.end,
+      endOffset: hit.endOffset,
+      source: 'schedule'
+    };
+  }
+
+  function size() {
+    return Object.keys(TABLE).length;
+  }
+
+  return {
+    TABLE: TABLE,
+    SOURCE_NOTE: SOURCE_NOTE,
+    normalize: normalize,
+    lookup: lookup,
+    size: size
   };
 });
 </script>
@@ -1500,12 +1766,12 @@ button.ghost.danger { color: var(--danger); }
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
-    module.exports = factory(require('./codes.js'));
+    module.exports = factory(require('./codes.js'), require('./schedule.js'));
   } else {
     root.CrewCal = root.CrewCal || {};
-    root.CrewCal.store = factory(root.CrewCal.codes);
+    root.CrewCal.store = factory(root.CrewCal.codes, root.CrewCal.schedule);
   }
-})(typeof self !== 'undefined' ? self : this, function (codes) {
+})(typeof self !== 'undefined' ? self : this, function (codes, schedule) {
   'use strict';
 
   var KEY = 'crew-cal.schedule.v1';
@@ -1610,9 +1876,20 @@ button.ghost.danger { color: var(--danger); }
     return data[entry.code];
   }
 
+  /** 기본 시간표. 스크립트 순서에 상관없도록 쓸 때 찾는다. */
+  function builtinSchedule() {
+    if (schedule) return schedule;
+    if (typeof self !== 'undefined' && self.CrewCal && self.CrewCal.schedule) return self.CrewCal.schedule;
+    return null;
+  }
+
+  /** 사용자가 등록한 값이 먼저, 없으면 기본 시간표에서 찾는다. */
   function recallFlight(code) {
     if (!code) return null;
-    return loadFlights()[String(code).toUpperCase()] || null;
+    var mine = loadFlights()[String(code).toUpperCase()];
+    if (mine) return mine;
+    var table = builtinSchedule();
+    return table ? table.lookup(code) : null;
   }
 
   /** 코드만 있는 항공편에 기억해둔 구간·시각을 채운다. 채운 항목은 표시를 남긴다. */
@@ -1858,157 +2135,6 @@ button.ghost.danger { color: var(--danger); }
     enrichAll: enrichAll,
     FLIGHTS_KEY: FLIGHTS_KEY,
     newId: newId
-  };
-});
-</script>
-<script>
-/**
- * 공항(IATA) -> 나라. 편명 옆에 출발하는 나라 국기를 붙이는 데 쓴다.
- * 국기는 나라 코드 두 글자를 리저널 인디케이터로 바꿔 만든다(이미지 파일 없음).
- */
-(function (root, factory) {
-  if (typeof module === 'object' && module.exports) {
-    module.exports = factory();
-  } else {
-    root.CrewCal = root.CrewCal || {};
-    root.CrewCal.airports = factory();
-  }
-})(typeof self !== 'undefined' ? self : this, function () {
-  'use strict';
-
-  // 나라별 공항 목록. 대한항공·아시아나 취항지와 자주 쓰는 공항 위주.
-  var BY_COUNTRY = {
-    KR: 'ICN GMP PUS CJU TAE KWJ RSU USN YNY MWX HIN KUV WJU KPO',
-    JP: 'NRT HND KIX ITM UKB NGO CTS FUK OKA KOJ KMJ HIJ TAK KMI OIT AXT SDJ AOJ KMQ TOY FSZ MYJ NGS HKD ISG MMY TKS KCZ IZO YGJ ASJ OKJ',
-    CN: 'PEK PKX PVG SHA CAN SZX CTU TFU CKG XIY HGH NKG WUH CSX CGO TNA TAO YNT WEH DLC SHE HRB CGQ TSN KMG NNG HAK SYX XMN FOC JJN NGB HFE WNZ TYN SJW HET INC LHW XNN URC KWE KWL SWA ZUH YNJ MDG',
-    HK: 'HKG', MO: 'MFM', TW: 'TPE TSA KHH RMQ', MN: 'ULN UBN',
-    TH: 'BKK DMK HKT CNX USM KBV CEI', VN: 'SGN HAN DAD CXR PQC HPH VCA',
-    PH: 'MNL CEB CRK KLO PPS TAG DVO', SG: 'SIN', MY: 'KUL PEN BKI LGK JHB KCH',
-    ID: 'CGK DPS SUB JOG UPG BTH SRG', MM: 'RGN MDL', KH: 'PNH REP', LA: 'VTE LPQ',
-    BN: 'BWN', TL: 'DIL',
-    IN: 'DEL BOM MAA BLR HYD CCU COK AMD', LK: 'CMB', NP: 'KTM', BD: 'DAC',
-    MV: 'MLE', PK: 'ISB LHE KHI', BT: 'PBH',
-    AE: 'DXB AUH SHJ', QA: 'DOH', SA: 'RUH JED DMM', KW: 'KWI', BH: 'BAH',
-    OM: 'MCT', IL: 'TLV', JO: 'AMM', IQ: 'BGW EBL', IR: 'IKA',
-    TR: 'IST SAW ESB AYT ADB', CY: 'LCA', GE: 'TBS', AM: 'EVN', AZ: 'GYD',
-    UZ: 'TAS SKD', KZ: 'ALA NQZ TSE', KG: 'FRU',
-    RU: 'SVO DME VKO LED VVO KHV UUS IKT OVB KZN',
-    GB: 'LHR LGW LCY STN MAN EDI GLA BHX', IE: 'DUB',
-    FR: 'CDG ORY NCE LYS MRS TLS BOD', DE: 'FRA MUC BER DUS HAM CGN STR HAJ NUE LEJ',
-    NL: 'AMS EIN', BE: 'BRU CRL', LU: 'LUX', CH: 'ZRH GVA BSL', AT: 'VIE SZG',
-    IT: 'FCO MXP LIN VCE NAP BLQ FLR PSA CTA', ES: 'MAD BCN AGP PMI VLC SVQ',
-    PT: 'LIS OPO FNC', GR: 'ATH SKG JTR HER', MT: 'MLA',
-    CZ: 'PRG', HU: 'BUD', PL: 'WAW KRK GDN', SK: 'BTS', SI: 'LJU',
-    HR: 'ZAG DBV SPU', RS: 'BEG', RO: 'OTP CLJ', BG: 'SOF VAR',
-    SE: 'ARN GOT', DK: 'CPH BLL', NO: 'OSL BGO TRD', FI: 'HEL RVN', IS: 'KEF',
-    EE: 'TLL', LV: 'RIX', LT: 'VNO', UA: 'KBP IEV', BY: 'MSQ',
-    US: 'JFK EWR LGA BOS IAD DCA BWI PHL PIT CLT ATL MCO MIA FLL TPA MSY IAH DFW AUS DEN SLC PHX LAS LAX SFO SJC SAN SMF SEA PDX ORD DTW MSP STL MCI CLE CVG IND BNA RDU MEM OAK ANC HNL OGG KOA LIH SNA ONT BUR RSW JAX ABQ OMA BOI TUS',
-    CA: 'YYZ YVR YUL YYC YEG YOW YHZ YWG', MX: 'MEX CUN GDL MTY SJD PVR',
-    GU: 'GUM', MP: 'SPN', PW: 'ROR',
-    BR: 'GRU GIG BSB CNF', AR: 'EZE AEP', CL: 'SCL', PE: 'LIM', CO: 'BOG CTG',
-    EC: 'UIO GYE', PA: 'PTY', CR: 'SJO', DO: 'PUJ SDQ', CU: 'HAV',
-    AU: 'SYD MEL BNE PER ADL OOL CNS DRW', NZ: 'AKL CHC ZQN WLG',
-    FJ: 'NAN', PF: 'PPT', NC: 'NOU', WS: 'APW', PG: 'POM',
-    EG: 'CAI HRG SSH', MA: 'CMN RAK', TN: 'TUN', ZA: 'JNB CPT DUR',
-    KE: 'NBO MBA', ET: 'ADD', NG: 'LOS ABV', TZ: 'JRO DAR', MU: 'MRU', SC: 'SEZ'
-  };
-
-  var COUNTRY_NAMES = {
-    KR: '대한민국', JP: '일본', CN: '중국', HK: '홍콩', MO: '마카오', TW: '대만', MN: '몽골',
-    TH: '태국', VN: '베트남', PH: '필리핀', SG: '싱가포르', MY: '말레이시아', ID: '인도네시아',
-    MM: '미얀마', KH: '캄보디아', LA: '라오스', BN: '브루나이', TL: '동티모르',
-    IN: '인도', LK: '스리랑카', NP: '네팔', BD: '방글라데시', MV: '몰디브', PK: '파키스탄', BT: '부탄',
-    AE: '아랍에미리트', QA: '카타르', SA: '사우디아라비아', KW: '쿠웨이트', BH: '바레인',
-    OM: '오만', IL: '이스라엘', JO: '요르단', IQ: '이라크', IR: '이란',
-    TR: '튀르키예', CY: '키프로스', GE: '조지아', AM: '아르메니아', AZ: '아제르바이잔',
-    UZ: '우즈베키스탄', KZ: '카자흐스탄', KG: '키르기스스탄', RU: '러시아',
-    GB: '영국', IE: '아일랜드', FR: '프랑스', DE: '독일', NL: '네덜란드', BE: '벨기에',
-    LU: '룩셈부르크', CH: '스위스', AT: '오스트리아', IT: '이탈리아', ES: '스페인',
-    PT: '포르투갈', GR: '그리스', MT: '몰타', CZ: '체코', HU: '헝가리', PL: '폴란드',
-    SK: '슬로바키아', SI: '슬로베니아', HR: '크로아티아', RS: '세르비아', RO: '루마니아',
-    BG: '불가리아', SE: '스웨덴', DK: '덴마크', NO: '노르웨이', FI: '핀란드', IS: '아이슬란드',
-    EE: '에스토니아', LV: '라트비아', LT: '리투아니아', UA: '우크라이나', BY: '벨라루스',
-    US: '미국', CA: '캐나다', MX: '멕시코', GU: '괌', MP: '북마리아나제도', PW: '팔라우',
-    BR: '브라질', AR: '아르헨티나', CL: '칠레', PE: '페루', CO: '콜롬비아', EC: '에콰도르',
-    PA: '파나마', CR: '코스타리카', DO: '도미니카공화국', CU: '쿠바',
-    AU: '호주', NZ: '뉴질랜드', FJ: '피지', PF: '프랑스령 폴리네시아', NC: '뉴칼레도니아',
-    WS: '사모아', PG: '파푸아뉴기니',
-    EG: '이집트', MA: '모로코', TN: '튀니지', ZA: '남아프리카공화국', KE: '케냐',
-    ET: '에티오피아', NG: '나이지리아', TZ: '탄자니아', MU: '모리셔스', SC: '세이셸'
-  };
-
-  var AIRPORT_COUNTRY = {};
-  Object.keys(BY_COUNTRY).forEach(function (country) {
-    BY_COUNTRY[country].split(/\s+/).forEach(function (iata) {
-      if (iata) AIRPORT_COUNTRY[iata] = country;
-    });
-  });
-
-  /** 나라 코드 -> 국기 이모지. 'KR' -> 🇰🇷 */
-  function flagOfCountry(country) {
-    if (!country || !/^[A-Za-z]{2}$/.test(country)) return '';
-    var upper = country.toUpperCase();
-    return String.fromCodePoint(
-      0x1F1E6 + upper.charCodeAt(0) - 65,
-      0x1F1E6 + upper.charCodeAt(1) - 65
-    );
-  }
-
-  function countryOf(iata) {
-    if (!iata) return null;
-    return AIRPORT_COUNTRY[String(iata).toUpperCase()] || null;
-  }
-
-  function countryName(country) {
-    return COUNTRY_NAMES[country] || country || '';
-  }
-
-  /** 공항 코드 -> 국기. 모르는 공항이면 빈 문자열. */
-  function flagOf(iata) {
-    return flagOfCountry(countryOf(iata));
-  }
-
-  /** 'ICN/JFK' 또는 'ICN-JFK' 에서 출발 공항과 도착 공항을 뽑는다. */
-  function splitRoute(route) {
-    if (!route) return { from: null, to: null };
-    var parts = String(route).toUpperCase().split(/[/\-–>]+/).filter(Boolean);
-    return {
-      from: parts[0] || null,
-      to: parts.length > 1 ? parts[parts.length - 1] : null
-    };
-  }
-
-  /** 일정 하나의 출발 국기. 구간을 모르면 빈 문자열. */
-  function departureFlag(entry) {
-    if (!entry || !entry.route) return '';
-    return flagOf(splitRoute(entry.route).from);
-  }
-
-  /** 툴팁에 쓸 설명. 'ICN 대한민국 → JFK 미국' */
-  function describeRoute(route) {
-    var parts = splitRoute(route);
-    if (!parts.from) return '';
-    var out = parts.from;
-    var fromCountry = countryOf(parts.from);
-    if (fromCountry) out += ' ' + countryName(fromCountry);
-    if (parts.to) {
-      out += ' → ' + parts.to;
-      var toCountry = countryOf(parts.to);
-      if (toCountry) out += ' ' + countryName(toCountry);
-    }
-    return out;
-  }
-
-  return {
-    AIRPORT_COUNTRY: AIRPORT_COUNTRY,
-    COUNTRY_NAMES: COUNTRY_NAMES,
-    countryOf: countryOf,
-    countryName: countryName,
-    flagOf: flagOf,
-    flagOfCountry: flagOfCountry,
-    splitRoute: splitRoute,
-    departureFlag: departureFlag,
-    describeRoute: describeRoute
   };
 });
 </script>
@@ -3018,8 +3144,8 @@ button.ghost.danger { color: var(--danger); }
 
     var memoBox = $('previewMemo');
     if (autoFilled) {
-      memoBox.textContent = '기억해둔 편명의 구간·시각을 ' + autoFilled + '건 채웠습니다. ' +
-        '표에서 확인하고, 다르면 붙여넣은 텍스트에 직접 적어주세요.';
+      memoBox.textContent = '편명으로 구간·시각을 ' + autoFilled + '건 채웠습니다(기본 시간표와 등록해둔 값). ' +
+        '점선 친 칸이 채워 넣은 값이니 확인하고, 다르면 텍스트에 직접 적어주세요.';
       memoBox.hidden = false;
     } else {
       memoBox.hidden = true;
@@ -3460,6 +3586,8 @@ button.ghost.danger { color: var(--danger); }
   function renderFlightBook() {
     var list = store.flightList();
     $('flightCount').textContent = list.length;
+    $('builtinCount').textContent = CrewCal.schedule.size();
+    $('builtinNote').textContent = CrewCal.schedule.SOURCE_NOTE + '.';
 
     var ul = $('flightList');
     ul.innerHTML = '';
