@@ -57,9 +57,13 @@
       </div>
     </div>
     <div class="search-bar">
-      <input type="search" id="searchInput" placeholder="편명·도시·코드로 지난 일정 찾기 (예: ATL, KE35, 체류)"
-        autocomplete="off" spellcheck="false">
-      <button type="button" id="searchClear" class="ghost small" hidden>지우기</button>
+      <svg class="search-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+        <circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" stroke-width="1.6"></circle>
+        <path d="M10.4 10.4 L14 14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path>
+      </svg>
+      <input type="search" id="searchInput" placeholder="날짜 · 편명 · 코드로 찾기"
+        aria-label="지난 일정 찾기" autocomplete="off" spellcheck="false">
+      <button type="button" id="searchClear" aria-label="검색어 지우기" hidden>✕</button>
     </div>
     <div id="searchResults" class="search-results" hidden></div>
     <div id="calendar" class="calendar"></div>

@@ -879,8 +879,49 @@ button.ghost.danger { color: var(--danger); }
 }
 
 /* ---------- 지난 일정 찾기 ---------- */
-.search-bar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
-.search-bar input { flex: 1; min-width: 0; }
+.search-bar { position: relative; margin-bottom: 12px; }
+.search-bar input {
+  width: 100%;
+  font: inherit;
+  font-size: 16px;
+  color: var(--text);
+  background: var(--input-bg);
+  border: 0;
+  border-radius: var(--r-control);
+  padding: 12px 42px 12px 40px;
+  min-height: 46px;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.search-bar input::-webkit-search-cancel-button { display: none; }
+.search-bar input::placeholder { color: var(--muted); }
+.search-bar input:focus { outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
+.search-icon {
+  position: absolute;
+  left: 13px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  color: var(--muted);
+  pointer-events: none;
+}
+#searchClear {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--fill-strong);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
 .search-results {
   margin-bottom: 12px;
   border-radius: var(--r-card);
