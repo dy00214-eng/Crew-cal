@@ -142,11 +142,34 @@
     '2118': ['KIX', '14:20']
   };
 
+  /* 부산에서 나가는 편: 편명 -> [도착 공항, 출발 시각] */
+  var PUS_OUT = {
+    '1402': ['ICN', '07:00'], '1404': ['ICN', '08:00'], '1406': ['ICN', '08:45'],
+    '1408': ['ICN', '10:40'], '1410': ['ICN', '16:30'],
+    '1806': ['GMP', '08:45'], '1822': ['GMP', '15:50'],
+    '1505': ['CJU', '07:00'], '1515': ['CJU', '09:55'], '1517': ['CJU', '10:25'],
+    '1543': ['CJU', '16:40'],
+    '2061': ['PEK', '22:20'], '2071': ['PVG', '08:35'], '2081': ['TAO', '11:00'],
+    '2085': ['TPE', '09:00'], '2129': ['NRT', '09:20'], '2131': ['NRT', '16:00'],
+    '2133': ['NGO', '17:30']
+  };
+
+  /* 부산으로 들어오는 편: 편명 -> [출발 공항, 부산 도착 시각] */
+  var PUS_IN = {
+    '1401': ['ICN', '07:45'], '1403': ['ICN', '09:30'], '1405': ['ICN', '18:20'],
+    '1407': ['ICN', '19:35'],
+    '1803': ['GMP', '08:05'], '1807': ['GMP', '09:10'], '1811': ['GMP', '11:35'],
+    '1819': ['GMP', '15:05'], '1827': ['GMP', '18:40'],
+    '1512': ['CJU', '09:45'], '1538': ['CJU', '15:55'], '1550': ['CJU', '19:20'],
+    '1558': ['CJU', '21:30'], '1562': ['CJU', '22:05'],
+    '2062': ['PEK', '06:30'], '2072': ['PVG', '14:00'], '2082': ['TAO', '16:10'],
+    '2086': ['TPE', '15:30'], '2130': ['NRT', '14:55'], '2132': ['NRT', '21:35'],
+    '2134': ['NGO', '21:30']
+  };
+
   /* 국내선이나 한국을 거치지 않는 편처럼 양쪽 시각을 다 아는 편 */
   var FULL = {
-    '1402': ['PUS/ICN', '07:00', '08:10', 0],
-    '2071': ['PUS/PVG', '08:35', '09:30', 0],
-    '2072': ['PVG/PUS', '11:00', '13:17', 0]
+    '1402': ['PUS/ICN', '07:00', '08:10', 0]
   };
 
   // 짝 편명으로 구간을 뒤집을 때 기준이 되는 국내 출발지
@@ -154,20 +177,29 @@
 
   var TABLE = {};
 
-  Object.keys(OUT).forEach(function (num) {
-    TABLE['KE' + num] = { route: 'ICN/' + OUT[num][0], start: OUT[num][1], end: null, endOffset: 0 };
-  });
-  Object.keys(IN).forEach(function (num) {
-    TABLE['KE' + num] = { route: IN[num][0] + '/ICN', start: null, end: IN[num][1], endOffset: IN[num][2] || 0 };
-  });
-  Object.keys(GMP_OUT).forEach(function (num) {
-    TABLE['KE' + num] = { route: 'GMP/' + GMP_OUT[num][0], start: GMP_OUT[num][1], end: null, endOffset: 0 };
-  });
-  Object.keys(GMP_IN).forEach(function (num) {
-    TABLE['KE' + num] = { route: GMP_IN[num][0] + '/GMP', start: null, end: GMP_IN[num][1], endOffset: 0 };
-  });
-  Object.keys(FULL).forEach(function (num) {
-    TABLE['KE' + num] = { route: FULL[num][0], start: FULL[num][1], end: FULL[num][2], endOffset: FULL[num][3] || 0 };
+  /**
+   * 표를 채운다. 같은 편이 여러 공항 전광판에 걸쳐 나오면(국내선은 출발지와 도착지 양쪽에
+   * 다 뜬다) 구간이 같을 때 시각을 합쳐 출발·도착을 모두 갖게 한다.
+   */
+  function put(code, route, start, end, offset) {
+    var key = 'KE' + code;
+    var cur = TABLE[key];
+    if (cur && cur.route === route) {
+      if (start && !cur.start) cur.start = start;
+      if (end && !cur.end) { cur.end = end; cur.endOffset = offset || 0; }
+      return;
+    }
+    TABLE[key] = { route: route, start: start || null, end: end || null, endOffset: offset || 0 };
+  }
+
+  Object.keys(OUT).forEach(function (n) { put(n, 'ICN/' + OUT[n][0], OUT[n][1], null, 0); });
+  Object.keys(IN).forEach(function (n) { put(n, IN[n][0] + '/ICN', null, IN[n][1], IN[n][2]); });
+  Object.keys(GMP_OUT).forEach(function (n) { put(n, 'GMP/' + GMP_OUT[n][0], GMP_OUT[n][1], null, 0); });
+  Object.keys(GMP_IN).forEach(function (n) { put(n, GMP_IN[n][0] + '/GMP', null, GMP_IN[n][1], 0); });
+  Object.keys(PUS_OUT).forEach(function (n) { put(n, 'PUS/' + PUS_OUT[n][0], PUS_OUT[n][1], null, 0); });
+  Object.keys(PUS_IN).forEach(function (n) { put(n, PUS_IN[n][0] + '/PUS', null, PUS_IN[n][1], 0); });
+  Object.keys(FULL).forEach(function (n) {
+    TABLE['KE' + n] = { route: FULL[n][0], start: FULL[n][1], end: FULL[n][2], endOffset: FULL[n][3] || 0 };
   });
 
   /** 편명을 표기 차이와 상관없이 찾는다. KE35, KE035, KE0035 모두 같은 편으로 본다. */

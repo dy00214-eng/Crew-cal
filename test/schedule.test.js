@@ -110,3 +110,23 @@ test('짝 편명 추정은 김포에도 적용된다', () => {
   assert.strictEqual(back.route, 'CJU/GMP');
   assert.strictEqual(back.derived, true);
 });
+
+test('부산 출발·도착편도 표에 있다', () => {
+  assert.strictEqual(schedule.lookup('KE2129').route, 'PUS/NRT');
+  assert.strictEqual(schedule.lookup('KE2129').start, '09:20');
+  assert.strictEqual(schedule.lookup('KE2130').route, 'NRT/PUS');
+  assert.strictEqual(schedule.lookup('KE2130').end, '14:55');
+  assert.strictEqual(schedule.lookup('KE2085').route, 'PUS/TPE');
+});
+
+test('국내선은 두 공항 전광판의 시각을 합쳐 출발·도착을 모두 갖는다', () => {
+  const out = schedule.lookup('KE1401');   // 인천 출발판 + 부산 도착판
+  assert.strictEqual(out.route, 'ICN/PUS');
+  assert.strictEqual(out.start, '06:35');
+  assert.strictEqual(out.end, '07:45');
+
+  const gmp = schedule.lookup('KE1803');   // 김포 출발판 + 부산 도착판
+  assert.strictEqual(gmp.route, 'GMP/PUS');
+  assert.strictEqual(gmp.start, '07:00');
+  assert.strictEqual(gmp.end, '08:05');
+});
