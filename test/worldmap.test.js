@@ -48,6 +48,43 @@ test('바다인 곳은 바다로 나온다', () => {
   });
 });
 
+/** 점에서 선까지의 거리(도). 국경이 제자리에 있는지 재는 데 쓴다. */
+function distanceToBorders(lat, lon) {
+  let best = Infinity;
+  worldmap.borders().forEach((line) => {
+    for (let i = 1; i < line.length; i++) {
+      const a = line[i - 1];
+      const b = line[i];
+      const dx = b.lon - a.lon;
+      const dy = b.lat - a.lat;
+      let t = (dx || dy) ? ((lon - a.lon) * dx + (lat - a.lat) * dy) / (dx * dx + dy * dy) : 0;
+      t = Math.max(0, Math.min(1, t));
+      best = Math.min(best, Math.hypot(lon - (a.lon + t * dx), lat - (a.lat + t * dy)));
+    }
+  });
+  return best;
+}
+
+test('국경이 제자리에 있다', () => {
+  assert.ok(worldmap.borders().length > 100, '국경이 ' + worldmap.borders().length + '줄뿐입니다');
+  assert.strictEqual(worldmap.borders().length, worldmap.borderCount);
+  assert.strictEqual(worldmap.borders(), worldmap.borders());
+
+  [['미국-캐나다 49도선', 49.0, -110], ['미국-멕시코', 31.8, -106.5],
+   ['남북 사이', 38.3, 127.5], ['프랑스-독일', 48.9, 8.0],
+   ['인도-네팔', 27.5, 84.0]].forEach(([name, lat, lon]) => {
+    assert.ok(distanceToBorders(lat, lon) < 0.5, name + ' 에 국경이 없습니다');
+  });
+});
+
+test('국경에 바닷가는 섞이지 않았다', () => {
+  // 두 나라가 맞댄 선만 담았으므로, 이웃 나라가 없는 곳 근처에는 국경이 없어야 한다
+  [['도쿄(섬나라)', 35.7, 139.7], ['호주 한복판', -25, 133],
+   ['태평양 한가운데', 0, -160], ['그린란드', 72, -40]].forEach(([name, lat, lon]) => {
+    assert.ok(distanceToBorders(lat, lon) > 5, name + ' 근처에 국경이 그려집니다');
+  });
+});
+
 test('큰 대륙부터 온다', () => {
   const span = (ring) => {
     let minLat = 90, maxLat = -90, minLon = 180, maxLon = -180;

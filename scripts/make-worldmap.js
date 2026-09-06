@@ -1,15 +1,17 @@
 /**
- * 세계 육지 윤곽을 src/worldmap.js 로 만든다.
+ * 세계 육지 윤곽과 국경을 src/worldmap.js 로 만든다.
  *
  *   node scripts/make-worldmap.js
  *
- * 자료는 Natural Earth 1:110m 육지(land) — 공공 도메인이다. 지어낸 선이 하나도 없어야
- * 해서, 좌표를 직접 적는 대신 이렇게 받아서 줄인다.
+ * 자료는 Natural Earth 1:110m 육지(land)와 나라(countries) — 공공 도메인이다.
+ * 지어낸 선이 하나도 없어야 해서, 좌표를 직접 적는 대신 이렇게 받아서 줄인다.
  *
- * 하는 일은 셋.
+ * 하는 일은 넷.
  *   1) TopoJSON 의 arc 를 풀어 실제 경위도 고리로 만든다
- *   2) 더글러스-포이커로 굽이를 줄이고, 지도에서 점 하나로 보일 작은 섬은 버린다
- *   3) 0.1도 격자에 맞춰 폴리라인 부호화로 눌러 담는다 (원본 55KB → 10KB 남짓)
+ *   2) 나라 자료에서는 두 나라가 함께 쓰는 arc 만 골라낸다. 그것이 곧 국경이다.
+ *      (한 번만 쓰인 arc 는 바닷가라, 육지 윤곽과 겹쳐 그리면 지저분해진다)
+ *   3) 더글러스-포이커로 굽이를 줄이고, 지도에서 점 하나로 보일 작은 섬은 버린다
+ *   4) 0.1도 격자에 맞춰 폴리라인 부호화로 눌러 담는다 (원본 160KB → 15KB 남짓)
  *
  * 0.1도면 적도에서 11km 다. 세계지도 한 장에서는 1픽셀도 안 되니 넉넉하다.
  */
@@ -17,17 +19,19 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 
-const SOURCE = 'https://cdn.jsdelivr.net/npm/world-atlas@2/land-110m.json';
+const LAND_SOURCE = 'https://cdn.jsdelivr.net/npm/world-atlas@2/land-110m.json';
+const COUNTRY_SOURCE = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json';
 const OUT = path.join(__dirname, '..', 'src', 'worldmap.js');
 
-const TOLERANCE = 0.3;    // 도. 이보다 얕은 굽이는 편다
-const MIN_SPAN = 1.2;     // 도. 가로세로가 이보다 작은 섬은 버린다
+const TOLERANCE = 0.3;      // 도. 이보다 얕은 굽이는 편다
+const MIN_SPAN = 1.2;       // 도. 가로세로가 이보다 작은 섬은 버린다
+const BORDER_SPAN = 0.7;    // 도. 이보다 짧은 국경 토막은 버린다 (점으로 보인다)
 const MIN_POINTS = 4;
 
-function download() {
-  const cache = path.join(__dirname, '.land-110m.json');
+function download(url, name) {
+  const cache = path.join(__dirname, '.' + name);
   if (fs.existsSync(cache)) return JSON.parse(fs.readFileSync(cache, 'utf8'));
-  const body = execFileSync('curl', ['-sSL', SOURCE], { maxBuffer: 1 << 26, encoding: 'utf8' });
+  const body = execFileSync('curl', ['-sSL', url], { maxBuffer: 1 << 26, encoding: 'utf8' });
   fs.writeFileSync(cache, body);
   return JSON.parse(body);
 }
@@ -117,8 +121,44 @@ function chunk(value) {
   return out + String.fromCharCode(v + 63);
 }
 
+/**
+ * 나라 자료에서 국경만 골라낸다.
+ *
+ * TopoJSON 은 이웃한 두 나라가 맞댄 선을 arc 하나로 나눠 쓴다. 그래서 두 번 이상
+ * 쓰인 arc 가 곧 국경이고, 한 번만 쓰인 arc 는 바닷가다.
+ */
+function borderLines() {
+  const topo = download(COUNTRY_SOURCE, 'countries-110m.json');
+  const used = new Map();
+  const shapes = topo.objects.countries.geometries;
+
+  shapes.forEach((shape) => {
+    const polygons = shape.type === 'MultiPolygon' ? shape.arcs : [shape.arcs];
+    polygons.forEach((polygon) => {
+      polygon.forEach((ring) => {
+        ring.forEach((index) => {
+          const key = index < 0 ? ~index : index;
+          used.set(key, (used.get(key) || 0) + 1);
+        });
+      });
+    });
+  });
+
+  const lines = [];
+  used.forEach((count, index) => {
+    if (count < 2) return;                       // 한 번만 쓰였으면 바닷가
+    const line = decodeArc(topo, index);
+    if (span(line) < BORDER_SPAN) return;
+    const thin = simplify(line, TOLERANCE);
+    if (thin.length < 2) return;
+    lines.push(thin);
+  });
+  lines.sort((a, b) => span(b) - span(a));
+  return lines;
+}
+
 function build() {
-  const topo = download();
+  const topo = download(LAND_SOURCE, 'land-110m.json');
   const land = topo.objects.land;
   const shapes = land.type === 'GeometryCollection' ? land.geometries : [land];
   const polygons = [];
@@ -142,15 +182,19 @@ function build() {
   const encoded = rings.map(encode);
   const points = rings.reduce((sum, r) => sum + r.length, 0);
 
+  const borders = borderLines();
+  const borderPacked = borders.map(encode);
+  const borderPoints = borders.reduce((sum, r) => sum + r.length, 0);
+
   const body = `/**
- * 세계 육지 윤곽. Natural Earth 1:110m 육지 자료(공공 도메인)를 줄여 담았다.
+ * 세계 육지 윤곽과 국경. Natural Earth 1:110m 자료(공공 도메인)를 줄여 담았다.
  *
  * 손으로 적은 좌표가 아니라 scripts/make-worldmap.js 가 만들어 낸 것이다.
  * 고쳐야 할 일이 있으면 그 스크립트를 고치고 \`node scripts/make-worldmap.js\` 를 다시 돌린다.
  *
- * 고리 ${rings.length}개, 점 ${points}개, 0.1도(적도에서 11km) 격자.
- * 세계지도 한 장에서 1픽셀도 안 되는 크기라 대륙 모양을 알아보기에는 넉넉하고,
- * 나라 경계는 담지 않았다. 크루가 보는 건 어느 대륙 어디쯤인지이기 때문이다.
+ * 육지 고리 ${rings.length}개(점 ${points}개), 국경 ${borders.length}줄(점 ${borderPoints}개),
+ * 0.1도(적도에서 11km) 격자. 세계지도 한 장에서 1픽셀도 안 되는 크기다.
+ * 국경은 두 나라가 맞댄 선만 담았다. 바닷가는 육지 윤곽이 이미 그리기 때문이다.
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
@@ -166,7 +210,12 @@ function build() {
 ${encoded.map((line) => '    ' + JSON.stringify(line)).join(',\n')}
   ];
 
+  var BORDERS = [
+${borderPacked.map((line) => '    ' + JSON.stringify(line)).join(',\n')}
+  ];
+
   var cache = null;
+  var borderCache = null;
 
   /** 눌러 담은 글을 좌표로 푼다. 처음 부를 때 한 번만 푼다. */
   function decode(line) {
@@ -200,15 +249,24 @@ ${encoded.map((line) => '    ' + JSON.stringify(line)).join(',\n')}
     return cache;
   }
 
+  /** 국경 선 목록. 고리가 아니라 열린 선이라 이어 그리기만 한다. */
+  function borders() {
+    if (!borderCache) borderCache = BORDERS.map(decode);
+    return borderCache;
+  }
+
   return {
     rings: rings,
-    count: PACKED.length
+    borders: borders,
+    count: PACKED.length,
+    borderCount: BORDERS.length
   };
 });
 `;
   fs.writeFileSync(OUT, body);
-  console.log('만들었습니다: src/worldmap.js (고리 ' + rings.length + '개, 점 ' + points +
-    '개, ' + Math.round(Buffer.byteLength(body) / 1024) + 'KB)');
+  console.log('만들었습니다: src/worldmap.js (육지 고리 ' + rings.length + '개/점 ' + points +
+    '개, 국경 ' + borders.length + '줄/점 ' + borderPoints + '개, ' +
+    Math.round(Buffer.byteLength(body) / 1024) + 'KB)');
 }
 
 build();

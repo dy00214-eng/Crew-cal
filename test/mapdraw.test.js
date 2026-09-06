@@ -96,6 +96,11 @@ test('대륙을 먼저 깔고 그 위에 항로를 얹는다', () => {
   assert.ok(land > 0, '대륙 윤곽이 그려진다');
   assert.ok(land < route, '대륙이 항로보다 먼저 그려져 밑에 깔린다');
   assert.ok(ops.filter((o) => o[0] === 'closePath').length > 80, '고리가 여럿 그려진다');
+
+  // 국경은 육지 위, 항로 아래
+  const border = ops.filter((o) => o[0] === 'stroke' && o[2] === 0.7).length;
+  assert.ok(border > 100, '국경이 ' + border + '줄만 그려졌습니다');
+  assert.ok(ops.findIndex((o) => o[0] === 'stroke' && o[2] === 0.7) < route, '국경도 항로 밑에');
 });
 
 test('지도 가운데를 옮겨도 걸친 대륙이 끊기지 않는다', () => {

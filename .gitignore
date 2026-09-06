@@ -4,3 +4,4 @@ node_modules/
 
 # 지도 자료 원본 캐시 (scripts/make-worldmap.js 가 받아 둔다)
 scripts/.land-110m.json
+scripts/.countries-110m.json

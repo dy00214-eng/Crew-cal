@@ -73,19 +73,26 @@
     return points;
   }
 
+  /** 한 줄을 지도 왼쪽·가운데·오른쪽 세 자리에 그려 본다. 걸친 것도 끊기지 않게. */
+  function eachCopy(points, box, paint) {
+    var minX = Infinity, maxX = -Infinity;
+    points.forEach(function (p) {
+      if (p.x < minX) minX = p.x;
+      if (p.x > maxX) maxX = p.x;
+    });
+    [-box.width, 0, box.width].forEach(function (shift) {
+      if (maxX + shift < 0 || minX + shift > box.width) return;   // 화면 밖
+      paint(shift);
+    });
+  }
+
   /** 대륙을 옅게 깔아 어디쯤인지 알아보게 한다. */
   function drawLand(ctx, box, fill, edge) {
     if (!worldmap) return 0;
     var drawn = 0;
     worldmap.rings().forEach(function (ring) {
       var points = landPath(ring, box);
-      var minX = Infinity, maxX = -Infinity;
-      points.forEach(function (p) {
-        if (p.x < minX) minX = p.x;
-        if (p.x > maxX) maxX = p.x;
-      });
-      [-box.width, 0, box.width].forEach(function (shift) {
-        if (maxX + shift < 0 || minX + shift > box.width) return;   // 화면 밖
+      eachCopy(points, box, function (shift) {
         ctx.beginPath();
         points.forEach(function (p, i) {
           if (i === 0) ctx.moveTo(p.x + shift, p.y);
@@ -96,6 +103,30 @@
         ctx.fill();
         ctx.strokeStyle = edge;
         ctx.lineWidth = 0.8;
+        ctx.stroke();
+        drawn++;
+      });
+    });
+    return drawn;
+  }
+
+  /**
+   * 국경. 육지 윤곽보다 더 옅게, 더 가늘게 긋는다. 나라가 갈리는 건 보이되
+   * 항로와 도시 이름을 가리지 않아야 하기 때문이다.
+   */
+  function drawBorders(ctx, box, stroke) {
+    if (!worldmap || !worldmap.borders) return 0;
+    var drawn = 0;
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = 0.7;
+    worldmap.borders().forEach(function (line) {
+      var points = landPath(line, box);
+      eachCopy(points, box, function (shift) {
+        ctx.beginPath();
+        points.forEach(function (p, i) {
+          if (i === 0) ctx.moveTo(p.x + shift, p.y);
+          else ctx.lineTo(p.x + shift, p.y);
+        });
         ctx.stroke();
         drawn++;
       });
@@ -165,6 +196,7 @@
     ctx.save();
     ctx.globalAlpha = 1;
     drawLand(ctx, box, color.land || faded(ink, 0.11), color.landEdge || faded(ink, 0.22));
+    drawBorders(ctx, box, color.border || faded(ink, 0.16));
     ctx.restore();
 
     // 위·경도 눈금
@@ -304,6 +336,7 @@
     labelled: labelled,
     freeSpot: freeSpot,
     landPath: landPath,
-    faded: faded
+    faded: faded,
+    drawBorders: drawBorders
   };
 });
