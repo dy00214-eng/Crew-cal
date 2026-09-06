@@ -186,10 +186,14 @@ python3 -m http.server 8000   # http://localhost:8000
 
 ## 다른 사람에게 나눠주기
 
-주소로 여는 웹 버전은 GitHub Pages 로 그대로 올라간다. 저장소 **Settings → Pages** 에서
-Source 를 *Deploy from a branch*, 브랜치를 기본 브랜치의 `/ (root)` 로 두면
-`https://dy00214-eng.github.io/Crew-cal/` 이 열린다. 받는 쪽은 가입도 설치도 필요 없고,
-각자의 일정은 각자 기기에만 남는다.
+주소로 여는 웹 버전은 GitHub Pages 로 올라간다. 처음 한 번은 사람이 켜야 한다.
+저장소 **Settings → Pages → Source** 를 **GitHub Actions** 로 두면, 그 다음부터는
+`.github/workflows/pages.yml` 이 push 마다 테스트를 돌리고 배포해
+`https://dy00214-eng.github.io/Crew-cal/` 이 열린다.
+(워크플로의 `configure-pages` 가 Pages 를 자동으로 켜려 하지만, 기본 `GITHUB_TOKEN`
+권한으로는 `Resource not accessible by integration` 이 나서 첫 설정만 손으로 해야 한다.)
+
+받는 쪽은 가입도 설치도 필요 없고, 각자의 일정은 각자 기기에만 남는다.
 
 웹 버전에서만 켜지는 것들:
 
