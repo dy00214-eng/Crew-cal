@@ -49,9 +49,17 @@
     return null;
   }
 
+  /**
+   * 체류(LO)는 시각을 쓰지 않는다. 며칠에 걸쳐 이어지는 상태라 특정 시각이 뜻이 없다.
+   * full 을 주면(툴팁 등) 갖고 있는 값을 그대로 보여준다.
+   */
+  function skipTime(entry, full) {
+    return !full && !!entry && entry.category === 'layover';
+  }
+
   /** 달력 칸에 넣을 짧은 시각 표기: '09:45 출발', '17:50+1 도착', 국내선은 '06:35→07:45' */
   function formatTimeRange(entry, full) {
-    if (!entry) return '';
+    if (!entry || skipTime(entry, full)) return '';
     var suffix = entry.endOffset ? '+' + entry.endOffset : '';
     var side = full ? null : koreanSide(entry);
 
@@ -92,6 +100,7 @@
    */
   function describeTimes(entry, full) {
     if (!entry || (!entry.start && !entry.end)) return '';
+    if (skipTime(entry, full)) return '';
     var flight = entry.type === 'flight' || entry.category === 'flight';
     var startLabel = flight ? '출발' : '시작';
     var endLabel = flight ? '도착' : '종료';
@@ -323,6 +332,7 @@
     describeTimes: describeTimes,
     koreanSide: koreanSide,
     departureFlag: departureFlag,
+    skipTime: skipTime,
     routeLabel: routeLabel,
     placeLabel: placeLabel,
     iso: iso,

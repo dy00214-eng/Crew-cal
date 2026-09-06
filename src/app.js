@@ -75,8 +75,9 @@
     return bits.join(' · ');
   }
 
-  /** 미리보기 표의 출발/도착 칸 */
+  /** 미리보기 표의 출발/도착 칸. 체류는 달력과 마찬가지로 시각을 쓰지 않는다. */
   function timeCellText(entry, which) {
+    if (calendar.skipTime(entry)) return '';
     if (which === 'start') return entry.start || '';
     if (!entry.end) return '';
     return entry.end + (entry.endOffset ? ' (익일)' : '');

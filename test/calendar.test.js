@@ -61,3 +61,17 @@ test('구간을 모르는 항공편은 규칙을 적용하지 않는다', () => 
   assert.strictEqual(calendar.koreanSide({ route: 'GMP/PUS' }), null);
   assert.strictEqual(calendar.koreanSide({}), null);
 });
+
+test('체류에는 시각을 쓰지 않는다', () => {
+  const lo = { type: 'duty', category: 'layover', code: 'LO', start: '09:00', end: '17:00' };
+  assert.strictEqual(calendar.formatTimeRange(lo), '');
+  assert.strictEqual(calendar.describeTimes(lo), '');
+  // 툴팁처럼 전부 보여줘야 할 때는 그대로 나온다
+  assert.strictEqual(calendar.describeTimes(lo, true), '시작 09:00 → 종료 17:00');
+});
+
+test('체류가 아닌 근무는 시각을 그대로 쓴다', () => {
+  const stby = { type: 'duty', category: 'standby', code: 'STBY', start: '09:00', end: '17:00' };
+  assert.strictEqual(calendar.formatTimeRange(stby), '09:00→​17:00');
+  assert.strictEqual(calendar.describeTimes(stby), '시작 09:00 → 종료 17:00');
+});
