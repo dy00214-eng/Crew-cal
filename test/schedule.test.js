@@ -77,3 +77,14 @@ test('되돌아오는 편 추정은 인천에서 나가는 편에만 적용한�
   assert.strictEqual(schedule.lookup('KE9998'), null);   // 짝이 표에 없다
   assert.strictEqual(schedule.lookup('KE2072').derived, false);  // 표에 있으면 그대로
 });
+
+test('표에 없는 홀수 편은 뒤 짝수 편의 나가는 구간으로 본다', () => {
+  const out = schedule.lookup('KE0085');   // KE0086 JFK/ICN 이 표에 있다
+  assert.strictEqual(out.route, 'ICN/JFK');
+  assert.strictEqual(out.derived, true);
+  assert.strictEqual(out.start, null);
+
+  assert.strictEqual(schedule.lookup('KE0741').route, 'ICN/NGO');
+  assert.strictEqual(schedule.lookup('KE0601').route, 'ICN/CEB');
+  assert.strictEqual(schedule.lookup('KE0479').route, 'ICN/SGN');
+});

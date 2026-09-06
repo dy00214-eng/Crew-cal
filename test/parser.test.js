@@ -297,3 +297,36 @@ test('읽어내지 못한 줄은 따로 남겨 확인할 수 있게 한다', () 
   assert.strictEqual(r.skippedLines[0].line, 2);
   assert.strictEqual(r.skippedLines[0].text, '알 수 없는 내용입니다');
 });
+
+test('앞 칸 코드에 다음 날 날짜가 붙어 나와도 날짜를 새로 연다', () => {
+  // 달력 화면을 복사하면 "TVL 6" 처럼 앞 칸 마지막 코드와 다음 칸 날짜가 한 줄이 된다
+  const r = parse('5\nKE0038\nTVL 6\nATDO\n7\nATDO', { year: 2026, month: 7 });
+  assert.deepStrictEqual(
+    r.entries.map(e => e.date + ':' + e.code),
+    ['2026-07-05:KE0038', '2026-07-05:TVL', '2026-07-06:ATDO', '2026-07-07:ATDO']
+  );
+});
+
+test('한 줄에 여러 날이 들어 있어도 날짜별로 나눈다', () => {
+  const r = parse('5 KE0038 TVL 6 ATDO 7 ATDO', { year: 2026, month: 7 });
+  assert.deepStrictEqual(
+    r.entries.map(e => e.date + ':' + e.code),
+    ['2026-07-05:KE0038', '2026-07-05:TVL', '2026-07-06:ATDO', '2026-07-07:ATDO']
+  );
+});
+
+test('줄 중간 날짜는 앞 날짜의 근무를 가져가지 않는다', () => {
+  const r = parse('20\nKE0602\nTVL 21\nKE0479\n22\nLO', { year: 2026, month: 7 });
+  assert.deepStrictEqual(
+    r.entries.map(e => e.date + ':' + e.code),
+    ['2026-07-20:KE0602', '2026-07-20:TVL', '2026-07-21:KE0479', '2026-07-22:LO']
+  );
+});
+
+test('구간과 시각은 줄 중간에 날짜가 끼어도 제 날짜에 붙는다', () => {
+  const r = parse('2 KE0037 ICN/ORD 1040 3 KE0038 ORD/ICN 1650', { year: 2026, month: 7 });
+  assert.deepStrictEqual(
+    r.entries.map(e => [e.date.slice(8), e.code, e.route, e.start]),
+    [['02', 'KE0037', 'ICN/ORD', '10:40'], ['03', 'KE0038', 'ORD/ICN', '16:50']]
+  );
+});

@@ -292,27 +292,51 @@
       var tokens = tokenize(preprocessLine(trimmed));
       if (!tokens.length) return;
 
-      var lineDates = [];
-      var items = [];
+      /*
+       * 한 줄에 여러 날이 들어 있는 경우가 있다. 달력 화면을 복사하면
+       * 앞 칸의 마지막 코드와 다음 칸의 날짜가 "TVL 6" 처럼 한 줄로 붙어 나온다.
+       * 그래서 줄을 날짜 단위 묶음(segment)으로 쪼개 읽는다.
+       */
+      var segments = [{ dates: [], items: [] }];
       var pendingRange = false;
       var unknownTokens = [];
       var lastRoute = null;
+
+      function seg() { return segments[segments.length - 1]; }
+
+      function addDate(date) {
+        if (seg().items.length) segments.push({ dates: [], items: [] });
+        seg().dates.push(date);
+      }
+
+      function hasAnyDate() {
+        return segments.some(function (x) { return x.dates.length; }) || currentDates.length > 0;
+      }
 
       for (var i = 0; i < tokens.length; i++) {
         var token = tokens[i];
         var upper = token.toUpperCase();
 
         // 1) 날짜
-        var atLineStart = (lineDates.length === 0 && items.length === 0 && i <= 1);
-        var asDate = parseDateToken(token, ctx, atLineStart);
+        //    맨 앞의 1~2자리 숫자는 물론, 줄 중간에 다시 나오는 숫자도 날짜로 본다.
+        //    (달력을 복사하면 앞 칸 코드와 다음 칸 날짜가 한 줄에 붙는다)
+        var atLineStart = (segments.length === 1 && seg().dates.length === 0 && seg().items.length === 0 && i <= 1);
+        var midLineDay = false;
+        if (!atLineStart && RE.bareDay.test(token) && hasAnyDate()) {
+          var next = tokens[i + 1];
+          midLineDay = !next || !/^\d+$/.test(next);
+        }
+
+        var asDate = parseDateToken(token, ctx, atLineStart || midLineDay);
         if (asDate) {
-          if (pendingRange && lineDates.length) {
-            var expanded = expandRange(lineDates[lineDates.length - 1], asDate);
+          var dates = seg().dates;
+          if (pendingRange && dates.length) {
+            var expanded = expandRange(dates[dates.length - 1], asDate);
             expanded.shift();
-            lineDates = lineDates.concat(expanded);
+            expanded.forEach(function (d) { dates.push(d); });
             pendingRange = false;
           } else {
-            lineDates.push(asDate);
+            addDate(asDate);
           }
           ctx.currentYear = +asDate.slice(0, 4);
           ctx.currentMonth = +asDate.slice(5, 7);
@@ -321,7 +345,7 @@
 
         // 2) 날짜 범위 구분자 (뒤에 날짜가 와야 범위로 본다)
         if (RE.rangeSep.test(token) || upper === '-' || upper === 'TO') {
-          if (lineDates.length && parseDateToken(tokens[i + 1] || '', ctx, false)) {
+          if (seg().dates.length && parseDateToken(tokens[i + 1] || '', ctx, false)) {
             pendingRange = true;
             continue;
           }
@@ -330,7 +354,7 @@
         // 3) 출발/도착 라벨이 붙은 시각 (STD 1030 / 출발 10:30 / ARR14:20)
         var labeled = readLabeledTime(token, tokens[i + 1]);
         if (labeled) {
-          applyTime(items, labeled.time, labeled.which);
+          applyTime(seg().items, labeled.time, labeled.which);
           i += labeled.consumed - 1;
           continue;
         }
@@ -338,40 +362,40 @@
         // 4) 시각 범위 (1030-1420, 09:30-14:20, 2350-0620+1)
         var range = readTimeRange(upper);
         if (range) {
-          applyTime(items, range.start, 'start');
-          applyTime(items, range.end, 'end');
+          applyTime(seg().items, range.start, 'start');
+          applyTime(seg().items, range.end, 'end');
           continue;
         }
 
         // 5) 단독 시각. 한 줄에 두 번 나오면 출발 -> 도착 순으로 채운다.
         var clock = upper.match(RE.clock) ? readClockToken(upper) : null;
         if (clock) {
-          applyTime(items, clock, 'auto');
+          applyTime(seg().items, clock, 'auto');
           continue;
         }
 
         // 6) '+1' 만 따로 떨어져 있으면 직전 도착 시각을 익일로 표시
         var offsetOnly = upper.match(RE.dayOffset);
         if (offsetOnly) {
-          markNextDay(items, +offsetOnly[1]);
+          markNextDay(seg().items, +offsetOnly[1]);
           continue;
         }
 
         // 4) 구간(공항 코드)
         if (RE.route.test(upper)) {
           lastRoute = upper.replace(/-/g, '/');
-          applyDetail(items, { route: lastRoute });
+          applyDetail(seg().items, { route: lastRoute });
           continue;
         }
 
         // 5) 항공편 (KE0035 / KE 0035 / KE-035)
         var fl = upper.match(RE.flight);
         if (fl && !codes.lookup(upper)) {
-          items.push(makeFlightItem(fl[1], fl[2], fl[3]));
+          seg().items.push(makeFlightItem(fl[1], fl[2], fl[3]));
           continue;
         }
         if (RE.airline.test(upper) && !codes.lookup(upper) && i + 1 < tokens.length && RE.digits.test(tokens[i + 1])) {
-          items.push(makeFlightItem(upper, tokens[i + 1]));
+          seg().items.push(makeFlightItem(upper, tokens[i + 1]));
           i++;
           continue;
         }
@@ -379,19 +403,19 @@
         // 6) 근무 코드
         var slashed = splitSlashCodes(upper);
         if (slashed) {
-          slashed.forEach(function (p) { items.push(makeDutyItem(p)); });
+          slashed.forEach(function (p) { seg().items.push(makeDutyItem(p)); });
           continue;
         }
         if (codes.lookup(upper)) {
-          items.push(makeDutyItem(upper));
+          seg().items.push(makeDutyItem(upper));
           continue;
         }
 
         // 7) 편명이 이미 나온 줄에서 3~4자리 숫자는 출발/도착 시각으로 본다
-        if (/^\d{3,4}(\+\d)?$/.test(upper) && hasFlight(items) && needsTime(items)) {
+        if (/^\d{3,4}(\+\d)?$/.test(upper) && hasFlight(seg().items) && needsTime(seg().items)) {
           var implicit = readClockToken(upper);
           if (implicit) {
-            applyTime(items, implicit, 'auto');
+            applyTime(seg().items, implicit, 'auto');
             continue;
           }
         }
@@ -402,7 +426,7 @@
         // 9) 정체불명 코드 후보 -> 사용자에게 판단을 넘긴다
         if (RE.dutyLike.test(upper) && upper.length >= 2) {
           var item = makeDutyItem(upper);
-          items.push(item);
+          seg().items.push(item);
           unknownTokens.push(upper);
           continue;
         }
@@ -410,16 +434,17 @@
         ignoredLines.push({ line: lineIndex + 1, text: trimmed, token: token });
       }
 
-      var targetDates = lineDates.length ? lineDates : currentDates;
-      if (lineDates.length) currentDates = lineDates;
+      var lineHasDate = segments.some(function (x) { return x.dates.length; });
+      var lineHasItems = segments.some(function (x) { return x.items.length; });
 
-      if (!items.length) {
+      if (!lineHasItems) {
         // 날짜도 근무도 못 읽어낸 줄. 왜 빠졌는지 볼 수 있게 남긴다.
-        if (!lineDates.length) skippedLines.push({ line: lineIndex + 1, text: trimmed });
+        if (!lineHasDate) skippedLines.push({ line: lineIndex + 1, text: trimmed });
+        else currentDates = segments[segments.length - 1].dates;
         return;
       }
 
-      if (!targetDates.length) {
+      if (!lineHasDate && !currentDates.length) {
         warnings.push({
           line: lineIndex + 1,
           text: trimmed,
@@ -436,6 +461,15 @@
         });
       }
 
+      segments.forEach(function (part) {
+        var targetDates = part.dates.length ? part.dates : currentDates;
+        if (part.dates.length) currentDates = part.dates;
+        if (!part.items.length || !targetDates.length) return;
+        addEntries(targetDates, part.items, trimmed);
+      });
+    });
+
+    function addEntries(targetDates, items, trimmed) {
       targetDates.forEach(function (date) {
         items.forEach(function (item) {
           var key = [date, item.code, item.route || '', item.start || '', item.end || ''].join('|');
@@ -457,7 +491,7 @@
           });
         });
       });
-    });
+    }
 
     entries.sort(function (a, b) {
       if (a.date !== b.date) return a.date < b.date ? -1 : 1;

@@ -158,10 +158,28 @@
     return { route: parts[1] + '/ICN', start: null, end: null, endOffset: 0, derived: true };
   }
 
+  /**
+   * 표에 없는 홀수 편은 바로 뒤 짝수 편(들어오는 편)의 나가는 편으로 본다.
+   * (KE0086 JFK/ICN 이면 KE0085 는 ICN/JFK) 구간만 쓰고 시각은 넣지 않는다.
+   */
+  function pairedOutbound(key) {
+    var m = key.match(/^KE(\d{4})$/);
+    if (!m) return null;
+    var num = parseInt(m[1], 10);
+    if (num % 2 !== 1) return null;
+
+    var inbound = TABLE['KE' + String(num + 1).padStart(4, '0')];
+    if (!inbound || !inbound.route) return null;
+
+    var parts = inbound.route.split('/');
+    if (parts.length !== 2 || parts[1] !== 'ICN') return null;
+    return { route: 'ICN/' + parts[0], start: null, end: null, endOffset: 0, derived: true };
+  }
+
   function lookup(code) {
     var key = normalize(code);
     if (!key) return null;
-    var hit = TABLE[key] || pairedReturn(key);
+    var hit = TABLE[key] || pairedReturn(key) || pairedOutbound(key);
     if (!hit) return null;
     return {
       route: hit.route,
