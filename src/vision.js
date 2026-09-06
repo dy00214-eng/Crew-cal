@@ -95,33 +95,45 @@
 
   var samplePromise = null;
 
-  /** 아티팩트 뷰어의 Claude 를 쓸 수 있는지 한 번만 확인한다. */
+  /**
+   * 아티팩트 뷰어의 Claude 를 쓸 수 있는지 한 번만 확인한다.
+   * 못 쓰면 왜 못 쓰는지(reason)를 함께 돌려줘서 화면에서 원인을 알 수 있게 한다.
+   *   no-runtime : 아티팩트 뷰어가 아님 (파일이나 다른 서버로 연 화면)
+   *   no-sample  : 뷰어가 Claude 호출을 지원하지 않거나 허용되지 않음
+   *   no-images  : 호출은 되지만 이 뷰어에서는 이미지를 보낼 수 없음
+   */
   function probeSample() {
     if (samplePromise) return samplePromise;
 
     if (typeof window === 'undefined' || !window.claude || typeof window.claude.use !== 'function') {
-      samplePromise = Promise.resolve(null);
+      samplePromise = Promise.resolve({ backend: null, reason: 'no-runtime' });
       return samplePromise;
     }
 
     samplePromise = window.claude.use('sample').then(function (sample) {
-      if (!sample || typeof sample.limits !== 'function') return null;
+      if (!sample || typeof sample.limits !== 'function') {
+        return { backend: null, reason: 'no-sample' };
+      }
       return sample.limits().then(function (limits) {
-        if (!limits || !limits.images) return null;   // 이 화면은 이미지를 못 보낸다
-        return { kind: 'sample', sample: sample, images: limits.images };
-      }, function () { return null; });
-    }, function () { return null; });
+        if (!limits || !limits.images) return { backend: null, reason: 'no-images' };
+        return { backend: { kind: 'sample', sample: sample, images: limits.images }, reason: null };
+      }, function () {
+        return { backend: null, reason: 'no-images' };
+      });
+    }, function () {
+      return { backend: null, reason: 'no-sample' };
+    });
 
     return samplePromise;
   }
 
-  /** 지금 쓸 수 있는 경로를 알려준다. { kind: 'sample' | 'endpoint' | 'none' } */
+  /** 지금 쓸 수 있는 경로. { kind: 'sample' | 'endpoint' | 'none', reason? } */
   function resolveBackend() {
-    return probeSample().then(function (viewer) {
-      if (viewer) return viewer;
+    return probeSample().then(function (probe) {
+      if (probe.backend) return probe.backend;
       var config = loadConfig();
       if (config.endpoint) return { kind: 'endpoint', endpoint: config.endpoint, model: config.model };
-      return { kind: 'none' };
+      return { kind: 'none', reason: probe.reason };
     });
   }
 

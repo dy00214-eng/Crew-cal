@@ -174,10 +174,11 @@
       <p id="imageStatus" class="status" role="status"></p>
 
       <details class="api-config">
-        <summary>이미지 인식 API 연동 설정</summary>
+        <summary>직접 서버를 운영할 때만 쓰는 설정</summary>
         <p class="muted">
-          Claude 아티팩트로 열었다면 설정 없이 바로 인식됩니다. 이 설정은 앱을 직접 띄워 쓸 때만 필요합니다.
-          브라우저에 API 키를 두면 그대로 노출되므로 키는 서버에 두고, 여기에는 그 서버의 주소만 넣으세요.
+          <strong>보통은 비워두면 됩니다.</strong> 이 칸은 이미지 인식용 서버를 직접 만들어 돌릴 때
+          그 주소를 적는 곳이라, 넣을 주소가 없다면 그냥 두세요.
+          브라우저에 API 키를 두면 그대로 노출되므로 키는 서버에 두고, 여기에는 서버 주소만 넣습니다.
           서버는 <code>{ image_base64, media_type, prompt }</code> 를 받아
           <code>{ text }</code> 또는 <code>{ entries }</code> 로 응답하면 됩니다.
         </p>

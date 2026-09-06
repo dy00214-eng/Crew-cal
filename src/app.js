@@ -558,9 +558,23 @@
       } else if (backend.kind === 'endpoint') {
         setStatus('설정해 둔 인식 서버로 보냅니다.', 'ok');
       } else {
-        setStatus('이 화면에서는 이미지 인식을 쓸 수 없습니다. 텍스트 붙여넣기를 쓰거나, 아래 설정에 인식 서버 주소를 넣어주세요.', 'error');
+        setStatus(unavailableMessage(backend.reason), 'error');
       }
     });
+  }
+
+  /** 이미지 인식을 못 쓸 때, 원인별로 다음에 뭘 하면 되는지 알려준다. */
+  function unavailableMessage(reason) {
+    if (reason === 'no-images') {
+      return '지금 보고 있는 화면에서는 이미지를 보낼 수 없습니다. claude.ai 를 웹 브라우저에서 열어 같은 링크로 들어오면 됩니다. ' +
+        '아니면 스케줄 스크린샷을 Claude 대화창에 보내 텍스트로 받은 뒤, 텍스트 붙여넣기 탭에 넣으세요.';
+    }
+    if (reason === 'no-sample') {
+      return '지금 보고 있는 화면에서는 Claude 를 부를 수 없습니다. claude.ai 를 웹 브라우저에서 열어 같은 링크로 들어오면 됩니다. ' +
+        '아니면 스케줄 스크린샷을 Claude 대화창에 보내 텍스트로 받은 뒤, 텍스트 붙여넣기 탭에 넣으세요.';
+    }
+    return '이 화면은 Claude 아티팩트가 아니라 이미지 인식을 쓸 수 없습니다. ' +
+      '텍스트 붙여넣기를 쓰거나, 직접 서버를 운영한다면 아래 설정에 그 주소를 넣으세요.';
   }
 
   function setImageFile(file) {

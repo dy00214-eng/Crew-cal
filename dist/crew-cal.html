@@ -700,10 +700,11 @@ button.ghost.danger { color: var(--danger); }
       <p id="imageStatus" class="status" role="status"></p>
 
       <details class="api-config">
-        <summary>이미지 인식 API 연동 설정</summary>
+        <summary>직접 서버를 운영할 때만 쓰는 설정</summary>
         <p class="muted">
-          Claude 아티팩트로 열었다면 설정 없이 바로 인식됩니다. 이 설정은 앱을 직접 띄워 쓸 때만 필요합니다.
-          브라우저에 API 키를 두면 그대로 노출되므로 키는 서버에 두고, 여기에는 그 서버의 주소만 넣으세요.
+          <strong>보통은 비워두면 됩니다.</strong> 이 칸은 이미지 인식용 서버를 직접 만들어 돌릴 때
+          그 주소를 적는 곳이라, 넣을 주소가 없다면 그냥 두세요.
+          브라우저에 API 키를 두면 그대로 노출되므로 키는 서버에 두고, 여기에는 서버 주소만 넣습니다.
           서버는 <code>{ image_base64, media_type, prompt }</code> 를 받아
           <code>{ text }</code> 또는 <code>{ entries }</code> 로 응답하면 됩니다.
         </p>
@@ -2197,33 +2198,45 @@ button.ghost.danger { color: var(--danger); }
 
   var samplePromise = null;
 
-  /** 아티팩트 뷰어의 Claude 를 쓸 수 있는지 한 번만 확인한다. */
+  /**
+   * 아티팩트 뷰어의 Claude 를 쓸 수 있는지 한 번만 확인한다.
+   * 못 쓰면 왜 못 쓰는지(reason)를 함께 돌려줘서 화면에서 원인을 알 수 있게 한다.
+   *   no-runtime : 아티팩트 뷰어가 아님 (파일이나 다른 서버로 연 화면)
+   *   no-sample  : 뷰어가 Claude 호출을 지원하지 않거나 허용되지 않음
+   *   no-images  : 호출은 되지만 이 뷰어에서는 이미지를 보낼 수 없음
+   */
   function probeSample() {
     if (samplePromise) return samplePromise;
 
     if (typeof window === 'undefined' || !window.claude || typeof window.claude.use !== 'function') {
-      samplePromise = Promise.resolve(null);
+      samplePromise = Promise.resolve({ backend: null, reason: 'no-runtime' });
       return samplePromise;
     }
 
     samplePromise = window.claude.use('sample').then(function (sample) {
-      if (!sample || typeof sample.limits !== 'function') return null;
+      if (!sample || typeof sample.limits !== 'function') {
+        return { backend: null, reason: 'no-sample' };
+      }
       return sample.limits().then(function (limits) {
-        if (!limits || !limits.images) return null;   // 이 화면은 이미지를 못 보낸다
-        return { kind: 'sample', sample: sample, images: limits.images };
-      }, function () { return null; });
-    }, function () { return null; });
+        if (!limits || !limits.images) return { backend: null, reason: 'no-images' };
+        return { backend: { kind: 'sample', sample: sample, images: limits.images }, reason: null };
+      }, function () {
+        return { backend: null, reason: 'no-images' };
+      });
+    }, function () {
+      return { backend: null, reason: 'no-sample' };
+    });
 
     return samplePromise;
   }
 
-  /** 지금 쓸 수 있는 경로를 알려준다. { kind: 'sample' | 'endpoint' | 'none' } */
+  /** 지금 쓸 수 있는 경로. { kind: 'sample' | 'endpoint' | 'none', reason? } */
   function resolveBackend() {
-    return probeSample().then(function (viewer) {
-      if (viewer) return viewer;
+    return probeSample().then(function (probe) {
+      if (probe.backend) return probe.backend;
       var config = loadConfig();
       if (config.endpoint) return { kind: 'endpoint', endpoint: config.endpoint, model: config.model };
-      return { kind: 'none' };
+      return { kind: 'none', reason: probe.reason };
     });
   }
 
@@ -2958,9 +2971,23 @@ button.ghost.danger { color: var(--danger); }
       } else if (backend.kind === 'endpoint') {
         setStatus('설정해 둔 인식 서버로 보냅니다.', 'ok');
       } else {
-        setStatus('이 화면에서는 이미지 인식을 쓸 수 없습니다. 텍스트 붙여넣기를 쓰거나, 아래 설정에 인식 서버 주소를 넣어주세요.', 'error');
+        setStatus(unavailableMessage(backend.reason), 'error');
       }
     });
+  }
+
+  /** 이미지 인식을 못 쓸 때, 원인별로 다음에 뭘 하면 되는지 알려준다. */
+  function unavailableMessage(reason) {
+    if (reason === 'no-images') {
+      return '지금 보고 있는 화면에서는 이미지를 보낼 수 없습니다. claude.ai 를 웹 브라우저에서 열어 같은 링크로 들어오면 됩니다. ' +
+        '아니면 스케줄 스크린샷을 Claude 대화창에 보내 텍스트로 받은 뒤, 텍스트 붙여넣기 탭에 넣으세요.';
+    }
+    if (reason === 'no-sample') {
+      return '지금 보고 있는 화면에서는 Claude 를 부를 수 없습니다. claude.ai 를 웹 브라우저에서 열어 같은 링크로 들어오면 됩니다. ' +
+        '아니면 스케줄 스크린샷을 Claude 대화창에 보내 텍스트로 받은 뒤, 텍스트 붙여넣기 탭에 넣으세요.';
+    }
+    return '이 화면은 Claude 아티팩트가 아니라 이미지 인식을 쓸 수 없습니다. ' +
+      '텍스트 붙여넣기를 쓰거나, 직접 서버를 운영한다면 아래 설정에 그 주소를 넣으세요.';
   }
 
   function setImageFile(file) {
