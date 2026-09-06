@@ -174,6 +174,7 @@ KE0704  NRT/ICN  1310
 
 ## 저장
 모든 일정은 브라우저 `localStorage`(`crew-cal.schedule.v1`)에 저장된다. 서버로 나가는 데이터는 없다.
+그래서 같은 링크를 여럿이 써도 서로의 일정이 섞이지 않는다. 기기를 바꾸면 백업 파일로 옮긴다.
 하단의 백업 내보내기 / 불러오기로 JSON 파일 왕복이 가능하다.
 
 ## 실행
@@ -181,6 +182,32 @@ KE0704  NRT/ICN  1310
 ```bash
 # 그냥 index.html 을 브라우저로 열어도 된다
 python3 -m http.server 8000   # http://localhost:8000
+```
+
+## 다른 사람에게 나눠주기
+
+주소로 여는 웹 버전은 GitHub Pages 로 그대로 올라간다. 저장소 **Settings → Pages** 에서
+Source 를 *Deploy from a branch*, 브랜치를 기본 브랜치의 `/ (root)` 로 두면
+`https://dy00214-eng.github.io/Crew-cal/` 이 열린다. 받는 쪽은 가입도 설치도 필요 없고,
+각자의 일정은 각자 기기에만 남는다.
+
+웹 버전에서만 켜지는 것들:
+
+- **홈 화면에 추가** — `manifest.webmanifest` + `icons/icon-*.png`. 아이폰은 사파리
+  공유 → 홈 화면에 추가를 하면 주소창 없이 앱처럼 뜬다.
+- **오프라인** — `sw.js` 가 앱 파일을 기기에 담아둬서, 두 번째부터는 비행기 안에서도 열린다.
+  일정을 보여주고 새 파일은 뒤에서 받아 다음 번에 갈아끼운다.
+- **동료에게 링크 보내기** 버튼 — `navigator.share`, 없으면 링크 복사.
+- **처음 안내 카드** — 일정이 하나도 없을 때만 뜨고, 닫으면 `crew-cal.welcome.v1` 에 기록한다.
+  바닥글의 "사용법 다시 보기" 로 다시 부를 수 있다.
+
+한 파일로 묶은 아티팩트 버전에는 `<head>` 가 없어 manifest 링크도 없다. 앱은 그걸로
+웹 버전인지 가려서(`isWebBuild()`) 위 기능들을 켜고 끈다.
+
+아이콘을 다시 만들려면:
+
+```bash
+node scripts/make-icons.js   # icons/icon-180.png, 192, 512
 ```
 
 ## 한 파일로 묶기

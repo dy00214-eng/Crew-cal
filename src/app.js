@@ -1024,6 +1024,89 @@
 
   /* ---------------- 시작 ---------------- */
 
+  /* ---------------- 처음 온 사람 · 공유 · 오프라인 ---------------- */
+
+  var WELCOME_KEY = 'crew-cal.welcome.v1';
+
+  /**
+   * 한 파일로 묶은 아티팩트 버전인지, 주소가 있는 웹 버전인지 가른다.
+   * manifest 는 index.html 에만 있고 build.js 는 body 만 옮기므로, 이걸로 구분한다.
+   */
+  function isWebBuild() {
+    return !!document.querySelector('link[rel="manifest"]') &&
+      (location.protocol === 'http:' || location.protocol === 'https:');
+  }
+
+  function seenWelcome() {
+    try { return localStorage.getItem(WELCOME_KEY) === '1'; } catch (e) { return false; }
+  }
+
+  function markWelcomeSeen() {
+    try { localStorage.setItem(WELCOME_KEY, '1'); } catch (e) { /* 저장 실패는 무시 */ }
+  }
+
+  function showWelcome(force) {
+    var card = $('welcome');
+    if (!card) return;
+    var empty = !Object.keys(store.getAll()).length;
+    card.hidden = !(force || (empty && !seenWelcome()));
+    if (force) card.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }
+
+  function hideWelcome() {
+    markWelcomeSeen();
+    if ($('welcome')) $('welcome').hidden = true;
+  }
+
+  function initWelcome() {
+    var ios = /iP(hone|ad|od)/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    // "홈 화면에 추가" 안내는 주소로 연 웹 버전에서만 말이 된다
+    if (ios && isWebBuild()) document.body.classList.add('is-ios');
+    if ($('welcomeClose')) $('welcomeClose').addEventListener('click', hideWelcome);
+    if ($('welcomeDismiss')) $('welcomeDismiss').addEventListener('click', hideWelcome);
+    if ($('welcomeStart')) {
+      $('welcomeStart').addEventListener('click', function () {
+        hideWelcome();
+        showTab('paste');
+        $('pasteInput').focus();
+      });
+    }
+    if ($('helpBtn')) $('helpBtn').addEventListener('click', function () { showWelcome(true); });
+    showWelcome(false);
+  }
+
+  /** 같이 타는 동료에게 이 앱 주소를 넘겨준다. 주소가 없는 아티팩트에서는 감춘다. */
+  function initShare() {
+    var btn = $('shareBtn');
+    if (!btn || !isWebBuild()) return;
+    btn.hidden = false;
+    btn.addEventListener('click', function () {
+      var url = location.origin + location.pathname;
+      var payload = { title: '크루캘', text: '크루넷 스케줄을 붙여넣으면 달력으로 정리해 주는 앱', url: url };
+      if (navigator.share) {
+        navigator.share(payload).catch(function () { /* 사용자가 닫은 경우 */ });
+        return;
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(
+          function () { toast('링크를 복사했습니다.'); },
+          function () { toast(url); }
+        );
+        return;
+      }
+      toast(url);
+    });
+  }
+
+  /** 두 번째부터는 네트워크 없이도 열리게 앱 파일을 기기에 담아둔다. */
+  function initOffline() {
+    if (!isWebBuild() || !('serviceWorker' in navigator)) return;
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function () { /* 안 되면 그냥 온라인으로 */ });
+    });
+  }
+
   function init() {
     $('prevMonth').addEventListener('click', function () { goMonth(-1); });
     $('nextMonth').addEventListener('click', function () { goMonth(1); });
@@ -1044,6 +1127,9 @@
     initPaste();
     initImage();
     initDataTools();
+    initWelcome();
+    initShare();
+    initOffline();
     refresh();
   }
 

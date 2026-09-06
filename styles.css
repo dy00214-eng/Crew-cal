@@ -772,6 +772,72 @@ button.ghost.danger { color: var(--danger); }
   outline-offset: 2px;
 }
 
+/* ---------- 처음 온 사람에게 보여줄 안내 ---------- */
+.welcome-card {
+  grid-column: 1 / -1;
+  border: 1px solid var(--accent-soft);
+  background: linear-gradient(180deg, var(--accent-soft), var(--surface) 58%);
+  position: relative;
+  padding: 20px;
+}
+.welcome-card h2 {
+  margin: 0 0 12px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.4px;
+}
+.welcome-steps {
+  margin: 0 0 12px;
+  padding-left: 22px;
+  display: grid;
+  gap: 8px;
+  font-size: 15px;
+  line-height: 1.5;
+}
+.welcome-steps b { font-weight: 600; }
+.welcome-note {
+  margin: 0 0 14px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.welcome-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--fill);
+  color: var(--muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+.welcome-close:hover { background: var(--fill-strong); }
+.ios-only { display: none; }
+.is-ios .ios-only { display: inline; }
+
+/* ---------- 바닥글 ---------- */
+.app-footer {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 20px 40px;
+  text-align: center;
+  color: var(--faint);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.app-footer p { margin: 2px 0; }
+.linky {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--accent);
+  cursor: pointer;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
@@ -792,6 +858,12 @@ button.ghost.danger { color: var(--danger); }
   .cal-cell { padding: 3px 2px 5px; }
   .chip { font-size: 10px; padding: 2px 4px; }
   .cal-place, .cal-time { font-size: 10.5px; }
+}
+
+@media (max-width: 640px) {
+  .welcome-card { padding: 16px; }
+  .welcome-card h2 { font-size: 18px; }
+  .welcome-steps { padding-left: 20px; font-size: 14px; }
 }
 
 @media (max-width: 560px) {
