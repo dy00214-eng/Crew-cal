@@ -3,7 +3,7 @@ import 'leaflet/dist/leaflet.css';
 import { useEffect, useRef } from 'react';
 import type { Property } from '../db/types.ts';
 import { dealPrefix, formatDeal } from '../lib/format.ts';
-import { TILE_ATTRIBUTION, tileUrlTemplate } from '../lib/tiles.ts';
+import { TILE_ATTRIBUTION, TILE_MAX_ZOOM, tileUrlTemplate } from '../lib/tiles.ts';
 import type { LatLngBounds } from '../lib/tiles.ts';
 
 export interface MapState {
@@ -47,7 +47,7 @@ export default function MapView({
       attributionControl: true,
     });
     L.tileLayer(tileUrlTemplate(), {
-      maxZoom: 19,
+      maxZoom: TILE_MAX_ZOOM,
       attribution: TILE_ATTRIBUTION,
       // 캐시에 없는 타일은 종이색 빈칸으로 남는다. 오프라인이면 화면에서 그대로 보인다.
       className: 'tile',

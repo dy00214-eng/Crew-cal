@@ -7,12 +7,58 @@
  */
 export const TILE_CACHE = 'map-tiles';
 
-const TILE_URL =
-  (import.meta.env?.VITE_TILE_URL as string | undefined) ??
-  'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+export interface TileSource {
+  /** 이름 (설정 화면 표시용) */
+  name: string;
+  /** {z}/{x}/{y} 자리를 채워 쓰는 템플릿. VWorld 처럼 순서가 {z}/{y}/{x} 여도 된다. */
+  url: string;
+  attribution: string;
+  maxZoom: number;
+}
 
-export const TILE_ATTRIBUTION =
-  (import.meta.env?.VITE_TILE_ATTRIBUTION as string | undefined) ?? '© OpenStreetMap contributors';
+/** import.meta.env 를 받아 타일 출처를 정한다. 순수 함수라 테스트로 고정해 둔다. */
+export function resolveTileSource(env: Record<string, string | undefined> = {}): TileSource {
+  // 1) 직접 지정한 템플릿이 최우선
+  if (env.VITE_TILE_URL) {
+    return {
+      name: '직접 지정',
+      url: env.VITE_TILE_URL,
+      attribution: env.VITE_TILE_ATTRIBUTION ?? '',
+      maxZoom: toZoom(env.VITE_TILE_MAX_ZOOM, 19),
+    };
+  }
+
+  // 2) VWorld (국토교통부). 한국 지명·건물·도로명이 제대로 나온다.
+  //    WMTS 타일 경로는 {z}/{y}/{x} 순서다 — OSM 과 x, y 가 뒤집혀 있으니 주의.
+  if (env.VITE_VWORLD_KEY) {
+    const layer = env.VITE_VWORLD_LAYER || 'Base';
+    return {
+      name: `VWorld ${layer}`,
+      url: `https://api.vworld.kr/req/wmts/1.0.0/${env.VITE_VWORLD_KEY}/${layer}/{z}/{y}/{x}.png`,
+      attribution: env.VITE_TILE_ATTRIBUTION ?? '© VWorld (국토교통부)',
+      maxZoom: toZoom(env.VITE_TILE_MAX_ZOOM, 19),
+    };
+  }
+
+  // 3) 키 없이도 앱이 그냥 돌아가야 하므로 OSM 이 기본값
+  return {
+    name: 'OpenStreetMap',
+    url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: env.VITE_TILE_ATTRIBUTION ?? '© OpenStreetMap contributors',
+    maxZoom: toZoom(env.VITE_TILE_MAX_ZOOM, 19),
+  };
+}
+
+function toZoom(value: string | undefined, fallback: number): number {
+  const n = Number(value);
+  return Number.isInteger(n) && n >= 1 && n <= 22 ? n : fallback;
+}
+
+const SOURCE = resolveTileSource(import.meta.env as unknown as Record<string, string | undefined>);
+
+export const TILE_ATTRIBUTION = SOURCE.attribution;
+export const TILE_MAX_ZOOM = SOURCE.maxZoom;
+export const TILE_SOURCE_NAME = SOURCE.name;
 
 /** 한 번에 받아둘 수 있는 타일 수 상한. 넘으면 바깥쪽부터 자른다. */
 export const PREFETCH_CAP = 400;
@@ -31,11 +77,14 @@ export interface LatLngBounds {
 }
 
 export function tileUrlTemplate(): string {
-  return TILE_URL;
+  return SOURCE.url;
 }
 
-export function tileUrl({ z, x, y }: TileRef): string {
-  return TILE_URL.replace('{z}', String(z)).replace('{x}', String(x)).replace('{y}', String(y));
+export function tileUrl(ref: TileRef, template: string = SOURCE.url): string {
+  return template
+    .replace('{z}', String(ref.z))
+    .replace('{x}', String(ref.x))
+    .replace('{y}', String(ref.y));
 }
 
 export function lonToTileX(lon: number, z: number): number {

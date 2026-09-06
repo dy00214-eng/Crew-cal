@@ -5,7 +5,7 @@ import TopBar from '../components/TopBar.tsx';
 import type { MapState } from '../components/MapView.tsx';
 import { db } from '../db/db.ts';
 import { patchProperty } from '../db/repo.ts';
-import { PREFETCH_CAP, prefetchTiles, tilesForBounds } from '../lib/tiles.ts';
+import { PREFETCH_CAP, TILE_MAX_ZOOM, prefetchTiles, tilesForBounds } from '../lib/tiles.ts';
 import { useOnline } from '../lib/useOnline.ts';
 
 // 지도(leaflet)는 이 화면에서만 쓴다. 목록 첫 진입이 무거워지지 않게 떼어 둔다.
@@ -50,7 +50,7 @@ export default function MapPage() {
     const state = stateRef.current;
     if (!state || saving) return;
     setSaving(true);
-    const zooms = [state.zoom, state.zoom + 1].filter((z) => z >= 1 && z <= 19);
+    const zooms = [state.zoom, state.zoom + 1].filter((z) => z >= 1 && z <= TILE_MAX_ZOOM);
     const tiles = tilesForBounds(state.bounds, zooms, PREFETCH_CAP);
     setNote(`지도 ${tiles.length}칸 저장 중… 0%`);
     try {

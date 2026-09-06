@@ -7,7 +7,7 @@ import { db } from '../db/db.ts';
 import { download, exportZip, importZip } from '../lib/backup.ts';
 import { formatBytes, round } from '../lib/format.ts';
 import { requestPersist, storageUsage } from '../lib/storage.ts';
-import { clearTileCache, tileCacheCount } from '../lib/tiles.ts';
+import { TILE_SOURCE_NAME, clearTileCache, tileCacheCount } from '../lib/tiles.ts';
 import type { StorageUsage } from '../lib/storage.ts';
 
 export default function SettingsPage() {
@@ -90,6 +90,9 @@ export default function SettingsPage() {
 
         <section className="section">
           <h2>지도</h2>
+          <p className="hint">
+            지도 출처 <strong>{TILE_SOURCE_NAME}</strong>
+          </p>
           <p className="hint num">저장해 둔 지도 칸 {tiles ?? 0}개</p>
           <p className="hint">
             지도에서 "이 지역 저장" 을 누른 구역은 오프라인에서도 뜹니다. 사진 넣을 자리가 모자라면 여기서 비우세요.

@@ -3,6 +3,7 @@ import {
   PREFETCH_CAP,
   latToTileY,
   lonToTileX,
+  resolveTileSource,
   tileUrl,
   tileUrlTemplate,
   tilesForBounds,
@@ -87,5 +88,54 @@ describe('tileUrl', () => {
       expect(hit?.index).toBe(0);
     }
     expect(pattern.test('https://example.com/app/index.html')).toBe(false);
+  });
+});
+
+describe('타일 출처 고르기', () => {
+  it('아무 설정이 없으면 OSM (키 없이도 앱이 돈다)', () => {
+    const src = resolveTileSource({});
+    expect(src.name).toBe('OpenStreetMap');
+    expect(src.url).toBe('https://tile.openstreetmap.org/{z}/{x}/{y}.png');
+    expect(src.maxZoom).toBe(19);
+  });
+
+  it('VWorld 키를 넣으면 VWorld 로 간다', () => {
+    const src = resolveTileSource({ VITE_VWORLD_KEY: 'ABC-123' });
+    expect(src.name).toBe('VWorld Base');
+    expect(src.url).toBe('https://api.vworld.kr/req/wmts/1.0.0/ABC-123/Base/{z}/{y}/{x}.png');
+    expect(src.attribution).toContain('VWorld');
+  });
+
+  it('VWorld 레이어를 고를 수 있다', () => {
+    const src = resolveTileSource({ VITE_VWORLD_KEY: 'K', VITE_VWORLD_LAYER: 'Satellite' });
+    expect(src.name).toBe('VWorld Satellite');
+    expect(src.url).toContain('/K/Satellite/');
+  });
+
+  it('VWorld 는 {z}/{y}/{x} 순서다 — x, y 를 바꿔 끼우면 안 된다', () => {
+    const src = resolveTileSource({ VITE_VWORLD_KEY: 'K' });
+    // z=13, x=6989(열), y=3170(행) -> 경로는 .../13/3170/6989.png
+    expect(tileUrl({ z: 13, x: 6989, y: 3170 }, src.url)).toBe(
+      'https://api.vworld.kr/req/wmts/1.0.0/K/Base/13/3170/6989.png',
+    );
+  });
+
+  it('VWorld URL 도 서비스워커 캐시 규칙에 걸린다', () => {
+    const pattern = /^https?:\/\/[^?#]*\/\d{1,2}\/\d+\/\d+\.(?:png|jpg|jpeg|webp)$/;
+    const src = resolveTileSource({ VITE_VWORLD_KEY: 'K' });
+    const hit = pattern.exec(tileUrl({ z: 13, x: 6989, y: 3170 }, src.url));
+    expect(hit?.index).toBe(0);
+  });
+
+  it('직접 지정한 템플릿이 VWorld 키보다 우선한다', () => {
+    const src = resolveTileSource({ VITE_TILE_URL: 'https://my/{z}/{x}/{y}.png', VITE_VWORLD_KEY: 'K' });
+    expect(src.name).toBe('직접 지정');
+    expect(src.url).toBe('https://my/{z}/{x}/{y}.png');
+  });
+
+  it('말이 안 되는 최대 줌은 기본값으로 되돌린다', () => {
+    expect(resolveTileSource({ VITE_TILE_MAX_ZOOM: '0' }).maxZoom).toBe(19);
+    expect(resolveTileSource({ VITE_TILE_MAX_ZOOM: '없음' }).maxZoom).toBe(19);
+    expect(resolveTileSource({ VITE_TILE_MAX_ZOOM: '18' }).maxZoom).toBe(18);
   });
 });
