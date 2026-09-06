@@ -257,7 +257,9 @@ body {
 }
 .flight-book summary { cursor: pointer; font-size: 13px; font-weight: 600; }
 .flight-book .muted { margin: 8px 0; line-height: 1.5; }
-.flight-book .entry-list { margin-top: 8px; }
+.flight-book .entry-list { margin-top: 10px; }
+.flight-book .field { margin-top: 6px; }
+.flight-book textarea { font-size: 12.5px; }
 
 .memo {
   background: var(--accent-soft);

@@ -824,7 +824,6 @@
   function renderFlightBook() {
     var list = store.flightList();
     $('flightCount').textContent = list.length;
-    $('flightBook').hidden = list.length === 0;
 
     var ul = $('flightList');
     ul.innerHTML = '';
@@ -847,8 +846,42 @@
     });
   }
 
+  /**
+   * "KE0035 ICN/ATL 0945-1020" 같은 줄을 한꺼번에 읽어 편명 사전에 넣는다.
+   * 날짜만 붙이면 텍스트 파서를 그대로 쓸 수 있어, 시각 표기도 붙여넣기와 똑같이 처리된다.
+   */
+  function importFlightBook() {
+    var text = $('flightBookInput').value;
+    if (!text.trim()) {
+      toast('등록할 내용이 없습니다.');
+      return;
+    }
+
+    var lines = text.split('\n').filter(function (line) { return line.trim(); });
+    var dated = lines.map(function (line) { return '2000-01-01\t' + line.trim(); }).join('\n');
+    var result = parser.parse(dated, { year: 2000, month: 1 });
+
+    var learned = 0;
+    result.entries.forEach(function (entry) {
+      if (store.learnFlight(entry)) learned++;
+    });
+
+    if (!learned) {
+      toast('편명을 찾지 못했습니다. "KE0035 ICN/ATL 0945-1020" 형식으로 적어주세요.');
+      return;
+    }
+
+    var filled = store.enrichAll();
+    $('flightBookInput').value = '';
+    renderFlightBook();
+    refresh();
+    toast(learned + '개 편명 등록' + (filled ? ' · 기존 일정 ' + filled + '건에 채움' : ''));
+  }
+
   function initDataTools() {
     renderFlightBook();
+
+    $('importFlightsBtn').addEventListener('click', importFlightBook);
 
     $('forgetFlightsBtn').addEventListener('click', function () {
       if (!window.confirm('기억해둔 편명의 구간·시각을 모두 지웁니다. 계속할까요?')) return;

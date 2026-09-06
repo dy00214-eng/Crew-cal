@@ -142,6 +142,21 @@
     saveFlights({});
   }
 
+  /** 이미 저장된 일정 가운데 구간·시각이 비어 있는 항공편을 기억한 값으로 채운다. */
+  function enrichAll() {
+    var data = load();
+    var filled = 0;
+    Object.keys(data.entries).forEach(function (date) {
+      data.entries[date].forEach(function (entry) {
+        var before = [entry.route, entry.start, entry.end].join('|');
+        enrich(entry);
+        if ([entry.route, entry.start, entry.end].join('|') !== before) filled++;
+      });
+    });
+    if (filled) save(data);
+    return filled;
+  }
+
   function flightList() {
     var data = loadFlights();
     return Object.keys(data).sort().map(function (code) {
@@ -343,6 +358,7 @@
     enrich: enrich,
     flightList: flightList,
     forgetFlights: forgetFlights,
+    enrichAll: enrichAll,
     FLIGHTS_KEY: FLIGHTS_KEY,
     newId: newId
   };

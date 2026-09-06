@@ -163,3 +163,18 @@ test('편명 기억은 따로 지울 수 있다', () => {
   assert.deepStrictEqual(store.flightList(), []);
   assert.strictEqual(store.getByDate('2026-09-02').length, 1);
 });
+
+test('이미 저장된 일정에도 기억한 값을 소급해서 채운다', () => {
+  store.applyEntries([
+    { date: '2026-09-02', code: 'KE0035', type: 'flight' },
+    { date: '2026-09-16', code: 'KE0035', type: 'flight' },
+    { date: '2026-09-03', code: 'LO', type: 'duty' }
+  ], 'replace');
+  store.learnFlight({ code: 'KE0035', type: 'flight', route: 'ICN/ATL', start: '09:45', end: '10:20' });
+
+  assert.strictEqual(store.enrichAll(), 2);
+  assert.strictEqual(store.getByDate('2026-09-02')[0].start, '09:45');
+  assert.strictEqual(store.getByDate('2026-09-16')[0].route, 'ICN/ATL');
+  assert.strictEqual(store.getByDate('2026-09-03')[0].start, null);
+  assert.strictEqual(store.enrichAll(), 0);   // 다시 돌려도 바뀌는 게 없다
+});

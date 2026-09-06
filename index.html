@@ -215,16 +215,22 @@
       </details>
     </div>
 
-    <details id="flightBook" class="flight-book" hidden>
+    <details id="flightBook" class="flight-book">
       <summary>기억한 편명 <span id="flightCount">0</span>개</summary>
       <p class="muted">
         구간이나 시각을 한 번 넣은 편명은 기억해 두었다가, 다음에 코드만 들어오면 그대로 채웁니다.
         크루넷 월간 화면처럼 시각이 없는 스케줄에도 시각이 붙습니다.
       </p>
-      <ul id="flightList" class="entry-list"></ul>
+      <label class="field">
+        <span>한꺼번에 등록 <em>(한 줄에 하나: 편명 구간 출발-도착)</em></span>
+        <textarea id="flightBookInput" rows="5" spellcheck="false"
+          placeholder="KE0035  ICN/ATL  0945-1020&#10;KE0036  ATL/ICN  1325-1750+1&#10;KE0901  ICN/CDG  1205-1830"></textarea>
+      </label>
       <div class="actions">
+        <button type="button" id="importFlightsBtn" class="primary">등록하고 기존 일정에 채우기</button>
         <button type="button" id="forgetFlightsBtn" class="ghost small danger">편명 기억 지우기</button>
       </div>
+      <ul id="flightList" class="entry-list"></ul>
     </details>
 
     <div class="data-tools">

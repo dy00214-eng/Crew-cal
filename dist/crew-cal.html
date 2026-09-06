@@ -261,7 +261,9 @@ body {
 }
 .flight-book summary { cursor: pointer; font-size: 13px; font-weight: 600; }
 .flight-book .muted { margin: 8px 0; line-height: 1.5; }
-.flight-book .entry-list { margin-top: 8px; }
+.flight-book .entry-list { margin-top: 10px; }
+.flight-book .field { margin-top: 6px; }
+.flight-book textarea { font-size: 12.5px; }
 
 .memo {
   background: var(--accent-soft);
@@ -779,16 +781,22 @@ button.ghost.danger { color: var(--danger); }
       </details>
     </div>
 
-    <details id="flightBook" class="flight-book" hidden>
+    <details id="flightBook" class="flight-book">
       <summary>기억한 편명 <span id="flightCount">0</span>개</summary>
       <p class="muted">
         구간이나 시각을 한 번 넣은 편명은 기억해 두었다가, 다음에 코드만 들어오면 그대로 채웁니다.
         크루넷 월간 화면처럼 시각이 없는 스케줄에도 시각이 붙습니다.
       </p>
-      <ul id="flightList" class="entry-list"></ul>
+      <label class="field">
+        <span>한꺼번에 등록 <em>(한 줄에 하나: 편명 구간 출발-도착)</em></span>
+        <textarea id="flightBookInput" rows="5" spellcheck="false"
+          placeholder="KE0035  ICN/ATL  0945-1020&#10;KE0036  ATL/ICN  1325-1750+1&#10;KE0901  ICN/CDG  1205-1830"></textarea>
+      </label>
       <div class="actions">
+        <button type="button" id="importFlightsBtn" class="primary">등록하고 기존 일정에 채우기</button>
         <button type="button" id="forgetFlightsBtn" class="ghost small danger">편명 기억 지우기</button>
       </div>
+      <ul id="flightList" class="entry-list"></ul>
     </details>
 
     <div class="data-tools">
@@ -1631,6 +1639,21 @@ button.ghost.danger { color: var(--danger); }
     saveFlights({});
   }
 
+  /** 이미 저장된 일정 가운데 구간·시각이 비어 있는 항공편을 기억한 값으로 채운다. */
+  function enrichAll() {
+    var data = load();
+    var filled = 0;
+    Object.keys(data.entries).forEach(function (date) {
+      data.entries[date].forEach(function (entry) {
+        var before = [entry.route, entry.start, entry.end].join('|');
+        enrich(entry);
+        if ([entry.route, entry.start, entry.end].join('|') !== before) filled++;
+      });
+    });
+    if (filled) save(data);
+    return filled;
+  }
+
   function flightList() {
     var data = loadFlights();
     return Object.keys(data).sort().map(function (code) {
@@ -1832,6 +1855,7 @@ button.ghost.danger { color: var(--danger); }
     enrich: enrich,
     flightList: flightList,
     forgetFlights: forgetFlights,
+    enrichAll: enrichAll,
     FLIGHTS_KEY: FLIGHTS_KEY,
     newId: newId
   };
@@ -3436,7 +3460,6 @@ button.ghost.danger { color: var(--danger); }
   function renderFlightBook() {
     var list = store.flightList();
     $('flightCount').textContent = list.length;
-    $('flightBook').hidden = list.length === 0;
 
     var ul = $('flightList');
     ul.innerHTML = '';
@@ -3459,8 +3482,42 @@ button.ghost.danger { color: var(--danger); }
     });
   }
 
+  /**
+   * "KE0035 ICN/ATL 0945-1020" 같은 줄을 한꺼번에 읽어 편명 사전에 넣는다.
+   * 날짜만 붙이면 텍스트 파서를 그대로 쓸 수 있어, 시각 표기도 붙여넣기와 똑같이 처리된다.
+   */
+  function importFlightBook() {
+    var text = $('flightBookInput').value;
+    if (!text.trim()) {
+      toast('등록할 내용이 없습니다.');
+      return;
+    }
+
+    var lines = text.split('\n').filter(function (line) { return line.trim(); });
+    var dated = lines.map(function (line) { return '2000-01-01\t' + line.trim(); }).join('\n');
+    var result = parser.parse(dated, { year: 2000, month: 1 });
+
+    var learned = 0;
+    result.entries.forEach(function (entry) {
+      if (store.learnFlight(entry)) learned++;
+    });
+
+    if (!learned) {
+      toast('편명을 찾지 못했습니다. "KE0035 ICN/ATL 0945-1020" 형식으로 적어주세요.');
+      return;
+    }
+
+    var filled = store.enrichAll();
+    $('flightBookInput').value = '';
+    renderFlightBook();
+    refresh();
+    toast(learned + '개 편명 등록' + (filled ? ' · 기존 일정 ' + filled + '건에 채움' : ''));
+  }
+
   function initDataTools() {
     renderFlightBook();
+
+    $('importFlightsBtn').addEventListener('click', importFlightBook);
 
     $('forgetFlightsBtn').addEventListener('click', function () {
       if (!window.confirm('기억해둔 편명의 구간·시각을 모두 지웁니다. 계속할까요?')) return;
