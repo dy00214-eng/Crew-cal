@@ -127,6 +127,28 @@
     return samplePromise;
   }
 
+  /**
+   * 이 화면이 무엇을 지원하는지 확인한다. 안 될 때 원인을 좁히기 위한 진단용.
+   * 아티팩트를 주소창에 직접 열면 뷰어가 감싸주지 않아 모든 기능이 꺼진 상태로 뜬다.
+   */
+  function diagnose() {
+    var hasRuntime = typeof window !== 'undefined' && !!window.claude && typeof window.claude.use === 'function';
+    if (!hasRuntime) {
+      return Promise.resolve({
+        runtime: false, sample: false, images: false,
+        legacy: typeof window !== 'undefined' && !!window.claude
+      });
+    }
+    return probeSample().then(function (probe) {
+      return {
+        runtime: true,
+        sample: probe.reason !== 'no-sample',
+        images: !!probe.backend,
+        legacy: false
+      };
+    });
+  }
+
   /** 지금 쓸 수 있는 경로. { kind: 'sample' | 'endpoint' | 'none', reason? } */
   function resolveBackend() {
     return probeSample().then(function (probe) {
@@ -300,6 +322,7 @@
     loadConfig: loadConfig,
     saveConfig: saveConfig,
     resolveBackend: resolveBackend,
+    diagnose: diagnose,
     validateFile: validateFile,
     fileToBase64: fileToBase64,
     buildClaudeRequest: buildClaudeRequest,

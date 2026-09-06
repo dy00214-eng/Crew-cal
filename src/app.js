@@ -553,13 +553,29 @@
     vision.resolveBackend().then(function (backend) {
       state.backend = backend;
       updateAnalyzeButton();
+      $('imageFallback').hidden = true;
       if (backend.kind === 'sample') {
         setStatus('Claude 가 이미지를 바로 읽습니다. 스케줄 화면을 올려보세요.', 'ok');
       } else if (backend.kind === 'endpoint') {
         setStatus('설정해 둔 인식 서버로 보냅니다.', 'ok');
       } else {
         setStatus(unavailableMessage(backend.reason), 'error');
+        showFallbackGuide();
       }
+    });
+  }
+
+  /** 인식이 안 될 때, 손으로 옮기는 두 가지 방법을 펼쳐 보여준다. */
+  function showFallbackGuide() {
+    $('imageFallback').hidden = false;
+    vision.diagnose().then(function (d) {
+      var bits = [];
+      bits.push('뷰어 연결 ' + (d.runtime ? '있음' : (d.legacy ? '옛 방식' : '없음')));
+      if (d.runtime) {
+        bits.push('Claude 호출 ' + (d.sample ? '가능' : '불가'));
+        bits.push('이미지 전송 ' + (d.images ? '가능' : '불가'));
+      }
+      $('imageDiag').textContent = '진단: ' + bits.join(' · ');
     });
   }
 
