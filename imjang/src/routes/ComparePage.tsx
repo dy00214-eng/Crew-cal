@@ -32,7 +32,7 @@ export default function ComparePage() {
   if (!items) {
     return (
       <>
-        <TopBar title="비교" back="/" />
+        <TopBar title="비교" back="/list" />
         <main className="main" />
       </>
     );
@@ -41,7 +41,7 @@ export default function ComparePage() {
   if (items.length < 2) {
     return (
       <>
-        <TopBar title="비교" back="/" />
+        <TopBar title="비교" back="/list" />
         <p className="empty">
           비교할 매물이 부족합니다. 목록에서 <strong>비교</strong> 를 누르고 2~3개를 고르세요.
         </p>
@@ -53,7 +53,7 @@ export default function ComparePage() {
 
   return (
     <>
-      <TopBar title="비교" back="/" />
+      <TopBar title="비교" back="/list" />
       <main className="main">
         <div className="compare-wrap">
           <table className="compare num">

@@ -35,13 +35,13 @@ export default function PropertyCreator({
 
   return (
     <>
-      <TopBar title={title} back="/" />
+      <TopBar title={title} back="-1" />
       {note}
       <main className="main">
         <PropertyForm value={draft} onChange={setDraft} />
       </main>
       <div className="bottombar">
-        <button type="button" className="btn" onClick={() => navigate('/')}>
+        <button type="button" className="btn" onClick={() => navigate(-1)}>
           취소
         </button>
         <button type="button" className="btn btn-primary" disabled={!canSave || saving} onClick={save}>

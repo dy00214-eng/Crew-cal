@@ -1,11 +1,12 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Suspense, lazy, useCallback, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import TopBar from '../components/TopBar.tsx';
 import type { MapState } from '../components/MapView.tsx';
 import { db } from '../db/db.ts';
 import { patchProperty } from '../db/repo.ts';
-import { PREFETCH_CAP, TILE_MAX_ZOOM, prefetchTiles, tilesForBounds } from '../lib/tiles.ts';
+import { loadView, saveView } from '../lib/mapView.ts';
+import { PREFETCH_CAP, TILE_MAX_ZOOM, prefetchTiles, tileCacheCount, tilesForBounds } from '../lib/tiles.ts';
 import { useOnline } from '../lib/useOnline.ts';
 
 // 지도(leaflet)는 이 화면에서만 쓴다. 목록 첫 진입이 무거워지지 않게 떼어 둔다.
@@ -22,17 +23,26 @@ export default function MapPage() {
   const target = properties.find((p) => p.id === (pickId ?? focusId));
 
   const stateRef = useRef<MapState>();
+  // 앱을 열자마자 마지막으로 보던 자리에서 시작한다.
+  const initialRef = useRef(loadView());
   const [provisional, setProvisional] = useState<[number, number]>();
   const [focus, setFocus] = useState<[number, number]>();
   const [note, setNote] = useState<string>();
   const [saving, setSaving] = useState(false);
   const [tileTrouble, setTileTrouble] = useState(false);
+  // 저장해 둔 구역이 하나도 없을 때만 저장 안내를 띄운다. 지도가 화면을 넓게 써야 한다.
+  const [neverSaved, setNeverSaved] = useState(false);
+
+  useEffect(() => {
+    void tileCacheCount().then((n) => setNeverSaved(n === 0));
+  }, [note]);
 
   const located = properties.filter((p) => p.lat != null && p.lng != null);
   const missing = properties.length - located.length;
 
   const onMove = useCallback((s: MapState) => {
     stateRef.current = s;
+    saveView({ lat: s.center[0], lng: s.center[1], zoom: s.zoom });
   }, []);
 
   const onTileTrouble = useCallback(() => setTileTrouble(true), []);
@@ -100,11 +110,16 @@ export default function MapPage() {
     <>
       <TopBar
         title={pickId ? '위치 찍기' : '지도'}
-        back={pickId ? `/p/${pickId}` : '/'}
+        back={pickId ? `/p/${pickId}` : undefined}
+        backReplace={Boolean(pickId)}
+        left={pickId ? undefined : <Link to="/list">목록</Link>}
         right={
-          <button type="button" onClick={locate}>
-            내 위치
-          </button>
+          <>
+            <button type="button" onClick={locate}>
+              내 위치
+            </button>
+            {!pickId && <Link to="/settings">설정</Link>}
+          </>
         }
       />
 
@@ -119,7 +134,8 @@ export default function MapPage() {
         </button>
       </div>
 
-      {tileTrouble && online && (
+      {/* 안내는 한 번에 하나만. 지도가 화면을 넓게 써야 한다. */}
+      {tileTrouble && online ? (
         <div className="note">
           {import.meta.env.VITE_ARTIFACT ? (
             <>
@@ -132,18 +148,21 @@ export default function MapPage() {
             </>
           )}
         </div>
-      )}
-      {note && <div className="note">{note}</div>}
-      {!pickId && !note && online && (
+      ) : note ? (
+        <div className="note">{note}</div>
+      ) : !online ? (
         <div className="note">
-          지금 보이는 구역을 저장해 두면 오프라인에서도 지도가 뜹니다. 한 번에 최대 {PREFETCH_CAP}칸까지만 받습니다.
+          오프라인 — <strong>미리 저장해 둔 구역</strong>만 지도가 뜨고, 매물 말풍선은 전부 그대로 보입니다.
         </div>
-      )}
-      {!online && (
+      ) : pickId ? null : properties.length === 0 ? (
         <div className="note">
-          오프라인입니다. <strong>미리 저장해 둔 구역</strong>만 지도가 뜨고, 매물 말풍선은 전부 그대로 보입니다.
+          담은 매물이 없습니다. 오른쪽 아래 <strong>+</strong> 로 담으면 지도에 뜹니다.
         </div>
-      )}
+      ) : neverSaved ? (
+        <div className="note">
+          <strong>이 지역 저장</strong> 을 눌러 두면 오프라인에서도 이 구역 지도가 뜹니다.
+        </div>
+      ) : null}
 
       <Suspense fallback={<div className="mapcanvas mapcanvas-loading">지도 여는 중…</div>}>
         <MapView
@@ -155,12 +174,19 @@ export default function MapPage() {
           onSelect={onSelect}
           onMove={onMove}
           onTileTrouble={onTileTrouble}
+          initial={initialRef.current}
         />
       </Suspense>
 
+      {!pickId && (
+        <Link className="fab" to="/new">
+          + 매물 담기
+        </Link>
+      )}
+
       {pickId && (
         <div className="bottombar">
-          <button type="button" className="btn" onClick={() => navigate(`/p/${pickId}`)}>
+          <button type="button" className="btn" onClick={() => navigate(`/p/${pickId}`, { replace: true })}>
             취소
           </button>
           <button type="button" className="btn btn-primary" onClick={() => void confirmPin()}>

@@ -64,7 +64,7 @@ export default function DetailPage() {
   if (property === undefined) {
     return (
       <>
-        <TopBar title="매물" back="/" />
+        <TopBar title="매물" back="-1" />
         <main className="main" />
       </>
     );
@@ -72,7 +72,7 @@ export default function DetailPage() {
   if (property === null) {
     return (
       <>
-        <TopBar title="매물" back="/" />
+        <TopBar title="매물" back="-1" />
         <p className="empty">지워졌거나 없는 매물입니다.</p>
       </>
     );
@@ -131,7 +131,7 @@ export default function DetailPage() {
     <>
       <TopBar
         title={p.title || '이름 없는 매물'}
-        back="/"
+        back="-1"
         right={
           <button type="button" onClick={() => (setEditing((v) => !v), setDraft(p))}>
             {editing ? '닫기' : '수정'}
@@ -187,10 +187,14 @@ export default function DetailPage() {
                     <>
                       <Link to={`/map?focus=${p.id}`}>지도에서 보기</Link>
                       {' · '}
-                      <Link to={`/map?pick=${p.id}`}>다시 찍기</Link>
+                      <Link to={`/map?pick=${p.id}`} replace>
+                        다시 찍기
+                      </Link>
                     </>
                   ) : (
-                    <Link to={`/map?pick=${p.id}`}>지도에서 위치 찍기</Link>
+                    <Link to={`/map?pick=${p.id}`} replace>
+                      지도에서 위치 찍기
+                    </Link>
                   )}
                 </td>
               </tr>

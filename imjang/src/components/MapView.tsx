@@ -3,6 +3,8 @@ import 'leaflet/dist/leaflet.css';
 import { useEffect, useRef } from 'react';
 import type { Property } from '../db/types.ts';
 import { dealPrefix, formatDeal } from '../lib/format.ts';
+import { DEFAULT_VIEW } from '../lib/mapView.ts';
+import type { SavedView } from '../lib/mapView.ts';
 import { TILE_ATTRIBUTION, TILE_MAX_ZOOM, tileUrlTemplate } from '../lib/tiles.ts';
 import type { LatLngBounds } from '../lib/tiles.ts';
 
@@ -12,7 +14,6 @@ export interface MapState {
   bounds: LatLngBounds;
 }
 
-const SEOUL: [number, number] = [37.5665, 126.978];
 
 export default function MapView({
   properties,
@@ -23,6 +24,7 @@ export default function MapView({
   onMove,
   onTileTrouble,
   focus,
+  initial,
 }: {
   properties: Property[];
   picking?: boolean;
@@ -32,10 +34,13 @@ export default function MapView({
   onMove?: (state: MapState) => void;
   onTileTrouble?: () => void;
   focus?: [number, number] | undefined;
+  /** 마지막으로 보던 위치. 있으면 매물에 맞춰 자동으로 맞추지 않는다. */
+  initial?: SavedView | undefined;
 }) {
   const holder = useRef<HTMLDivElement>(null);
   const onTileTroubleRef = useRef(onTileTrouble);
   onTileTroubleRef.current = onTileTrouble;
+  const initialRef = useRef(initial);
   const mapRef = useRef<L.Map>();
   const pinsRef = useRef<L.LayerGroup>();
   const provisionalRef = useRef<L.Marker>();
@@ -45,9 +50,10 @@ export default function MapView({
   // 지도는 한 번만 만든다. 이후엔 레이어만 갈아 끼운다.
   useEffect(() => {
     if (!holder.current || mapRef.current) return;
+    const start = initialRef.current;
     const map = L.map(holder.current, {
-      center: focus ?? SEOUL,
-      zoom: focus ? 16 : 12,
+      center: focus ?? (start ? [start.lat, start.lng] : [DEFAULT_VIEW.lat, DEFAULT_VIEW.lng]),
+      zoom: focus ? 16 : (start?.zoom ?? DEFAULT_VIEW.zoom),
       zoomControl: false,
       attributionControl: true,
     });
@@ -127,7 +133,8 @@ export default function MapView({
     }
 
     // 처음 한 번만 전체가 보이게 맞춘다. 그 뒤엔 사용자가 옮긴 화면을 건드리지 않는다.
-    if (!fittedRef.current && located.length > 0 && !focus) {
+    // 마지막으로 보던 위치가 있으면 그쪽이 우선이다.
+    if (!fittedRef.current && located.length > 0 && !focus && !initialRef.current) {
       fittedRef.current = true;
       const group = L.featureGroup(
         located.map((p) => L.marker([p.lat as number, p.lng as number])),

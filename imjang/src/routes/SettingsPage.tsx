@@ -1,11 +1,14 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useState } from 'react';
+import Choices from '../components/Choices.tsx';
 import TopBar from '../components/TopBar.tsx';
 import { hasApiKey } from '../api/molit.ts';
 import { countPhotos, countProperties } from '../db/repo.ts';
 import { db } from '../db/db.ts';
 import { download, exportZip, importZip } from '../lib/backup.ts';
 import { formatBytes, round } from '../lib/format.ts';
+import { loadStart, saveStart } from '../lib/mapView.ts';
+import type { StartScreen } from '../lib/mapView.ts';
 import { requestPersist, storageUsage } from '../lib/storage.ts';
 import { TILE_SOURCE_NAME, clearTileCache, tileCacheCount } from '../lib/tiles.ts';
 import type { StorageUsage } from '../lib/storage.ts';
@@ -13,6 +16,7 @@ import type { StorageUsage } from '../lib/storage.ts';
 export default function SettingsPage() {
   const [usage, setUsage] = useState<StorageUsage>({ supported: false });
   const [tiles, setTiles] = useState<number>();
+  const [start, setStart] = useState<StartScreen>(loadStart);
   const [note, setNote] = useState<string>();
   const [busy, setBusy] = useState(false);
 
@@ -32,7 +36,7 @@ export default function SettingsPage() {
 
   return (
     <>
-      <TopBar title="설정" back="/" />
+      <TopBar title="설정" back="-1" />
       {note && <div className="note">{note}</div>}
 
       <main className="main">
@@ -86,6 +90,25 @@ export default function SettingsPage() {
           >
             데이터 보호 요청
           </button>
+        </section>
+
+        <section className="section">
+          <h2>앱을 열면</h2>
+          <Choices
+            label="시작 화면"
+            value={start}
+            choices={[
+              { value: 'map' as StartScreen, label: '지도' },
+              { value: 'list' as StartScreen, label: '목록' },
+            ]}
+            onChange={(next) => {
+              setStart(next);
+              saveStart(next);
+            }}
+          />
+          <p className="hint" style={{ marginTop: 8 }}>
+            지도로 두면 앱을 열자마자 마지막으로 보던 자리가 뜹니다. 목록은 네트워크를 전혀 쓰지 않습니다.
+          </p>
         </section>
 
         <section className="section">
