@@ -40,6 +40,10 @@
    * 앞의 0 을 떼고 네 자리로 맞춘다. 편명 아닌 글자는 건드리지 않는다.
    */
   function fixCode(token) {
+    // 코드 뒤에 붙어 읽힌 칸 선(ATDO-)을 떼어 낸다. 시각은 뒤의 - 가 뜻이 있어 그대로 둔다.
+    var trailing = /^([A-Z]{2,})[-.]+$/.exec(token);
+    if (trailing) token = trailing[1];
+
     var flight = new RegExp('^([A-Z]{2})([' + DIGITISH + ']{3,7})$').exec(token);
     if (flight) {
       var candidates = flightCandidates(flight[1], flight[2]);
@@ -143,10 +147,10 @@
     // 스케줄의 코드·공항·편명은 모두 대문자다. 인식기가 흘린 소문자를 되돌린다.
     text = text.toUpperCase();
     var conf = word.conf == null ? 100 : word.conf;
-    // 자신 없는 글자 중 한두 자짜리만 버린다. 대개 선이나 무늬를 글자로 본 것이다.
-    // 긴 글자는 틀렸더라도 남겨 둔다. 날짜 한 줄이 통째로 사라지는 편이 더 나쁘다.
-    if (conf < JUNK && text.length <= 2) return null;
-    if (text.length === 1 && !/[0-9]/.test(text)) return null;   // 홀로 선 글자 하나는 글이 아니다
+    // 자신 없다고 버리지 않는다. 버리면 그 날이 빈칸이 되어 버린 줄도 모르고 지나간다.
+    // 틀리게라도 남으면 미리보기에 뜨고, 거기서 고치면 된다.
+    // 다만 홀로 선 글자 하나(획이나 칸 선을 글자로 본 것)는 글이 아니다.
+    if (text.length === 1 && !/[0-9]/.test(text)) return null;
     return {
       text: fixCode(text),
       conf: conf,
@@ -205,6 +209,17 @@
       return row.words.length && DATE_HEAD.test(row.words[0].text);
     });
     return heads.length >= 3;
+  }
+
+  /** 두 편명이 붙어 읽힌 것(KE2071KE1402)을 도로 가른다. */
+  function splitCodes(tokens) {
+    var out = [];
+    tokens.forEach(function (token) {
+      var pair = /^([A-Z]{2}\d{4})([A-Z]{2}\d{4})$/.exec(token);
+      if (pair) { out.push(pair[1], pair[2]); return; }
+      out.push(token);
+    });
+    return out;
   }
 
   /** 쪼개진 시각을 도로 붙인다. "0945-" + "1020" -> "0945-1020" */
@@ -322,7 +337,7 @@
 
       cells.forEach(function (cell) {
         if (cell.day == null || !cell.tokens.length) return;
-        out.push({ day: cell.day, tokens: joinTimes(cell.tokens) });
+        out.push({ day: cell.day, tokens: splitCodes(joinTimes(cell.tokens)) });
       });
     });
     return out;
@@ -360,7 +375,12 @@
   function cellLines(cells, opts) {
     var seen = {};
     var out = [];
+    // 그 달에 없는 날(9월 31일 따위)은 옆 달 칸을 잘못 센 것이다
+    var last = opts.year && opts.month
+      ? new Date(Date.UTC(opts.year, opts.month, 0)).getUTCDate()
+      : 31;
     cells.forEach(function (cell) {
+      if (cell.day > last) return;
       if (seen[cell.day]) return;              // 같은 날이 두 번 나오면 앞의 것만
       seen[cell.day] = true;
       var head = opts.year && opts.month
@@ -390,7 +410,7 @@
     if (isListShape(rowList)) {
       return {
         text: rowList.map(function (row) {
-          return joinTimes(row.words.map(function (w) { return w.text; })).join(' ');
+          return splitCodes(joinTimes(row.words.map(function (w) { return w.text; }))).join(' ');
         }).join('\n'),
         shape: 'list',
         unsure: unsure,
@@ -430,6 +450,7 @@
     flightCandidates: flightCandidates,
     rows: rows,
     isDayRow: isDayRow,
-    joinTimes: joinTimes
+    joinTimes: joinTimes,
+    splitCodes: splitCodes
   };
 });

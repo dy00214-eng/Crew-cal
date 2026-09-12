@@ -153,6 +153,7 @@
     var pixels = new Int32Array(n);
     var plates = 0;
     var top0 = height, bottom0 = -1, tall = 0;
+    var rects = [];
 
     for (var seed = 0; seed < n; seed++) {
       if (!region[seed] || label[seed]) continue;
@@ -198,6 +199,7 @@
         gray[pixels[i]] = gray[pixels[i]] >= cut ? 0 : 255;   // 글씨는 검게, 판은 희게
       }
       plates++;
+      rects.push({ x0: x0, y0: y0, x1: x1, y1: y1 });
       if (y0 < top0) top0 = y0;
       if (y1 > bottom0) bottom0 = y1;
       if (h > tall) tall = h;
@@ -210,6 +212,7 @@
     }
     return {
       plates: plates,
+      rects: rects,
       // 날짜 숫자와 요일 머리글이 판 위에 있으므로 넉넉히 남긴다. 바짝 자르면
       // 인식기가 글의 짜임을 읽지 못해 되레 덜 읽는다.
       top: plates ? Math.max(0, top0 - tall * 4) : 0,
@@ -339,7 +342,7 @@
           canvas.height = big.height;
           canvas.getContext('2d').putImageData(new ImageData(big.data, big.width, big.height), 0, 0);
           URL.revokeObjectURL(url);
-          resolve({ canvas: canvas, scale: scale, how: how });
+          resolve({ canvas: canvas, scale: scale, how: how, chips: found.rects, crop: { top: cropTop, scale: scale } });
         } catch (e) {
           URL.revokeObjectURL(url);
           reject(e);
@@ -393,12 +396,38 @@
           shape: laid.shape,
           unsure: laid.unsure,
           dropped: laid.dropped,
+          chips: prepared.chips.length,
+          missed: missedChips(prepared, words),
           words: words.length,
           confidence: Math.round(data.confidence || 0),
           prepared: prepared.how
         };
       });
     });
+  }
+
+  /**
+   * 글자를 하나도 못 얻은 근무 판이 몇 개인지 센다.
+   *
+   * 판은 찾았는데 글자가 안 나온 자리는 달력에서 그냥 빈 날이 된다. 빈 날은 근무가
+   * 없는 날과 구별이 안 되니, 몇 개를 놓쳤는지 알려 주어야 확인할 수 있다.
+   */
+  function missedChips(prepared, words) {
+    var chips = prepared.chips || [];
+    if (!chips.length) return 0;
+    var scale = prepared.crop.scale;
+    var top = prepared.crop.top;
+    var missed = 0;
+    chips.forEach(function (chip) {
+      var x0 = chip.x0 * scale, x1 = chip.x1 * scale;
+      var y0 = (chip.y0 - top) * scale, y1 = (chip.y1 - top) * scale;
+      var hit = words.some(function (word) {
+        var cx = (word.x0 + word.x1) / 2, cy = (word.y0 + word.y1) / 2;
+        return cx >= x0 && cx <= x1 && cy >= y0 && cy <= y1;
+      });
+      if (!hit) missed++;
+    });
+    return missed;
   }
 
   /** 다 쓴 인식기를 놓아준다. 메모리를 꽤 쓰기 때문이다. */

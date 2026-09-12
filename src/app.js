@@ -1089,6 +1089,10 @@
         notes.push('자신 없는 글자: ' + result.unsure.slice(0, 6).join(', ') +
           (result.unsure.length > 6 ? ' 외 ' + (result.unsure.length - 6) + '개' : ''));
       }
+      if (result.missed) {
+        notes.push('근무 ' + result.chips + '개 가운데 ' + result.missed +
+          '개는 글자를 못 읽었습니다. 달력에서 빈 날이 있는지 봐주세요.');
+      }
       if (result.dropped) notes.push('앞뒤 달 칸 ' + result.dropped + '개는 건너뛰었습니다.');
       notes.push('미리보기에서 확인하고 고친 뒤 반영하세요.');
       setStatus(notes.join(' '), result.unsure.length ? '' : 'ok');
@@ -1511,7 +1515,7 @@
   /* ---------------- 동료가 보내는 의견 ---------------- */
 
   // 화면 아래와 의견 보내기에 적히는 판 번호. sw.js 의 VERSION 과 함께 올린다.
-  var APP_VERSION = 'v13';
+  var APP_VERSION = 'v14';
 
   /**
    * 의견을 받을 메일 주소. 저장소가 공개라 통짜로 적어두면 스팸 크롤러가 긁어가므로
