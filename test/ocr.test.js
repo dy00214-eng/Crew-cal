@@ -14,20 +14,81 @@ function image(background, ink, inkCount) {
   return data;
 }
 
-test('작은 캡처는 키우고, 큰 캡처는 줄인다', () => {
-  assert.strictEqual(ocr.scaleFor(2000, 1500), 1, '넉넉한 크기는 그대로');
+test('작은 글씨는 키우고, 캔버스가 감당하는 선은 넘지 않는다', () => {
+  assert.strictEqual(ocr.scaleFor(2560, 1440), 1, '이미 큰 화면은 그대로');
+
+  // 폰 스케줄 화면. 두 배로 키워야 글씨가 읽힌다.
+  const phone = ocr.scaleFor(1284, 955);
+  assert.strictEqual(phone, 2, '정수배로 키운다: ' + phone);
 
   const small = ocr.scaleFor(390, 300);
   assert.ok(small > 1 && small <= 3, '작은 캡처는 키운다: ' + small);
-  assert.ok(390 * small >= 1000, '키운 뒤에는 읽을 만한 크기');
 
-  const huge = ocr.scaleFor(4000, 3000);
-  assert.ok(huge < 1 && 4000 * huge <= 2800, '큰 캡처는 줄인다: ' + huge);
-
-  // 아주 좁고 긴 캡처도 지나치게 커지지 않는다
-  const strip = ocr.scaleFor(300, 4000);
-  assert.ok(4000 * strip <= 2800);
+  // 길쭉한 화면은 한 변 4000, 넓이 1200만 픽셀 안으로 (아이폰 사파리가 버티는 선)
+  const tall = ocr.scaleFor(1284, 2778);
+  assert.ok(2778 * tall <= 4000, '한 변: ' + Math.round(2778 * tall));
+  assert.ok(1284 * tall * 2778 * tall <= 12e6);
   assert.strictEqual(ocr.scaleFor(0, 0), 1);
+});
+
+/** 색 판 위에 흰 글씨가 적힌 그림. 크루넷 스케줄이 이렇게 생겼다. */
+function chipImage(width, height, plate, ink) {
+  const data = new Uint8ClampedArray(width * height * 4);
+  for (let i = 0; i < width * height; i++) {
+    data[i * 4] = data[i * 4 + 1] = data[i * 4 + 2] = 255;      // 흰 종이
+    data[i * 4 + 3] = 255;
+  }
+  // 가운데에 색 판 하나, 그 안에 흰 글씨 몇 획
+  for (let y = 10; y < height - 10; y++) {
+    for (let x = 10; x < width - 10; x++) {
+      const i = (y * width + x) * 4;
+      const stroke = x % 17 < 4 && y > 18 && y < height - 18;
+      const color = stroke ? ink : plate;
+      data[i] = color[0]; data[i + 1] = color[1]; data[i + 2] = color[2];
+    }
+  }
+  return data;
+}
+
+test('색 판 위의 흰 글씨를 흰 바탕 검은 글씨로 되돌린다', () => {
+  const width = 120, height = 60;
+  const data = chipImage(width, height, [30, 155, 232], [255, 255, 255]);
+  const found = ocr.unchip(data, width, height);
+
+  assert.strictEqual(found.plates, 1, '판을 하나 찾는다');
+  const at = (x, y) => data[(y * width + x) * 4];
+  assert.strictEqual(at(18, 30), 0, '흰 글씨였던 자리가 검게');   // x % 17 < 4 인 곳이 획
+  assert.strictEqual(at(25, 30), 255, '판 바탕이 희게');
+  assert.strictEqual(at(2, 2), 255, '판 밖은 그대로');
+  assert.ok(found.top < 10 && found.bottom > height - 10, '판 자리를 알려준다');
+});
+
+test('색이 옅은 글자는 판으로 보지 않는다', () => {
+  // 흰 바탕에 색 글씨만 있는 그림 (일요일 빨간 숫자 같은 것)
+  const width = 120, height = 60;
+  const data = new Uint8ClampedArray(width * height * 4).fill(255);
+  for (let y = 20; y < 40; y++) {
+    for (let x = 20; x < 26; x++) {
+      const i = (y * width + x) * 4;
+      data[i] = 220; data[i + 1] = 40; data[i + 2] = 40;
+    }
+  }
+  const found = ocr.unchip(data, width, height);
+  assert.strictEqual(found.plates, 0, '가는 획은 판이 아니다');
+  assert.strictEqual(data[(30 * width + 22) * 4], 220, '건드리지 않는다');
+});
+
+test('키울 때 사이 값을 메워 획이 부드럽게 이어진다', () => {
+  const src = new Uint8ClampedArray(2 * 1 * 4);
+  src[0] = src[1] = src[2] = 0; src[3] = 255;              // 왼쪽 검정
+  src[4] = src[5] = src[6] = 255; src[7] = 255;            // 오른쪽 흰색
+  const big = ocr.upscale(src, 2, 1, 2);
+  assert.strictEqual(big.width, 4);
+  assert.strictEqual(big.height, 2);
+  const row = [big.data[0], big.data[4], big.data[8], big.data[12]];
+  assert.strictEqual(row[0], 0);
+  assert.strictEqual(row[3], 255);
+  assert.ok(row[1] < row[2], '사이가 차츰 밝아진다: ' + row.join(','));
 });
 
 test('어두운 화면은 뒤집어서 읽는다', () => {
@@ -56,6 +117,16 @@ test('옅은 글자는 진하게 편다', () => {
   for (let i = 0; i < data.length; i += 4) values.push(data[i]);
   assert.strictEqual(Math.min.apply(null, values), 0, '가장 어두운 곳은 검게');
   assert.strictEqual(Math.max.apply(null, values), 255, '가장 밝은 곳은 희게');
+});
+
+test('색 판을 눌러 둔 그림은 더 늘이지 않는다', () => {
+  const data = image(200, 120, 100);
+  const how = ocr.enhance(data, { stretch: false });
+  assert.strictEqual(how.low, 0);
+  assert.strictEqual(how.high, 255);
+  const values = [];
+  for (let i = 0; i < data.length; i += 4) values.push(data[i]);
+  assert.ok(Math.min.apply(null, values) > 0, '어두운 쪽을 더 누르지 않는다');
 });
 
 test('한 가지 색뿐인 그림은 건드리지 않는다', () => {

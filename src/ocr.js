@@ -22,29 +22,48 @@
 
   var BASE = 'vendor/tesseract/';
   var SCRIPT = BASE + 'tesseract.min.js';
-  var MIN_SIDE = 1100;      // 이보다 작으면 키워서 읽는다. 작은 글씨는 그냥은 못 읽는다.
-  var MAX_SIDE = 2800;      // 이보다 크면 줄인다. 더 키워봐야 느리기만 하다.
+  var MIN_WIDTH = 2200;     // 폰 스케줄 화면의 작은 글씨는 이 정도로 키워야 읽힌다
+  var MAX_SIDE = 4000;      // 아이폰 사파리가 감당하는 캔버스 한 변
+  var MAX_PIXELS = 12e6;    // 그리고 넓이도 한계가 있다
   var MAX_SCALE = 3;
 
   var loading = null;
   var worker = null;
 
-  /** 얼마나 키우거나 줄여서 읽을지. */
+  /**
+   * 얼마나 키우거나 줄여서 읽을지.
+   *
+   * 폰으로 찍은 스케줄 화면은 글씨가 20픽셀 남짓이라 그냥은 잘 안 읽힌다. 가로가
+   * 2200픽셀쯤 되게 키우면 또렷해진다. 다만 캔버스가 감당하는 크기가 있어,
+   * 한 변 4000픽셀과 전체 1200만 픽셀을 넘지 않는 선에서 키운다.
+   */
   function scaleFor(width, height) {
     if (!width || !height) return 1;
-    var scale = 1;
-    var min = Math.min(width, height);
-    var max = Math.max(width, height);
-    if (min < MIN_SIDE) scale = Math.min(MAX_SCALE, MIN_SIDE / min);
-    if (max * scale > MAX_SIDE) scale = MAX_SIDE / max;
+    var wanted = width < MIN_WIDTH ? Math.min(MAX_SCALE, MIN_WIDTH / width) : 1;
+
+    // 정수배로 키우면 글자가 덜 뭉갠다. 들어가면 정수배, 아니면 들어가는 만큼만.
+    var whole = Math.max(1, Math.round(wanted));
+    if (whole > 1 && fits(width, height, whole)) return whole;
+
+    var scale = wanted;
+    var longest = Math.max(width, height) * scale;
+    if (longest > MAX_SIDE) scale *= MAX_SIDE / longest;
+    var pixels = width * height * scale * scale;
+    if (pixels > MAX_PIXELS) scale *= Math.sqrt(MAX_PIXELS / pixels);
     return scale;
+  }
+
+  function fits(width, height, scale) {
+    return Math.max(width, height) * scale <= MAX_SIDE &&
+      width * height * scale * scale <= MAX_PIXELS;
   }
 
   /**
    * 흑백으로 바꾸고, 어두운 화면(흰 글씨)이면 뒤집고, 옅은 글자는 진하게 편다.
    * 픽셀 배열을 그 자리에서 고치고 무엇을 했는지 알려준다.
    */
-  function enhance(data) {
+  function enhance(data, options) {
+    var opts = options || {};
     var i;
     var gray = new Uint8Array(data.length / 4);
     var sum = 0;
@@ -72,6 +91,8 @@
     acc = 0;
     for (i = 255; i >= 0; i--) { acc += histogram[i]; if (acc > cut) { high = i; break; } }
     if (high - low < 32) { low = 0; high = 255; }              // 밋밋한 그림은 그대로 둔다
+    // 색 판을 이미 흑백으로 눌러 둔 그림은 더 늘이지 않는다. 글자만 상한다.
+    if (opts.stretch === false) { low = 0; high = 255; }
 
     var span = high - low;
     for (i = 0; i < gray.length; i++) {
@@ -87,6 +108,137 @@
       low: low,
       high: high
     };
+  }
+
+  /**
+   * 색칠한 판 위의 흰 글씨를 검은 글씨로 돌려놓는다.
+   *
+   * 크루넷은 근무를 색 판(파랑·연파랑·연두) 위에 흰 글씨로 적는다. 흑백으로만 바꾸면
+   * 판은 중간 회색, 글씨는 흰색이 되는데, 인식기는 흰 바탕에 검은 글씨를 찾으므로
+   * 이런 판은 통째로 못 읽는다. 실제로 크루넷 화면에서는 근무 코드가 하나도 안 읽혔다.
+   *
+   * 그래서 색이 진한 자리를 판으로 보고, 판마다 따로 밝기를 재어 글씨는 검게, 판은
+   * 희게 바꾼다. 판마다 색이 다르므로 한꺼번에 재면 안 되고, 이어진 판끼리 따로 재야 한다.
+   * 색 글씨(빨간 일요일 숫자 따위)는 속이 빈 가는 획이라 판으로 보지 않는다.
+   */
+  function unchip(data, width, height) {
+    var n = width * height;
+    var gray = new Uint8Array(n);
+    var colored = new Uint8Array(n);
+    var i;
+
+    for (i = 0; i < n; i++) {
+      var r = data[i * 4], g = data[i * 4 + 1], b = data[i * 4 + 2];
+      gray[i] = (r * 299 + g * 587 + b * 114) / 1000;
+      colored[i] = (Math.max(r, g, b) - Math.min(r, g, b)) > 40 ? 1 : 0;
+    }
+
+    // 판 안의 흰 글씨는 색이 없다. 가로로 좁은 틈은 메워 판 하나로 잇는다.
+    var gap = Math.max(8, Math.round(width * 0.022));
+    var region = colored.slice();
+    for (var y = 0; y < height; y++) {
+      var last = -1;
+      for (var x = 0; x < width; x++) {
+        i = y * width + x;
+        if (!colored[i]) continue;
+        if (last >= 0 && x - last <= gap) {
+          for (var k = last + 1; k < x; k++) region[y * width + k] = 1;
+        }
+        last = x;
+      }
+    }
+
+    var label = new Int32Array(n);
+    var stack = new Int32Array(n);
+    var pixels = new Int32Array(n);
+    var plates = 0;
+    var top0 = height, bottom0 = -1, tall = 0;
+
+    for (var seed = 0; seed < n; seed++) {
+      if (!region[seed] || label[seed]) continue;
+      var top = 0;
+      var count = 0;
+      stack[top++] = seed;
+      label[seed] = 1;
+      var x0 = width, x1 = -1, y0 = height, y1 = -1;
+      while (top > 0) {
+        var at = stack[--top];
+        pixels[count++] = at;
+        var ax = at % width, ay = (at / width) | 0;
+        if (ax < x0) x0 = ax;
+        if (ax > x1) x1 = ax;
+        if (ay < y0) y0 = ay;
+        if (ay > y1) y1 = ay;
+        if (ax > 0 && region[at - 1] && !label[at - 1]) { label[at - 1] = 1; stack[top++] = at - 1; }
+        if (ax < width - 1 && region[at + 1] && !label[at + 1]) { label[at + 1] = 1; stack[top++] = at + 1; }
+        if (ay > 0 && region[at - width] && !label[at - width]) { label[at - width] = 1; stack[top++] = at - width; }
+        if (ay < height - 1 && region[at + width] && !label[at + width]) { label[at + width] = 1; stack[top++] = at + width; }
+      }
+
+      var w = x1 - x0 + 1, h = y1 - y0 + 1;
+      if (w < 40 || h < 16 || count < 800) continue;          // 판이라기엔 작다
+      if (count / (w * h) < 0.6) continue;                    // 속이 빈 덩어리 (색 글씨 따위)
+
+      var histogram = new Uint32Array(256);
+      for (i = 0; i < count; i++) histogram[gray[pixels[i]]]++;
+      var plate = 0;
+      for (i = 1; i < 256; i++) if (histogram[i] > histogram[plate]) plate = i;
+
+      var bright = 0, brightCount = 0, darkCount = 0;
+      for (i = 0; i < count; i++) {
+        var value = gray[pixels[i]];
+        if (value > plate + 30) { bright += value; brightCount++; }
+        else if (value < plate - 30) darkCount++;
+      }
+      var ratio = brightCount / count;
+      if (brightCount <= darkCount || ratio < 0.03 || ratio > 0.5) continue;   // 흰 글씨 판이 아니다
+
+      var cut = (plate + bright / brightCount) / 2;
+      for (i = 0; i < count; i++) {
+        gray[pixels[i]] = gray[pixels[i]] >= cut ? 0 : 255;   // 글씨는 검게, 판은 희게
+      }
+      plates++;
+      if (y0 < top0) top0 = y0;
+      if (y1 > bottom0) bottom0 = y1;
+      if (h > tall) tall = h;
+    }
+
+    if (plates) {
+      for (i = 0; i < n; i++) {
+        data[i * 4] = data[i * 4 + 1] = data[i * 4 + 2] = gray[i];
+      }
+    }
+    return {
+      plates: plates,
+      // 날짜 숫자와 요일 머리글이 판 위에 있으므로 넉넉히 남긴다. 바짝 자르면
+      // 인식기가 글의 짜임을 읽지 못해 되레 덜 읽는다.
+      top: plates ? Math.max(0, top0 - tall * 4) : 0,
+      bottom: plates ? Math.min(height, bottom0 + tall * 2) : height
+    };
+  }
+
+  /**
+   * 이중선형으로 키운다. 캔버스에 맡기면 획이 뭉개지거나 너무 날카로워져서,
+   * 같은 화면을 놓고 견줘 보면 이쪽이 더 잘 읽혔다.
+   */
+  function upscale(data, width, height, zoom) {
+    var w = Math.round(width * zoom), h = Math.round(height * zoom);
+    var out = new Uint8ClampedArray(w * h * 4);
+    for (var y = 0; y < h; y++) {
+      var sy = Math.min(height - 1, y / zoom);
+      var y0 = Math.floor(sy), y1 = Math.min(height - 1, y0 + 1), fy = sy - y0;
+      for (var x = 0; x < w; x++) {
+        var sx = Math.min(width - 1, x / zoom);
+        var x0 = Math.floor(sx), x1 = Math.min(width - 1, x0 + 1), fx = sx - x0;
+        var tl = data[(y0 * width + x0) * 4], tr = data[(y0 * width + x1) * 4];
+        var bl = data[(y1 * width + x0) * 4], br = data[(y1 * width + x1) * 4];
+        var value = (tl * (1 - fx) + tr * fx) * (1 - fy) + (bl * (1 - fx) + br * fx) * fy;
+        var at = (y * w + x) * 4;
+        out[at] = out[at + 1] = out[at + 2] = value;
+        out[at + 3] = 255;
+      }
+    }
+    return { data: out, width: w, height: h };
   }
 
   /** 이 브라우저에서 기기 안 인식을 쓸 수 있는지. */
@@ -136,8 +288,9 @@
       });
     }).then(function (created) {
       worker = created;
-      // 칸이 여럿인 표도 줄 단위로 고르게 읽도록 한다
-      return worker.setParameters({ tessedit_pageseg_mode: '6' }).then(function () { return worker; });
+      // 11 = 드문드문 놓인 글자 찾기. 달력처럼 칸칸이 떨어져 적힌 화면에서
+      // 줄 단위(6)보다 훨씬 잘 읽는다. 크루넷 화면으로 견줘 보고 골랐다.
+      return worker.setParameters({ tessedit_pageseg_mode: '11' }).then(function () { return worker; });
     });
   }
 
@@ -148,17 +301,43 @@
       var image = new Image();
       image.onload = function () {
         try {
-          var scale = scaleFor(image.width, image.height);
+          // 1) 원래 크기에서 색 판을 먼저 되돌린다 (키운 뒤에 하면 느리기만 하다)
+          var first = document.createElement('canvas');
+          first.width = image.width;
+          first.height = image.height;
+          var firstCtx = first.getContext('2d');
+          firstCtx.drawImage(image, 0, 0);
+          var pixels = firstCtx.getImageData(0, 0, first.width, first.height);
+          var found = unchip(pixels.data, first.width, first.height);
+          var how = enhance(pixels.data, { stretch: found.plates < 4 });
+          how.plates = found.plates;
+
+          // 2) 근무 판이 있는 자리만 남긴다. 상태 표시줄이나 메뉴를 읽을 일이 없고,
+          //    그만큼 더 키워서 읽을 수 있다. 가로는 그대로 두어 요일 칸을 다 담는다.
+          var cropTop = found.plates >= 4 ? found.top : 0;
+          var cropHeight = (found.plates >= 4 ? found.bottom : image.height) - cropTop;
+          how.cropped = cropHeight < image.height;
+
+          var cut = pixels.data;
+          if (how.cropped) {
+            cut = new Uint8ClampedArray(image.width * cropHeight * 4);
+            var rowBytes = image.width * 4;
+            for (var row = 0; row < cropHeight; row++) {
+              cut.set(pixels.data.subarray((cropTop + row) * rowBytes, (cropTop + row + 1) * rowBytes),
+                row * rowBytes);
+            }
+          }
+
+          // 3) 그런 다음 읽기 좋은 크기로 키운다
+          var scale = scaleFor(image.width, cropHeight);
+          var big = Math.abs(scale - 1) < 0.01
+            ? { data: cut, width: image.width, height: cropHeight }
+            : upscale(cut, image.width, cropHeight, scale);
+
           var canvas = document.createElement('canvas');
-          canvas.width = Math.round(image.width * scale);
-          canvas.height = Math.round(image.height * scale);
-          var ctx = canvas.getContext('2d');
-          ctx.imageSmoothingEnabled = true;
-          ctx.imageSmoothingQuality = 'high';
-          ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-          var pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          var how = enhance(pixels.data);
-          ctx.putImageData(pixels, 0, 0);
+          canvas.width = big.width;
+          canvas.height = big.height;
+          canvas.getContext('2d').putImageData(new ImageData(big.data, big.width, big.height), 0, 0);
           URL.revokeObjectURL(url);
           resolve({ canvas: canvas, scale: scale, how: how });
         } catch (e) {
@@ -236,6 +415,8 @@
     release: release,
     scaleFor: scaleFor,
     enhance: enhance,
+    unchip: unchip,
+    upscale: upscale,
     BASE: BASE
   };
 });

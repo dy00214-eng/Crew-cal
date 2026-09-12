@@ -12,12 +12,12 @@
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
-    module.exports = factory();
+    module.exports = factory(require('./codes.js'), require('./schedule.js'));
   } else {
     root.CrewCal = root.CrewCal || {};
-    root.CrewCal.ocrlayout = factory();
+    root.CrewCal.ocrlayout = factory(root.CrewCal.codes, root.CrewCal.schedule);
   }
-})(typeof self !== 'undefined' ? self : this, function () {
+})(typeof self !== 'undefined' ? self : this, function (codes, schedule) {
   'use strict';
 
   var DAY = /^([1-9]|[12][0-9]|3[01])$/;
@@ -26,21 +26,32 @@
   var UNSURE = 60;                 // 이보다 자신 없는 글자는 확인하라고 일러준다
   var JUNK = 35;                   // 이보다 자신 없는 글자는 아예 버린다. 대개 무늬나 선이다.
 
+  // 인식기가 숫자를 이 글자들로 잘못 읽는다. 편명 숫자 자리에서만 되돌린다.
+  // S 와 G 는 5·8, 6·8 둘 다로 읽히므로 두 가지를 다 만들어 보고 시간표에 있는 쪽을 쓴다.
+  var LOOKALIKE = {
+    O: ['0'], Q: ['0'], D: ['0'], I: ['1'], L: ['1'], J: ['1'],
+    Z: ['2'], S: ['5', '8'], G: ['6', '8'], B: ['8'], T: ['7']
+  };
+  var DIGITISH = 'O0-9QDILJZSGBT';
+
   /**
-   * 0 과 O, 1 과 l 은 인식기가 자주 헷갈린다. 편명은 "영문 두 자 + 숫자" 라는 걸
+   * 0 과 O, 1 과 L 은 인식기가 자주 헷갈린다. 편명은 "영문 두 자 + 숫자" 라는 걸
    * 아니까, 그 꼴에 맞춰 되돌린다. 글자 수가 하나 늘어 KE00035 처럼 되는 일도 있어
    * 앞의 0 을 떼고 네 자리로 맞춘다. 편명 아닌 글자는 건드리지 않는다.
    */
   function fixCode(token) {
-    var flight = /^([A-Z]{2})([O0-9OIl]{3,7})$/.exec(token);
+    var flight = new RegExp('^([A-Z]{2})([' + DIGITISH + ']{3,7})$').exec(token);
     if (flight) {
-      var digits = flight[2].replace(/[OQ]/g, '0').replace(/[Il]/g, '1');
-      if (!/^\d+$/.test(digits)) return token;
-      var number = digits.replace(/^0+/, '') || '0';
-      if (number.length > 4) return token;                 // 편명으로 보기엔 너무 길다
-      while (number.length < 4) number = '0' + number;
-      return flight[1] + number;
+      var candidates = flightCandidates(flight[1], flight[2]);
+      if (!candidates.length) return token;
+      var known = candidates.filter(function (code) { return schedule && schedule.lookup(code); });
+      if (known.length === 1) return known[0];             // 시간표에 있는 편이 하나뿐이면 그것
+      return candidates[0];
     }
+
+    // 앞에 군더더기가 붙은 편명(JJKE1402)은 뒤의 편명만 남긴다
+    var tail = /^[A-Z]{1,3}([A-Z]{2}\d{4})$/.exec(token);
+    if (tail) return tail[1];
     // 날짜(01SEP26). 자릿수가 하나 늘거나 0 이 O 로 읽힌 것을 되돌린다
     var date = /^([O0-9]{1,3})([A-Z]{3})([O0-9]{2,3})$/.exec(token);
     if (date && MONTHS.indexOf(date[2]) !== -1) {
@@ -53,7 +64,75 @@
     if (/^[O0-9]{3,4}([-+][O0-9+]{1,6})?$/.test(token) && /O/.test(token)) {
       return token.replace(/O/g, '0');
     }
-    return token;
+    return snapToKnownCode(token);
+  }
+
+  /**
+   * 헷갈리는 글자를 숫자로 바꿔 가며 있을 법한 편명을 모두 만든다.
+   * 앞의 0 을 떼고 네 자리로 맞추므로 KE00035 도 KE0035 가 된다.
+   */
+  function flightCandidates(prefix, digits) {
+    var out = [''];
+    for (var i = 0; i < digits.length; i++) {
+      var ch = digits[i];
+      var options = LOOKALIKE[ch] || (/[0-9]/.test(ch) ? [ch] : null);
+      if (!options) return [];
+      var next = [];
+      out.forEach(function (head) {
+        options.forEach(function (option) { next.push(head + option); });
+      });
+      out = next;
+      if (out.length > 8) return [];                       // 헷갈리는 글자가 너무 많다
+    }
+    var seen = {};
+    var codesOut = [];
+    out.forEach(function (number) {
+      var trimmed = number.replace(/^0+/, '') || '0';
+      if (trimmed.length > 4) return;
+      while (trimmed.length < 4) trimmed = '0' + trimmed;
+      var code = prefix + trimmed;
+      if (seen[code]) return;
+      seen[code] = true;
+      codesOut.push(code);
+    });
+    return codesOut;
+  }
+
+  /**
+   * 아는 근무 코드에서 한 글자만 어긋난 것은 그 코드로 본다. ATOO -> ATDO 처럼.
+   * 헷갈릴 만한 후보가 둘 이상이면 건드리지 않는다. 엉뚱한 근무로 바꾸는 것보다
+   * 모르는 코드로 두고 사람이 고치는 편이 낫다. 두 글자짜리는 서로 너무 닮아 뺀다.
+   */
+  function snapToKnownCode(token) {
+    if (!codes || token.length < 3 || token.length > 6 || !/^[A-Z0-9]+$/.test(token)) return token;
+    var known = codes.knownCodeList();
+    if (known.indexOf(token) !== -1) return token;
+
+    var hit = null;
+    for (var i = 0; i < known.length; i++) {
+      if (known[i].length < 3) continue;
+      if (!oneEditApart(token, known[i])) continue;
+      if (hit) return token;                  // 후보가 둘이면 그냥 둔다
+      hit = known[i];
+    }
+    return hit || token;
+  }
+
+  /** 한 글자를 바꾸거나 넣거나 빼면 같아지는지. */
+  function oneEditApart(a, b) {
+    if (Math.abs(a.length - b.length) > 1) return false;
+    if (a.length === b.length) {
+      var diff = 0;
+      for (var i = 0; i < a.length; i++) if (a[i] !== b[i]) diff++;
+      return diff === 1;
+    }
+    var longer = a.length > b.length ? a : b;
+    var shorter = a.length > b.length ? b : a;
+    for (var j = 0, k = 0, skipped = 0; j < longer.length; j++) {
+      if (longer[j] === shorter[k]) k++;
+      else if (++skipped > 1) return false;
+    }
+    return true;
   }
 
   /** 인식기가 흘린 기호를 떼고, 남을 글자만 남긴다. */
@@ -61,6 +140,8 @@
     var text = String((word && word.text) || '').trim();
     text = text.replace(/^[^0-9A-Za-z가-힣]+/, '').replace(/[^0-9A-Za-z가-힣+\-/:.]+$/, '');
     if (!text) return null;
+    // 스케줄의 코드·공항·편명은 모두 대문자다. 인식기가 흘린 소문자를 되돌린다.
+    text = text.toUpperCase();
     var conf = word.conf == null ? 100 : word.conf;
     // 자신 없는 글자 중 한두 자짜리만 버린다. 대개 선이나 무늬를 글자로 본 것이다.
     // 긴 글자는 틀렸더라도 남겨 둔다. 날짜 한 줄이 통째로 사라지는 편이 더 나쁘다.
@@ -140,33 +221,107 @@
     return out;
   }
 
-  /** 달력을 칸으로 되짚어 "날짜 근무" 줄로 만든다. */
+  /**
+   * 날짜 숫자들이 서 있는 세로줄(요일 칸)을 찾는다.
+   *
+   * 한 주만 보고 칸을 나누면, 읽히지 않은 날짜 하나 때문에 그 칸의 근무가 옆 칸으로
+   * 밀린다. 달력 전체의 날짜 자리를 모아 세로줄을 잡으면 그런 일이 없다.
+   */
+  function columnsOf(dayRows) {
+    var centers = [];
+    dayRows.forEach(function (row) {
+      row.words.forEach(function (word) { if (DAY.test(word.text)) centers.push(word.cx); });
+    });
+    if (centers.length < 3) return [];
+    centers.sort(function (a, b) { return a - b; });
+
+    var span = centers[centers.length - 1] - centers[0];
+    var tol = Math.max(4, span / 14);          // 일곱 칸이면 칸 사이의 절반쯤
+    var columns = [];
+    var group = [centers[0]];
+    for (var i = 1; i < centers.length; i++) {
+      if (centers[i] - group[group.length - 1] <= tol) { group.push(centers[i]); continue; }
+      columns.push(mean(group));
+      group = [centers[i]];
+    }
+    columns.push(mean(group));
+    return columns;
+  }
+
+  function mean(values) {
+    return values.reduce(function (sum, v) { return sum + v; }, 0) / values.length;
+  }
+
+  function nearestColumn(x, columns) {
+    var at = 0;
+    for (var i = 1; i < columns.length; i++) {
+      if (Math.abs(x - columns[i]) < Math.abs(x - columns[at])) at = i;
+    }
+    return at;
+  }
+
+  /**
+   * 한 주의 칸마다 날짜를 매긴다. 읽히지 않은 날짜는 옆 칸에서 세어 메운다.
+   * 달력은 칸 하나에 하루씩 늘어나므로, 하나만 알면 나머지가 따라온다.
+   */
+  function daysOfWeekRow(row, columns) {
+    var slots = new Array(columns.length).fill(null);
+    row.words.forEach(function (word) {
+      if (!DAY.test(word.text)) return;
+      var at = nearestColumn(word.cx, columns);
+      if (slots[at] == null) slots[at] = +word.text;
+    });
+
+    var anchor = -1;
+    for (var i = 0; i < slots.length; i++) if (slots[i] != null) { anchor = i; break; }
+    if (anchor < 0) return slots;
+
+    for (var j = 0; j < slots.length; j++) {
+      if (slots[j] != null) { anchor = j; continue; }
+      var guess = slots[anchor] + (j - anchor);
+      slots[j] = guess >= 1 && guess <= 31 ? guess : null;
+    }
+    return slots;
+  }
+
+  /**
+   * 달력을 칸으로 되짚어 "날짜 근무" 줄로 만든다.
+   *
+   * 칸은 달력 전체에서 잡은 세로줄로 나누고, 글자는 가장 가까운 세로줄에 담는다.
+   * 숫자를 왼쪽에 붙여 쓰는 달력도, 가운데에 놓는 달력도 이 기준이면 같이 맞는다.
+   */
   function fromCalendar(rowList) {
     var out = [];
-    rowList.forEach(function (row, index) {
-      if (!isDayRow(row)) return;
+    var dayRows = [];
+    rowList.forEach(function (row, index) { if (isDayRow(row)) dayRows.push(index); });
+    if (!dayRows.length) return out;
 
-      var days = row.words.filter(function (w) { return DAY.test(w.text); });
-      var width = days.length > 1
-        ? (days[days.length - 1].x0 - days[0].x0) / (days.length - 1)
-        : 1e9;
-      var edges = days.map(function (day) { return day.x0 - width * 0.12; });
+    // 한 주가 차지하는 높이. 마지막 주 아래의 딴 글(메뉴 따위)을 끊는 데 쓴다.
+    var heights = [];
+    for (var d = 1; d < dayRows.length; d++) {
+      heights.push(rowList[dayRows[d]].cy - rowList[dayRows[d - 1]].cy);
+    }
+    var weekHeight = heights.length ? median(heights) : Infinity;
 
-      var cells = days.map(function (day) { return { day: +day.text, tokens: [] }; });
+    var columns = columnsOf(dayRows.map(function (index) { return rowList[index]; }));
+    if (!columns.length) return out;
+
+    dayRows.forEach(function (index, which) {
+      var row = rowList[index];
+      var days = daysOfWeekRow(row, columns);
+      var cells = days.map(function (day) { return { day: day, tokens: [] }; });
+      var stopBelow = which === dayRows.length - 1 ? row.cy + weekHeight : Infinity;
 
       for (var i = index + 1; i < rowList.length; i++) {
         if (isDayRow(rowList[i])) break;                    // 다음 주
+        if (rowList[i].cy > stopBelow) break;               // 달력 아래의 딴 글
         rowList[i].words.forEach(function (word) {
-          var at = 0;
-          for (var c = 0; c < edges.length; c++) {
-            if (word.cx >= edges[c]) at = c;
-          }
-          cells[at].tokens.push(word.text);
+          cells[nearestColumn(word.cx, columns)].tokens.push(word.text);
         });
       }
 
       cells.forEach(function (cell) {
-        if (!cell.tokens.length) return;
+        if (cell.day == null || !cell.tokens.length) return;
         out.push({ day: cell.day, tokens: joinTimes(cell.tokens) });
       });
     });
@@ -269,6 +424,10 @@
     toText: toText,
     cellLines: cellLines,
     fixCode: fixCode,
+    snapToKnownCode: snapToKnownCode,
+    columnsOf: columnsOf,
+    daysOfWeekRow: daysOfWeekRow,
+    flightCandidates: flightCandidates,
     rows: rows,
     isDayRow: isDayRow,
     joinTimes: joinTimes

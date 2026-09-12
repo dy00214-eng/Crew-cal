@@ -5220,12 +5220,12 @@ button.ghost.danger { color: var(--danger); }
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
-    module.exports = factory();
+    module.exports = factory(require('./codes.js'), require('./schedule.js'));
   } else {
     root.CrewCal = root.CrewCal || {};
-    root.CrewCal.ocrlayout = factory();
+    root.CrewCal.ocrlayout = factory(root.CrewCal.codes, root.CrewCal.schedule);
   }
-})(typeof self !== 'undefined' ? self : this, function () {
+})(typeof self !== 'undefined' ? self : this, function (codes, schedule) {
   'use strict';
 
   var DAY = /^([1-9]|[12][0-9]|3[01])$/;
@@ -5234,21 +5234,32 @@ button.ghost.danger { color: var(--danger); }
   var UNSURE = 60;                 // 이보다 자신 없는 글자는 확인하라고 일러준다
   var JUNK = 35;                   // 이보다 자신 없는 글자는 아예 버린다. 대개 무늬나 선이다.
 
+  // 인식기가 숫자를 이 글자들로 잘못 읽는다. 편명 숫자 자리에서만 되돌린다.
+  // S 와 G 는 5·8, 6·8 둘 다로 읽히므로 두 가지를 다 만들어 보고 시간표에 있는 쪽을 쓴다.
+  var LOOKALIKE = {
+    O: ['0'], Q: ['0'], D: ['0'], I: ['1'], L: ['1'], J: ['1'],
+    Z: ['2'], S: ['5', '8'], G: ['6', '8'], B: ['8'], T: ['7']
+  };
+  var DIGITISH = 'O0-9QDILJZSGBT';
+
   /**
-   * 0 과 O, 1 과 l 은 인식기가 자주 헷갈린다. 편명은 "영문 두 자 + 숫자" 라는 걸
+   * 0 과 O, 1 과 L 은 인식기가 자주 헷갈린다. 편명은 "영문 두 자 + 숫자" 라는 걸
    * 아니까, 그 꼴에 맞춰 되돌린다. 글자 수가 하나 늘어 KE00035 처럼 되는 일도 있어
    * 앞의 0 을 떼고 네 자리로 맞춘다. 편명 아닌 글자는 건드리지 않는다.
    */
   function fixCode(token) {
-    var flight = /^([A-Z]{2})([O0-9OIl]{3,7})$/.exec(token);
+    var flight = new RegExp('^([A-Z]{2})([' + DIGITISH + ']{3,7})$').exec(token);
     if (flight) {
-      var digits = flight[2].replace(/[OQ]/g, '0').replace(/[Il]/g, '1');
-      if (!/^\d+$/.test(digits)) return token;
-      var number = digits.replace(/^0+/, '') || '0';
-      if (number.length > 4) return token;                 // 편명으로 보기엔 너무 길다
-      while (number.length < 4) number = '0' + number;
-      return flight[1] + number;
+      var candidates = flightCandidates(flight[1], flight[2]);
+      if (!candidates.length) return token;
+      var known = candidates.filter(function (code) { return schedule && schedule.lookup(code); });
+      if (known.length === 1) return known[0];             // 시간표에 있는 편이 하나뿐이면 그것
+      return candidates[0];
     }
+
+    // 앞에 군더더기가 붙은 편명(JJKE1402)은 뒤의 편명만 남긴다
+    var tail = /^[A-Z]{1,3}([A-Z]{2}\d{4})$/.exec(token);
+    if (tail) return tail[1];
     // 날짜(01SEP26). 자릿수가 하나 늘거나 0 이 O 로 읽힌 것을 되돌린다
     var date = /^([O0-9]{1,3})([A-Z]{3})([O0-9]{2,3})$/.exec(token);
     if (date && MONTHS.indexOf(date[2]) !== -1) {
@@ -5261,7 +5272,75 @@ button.ghost.danger { color: var(--danger); }
     if (/^[O0-9]{3,4}([-+][O0-9+]{1,6})?$/.test(token) && /O/.test(token)) {
       return token.replace(/O/g, '0');
     }
-    return token;
+    return snapToKnownCode(token);
+  }
+
+  /**
+   * 헷갈리는 글자를 숫자로 바꿔 가며 있을 법한 편명을 모두 만든다.
+   * 앞의 0 을 떼고 네 자리로 맞추므로 KE00035 도 KE0035 가 된다.
+   */
+  function flightCandidates(prefix, digits) {
+    var out = [''];
+    for (var i = 0; i < digits.length; i++) {
+      var ch = digits[i];
+      var options = LOOKALIKE[ch] || (/[0-9]/.test(ch) ? [ch] : null);
+      if (!options) return [];
+      var next = [];
+      out.forEach(function (head) {
+        options.forEach(function (option) { next.push(head + option); });
+      });
+      out = next;
+      if (out.length > 8) return [];                       // 헷갈리는 글자가 너무 많다
+    }
+    var seen = {};
+    var codesOut = [];
+    out.forEach(function (number) {
+      var trimmed = number.replace(/^0+/, '') || '0';
+      if (trimmed.length > 4) return;
+      while (trimmed.length < 4) trimmed = '0' + trimmed;
+      var code = prefix + trimmed;
+      if (seen[code]) return;
+      seen[code] = true;
+      codesOut.push(code);
+    });
+    return codesOut;
+  }
+
+  /**
+   * 아는 근무 코드에서 한 글자만 어긋난 것은 그 코드로 본다. ATOO -> ATDO 처럼.
+   * 헷갈릴 만한 후보가 둘 이상이면 건드리지 않는다. 엉뚱한 근무로 바꾸는 것보다
+   * 모르는 코드로 두고 사람이 고치는 편이 낫다. 두 글자짜리는 서로 너무 닮아 뺀다.
+   */
+  function snapToKnownCode(token) {
+    if (!codes || token.length < 3 || token.length > 6 || !/^[A-Z0-9]+$/.test(token)) return token;
+    var known = codes.knownCodeList();
+    if (known.indexOf(token) !== -1) return token;
+
+    var hit = null;
+    for (var i = 0; i < known.length; i++) {
+      if (known[i].length < 3) continue;
+      if (!oneEditApart(token, known[i])) continue;
+      if (hit) return token;                  // 후보가 둘이면 그냥 둔다
+      hit = known[i];
+    }
+    return hit || token;
+  }
+
+  /** 한 글자를 바꾸거나 넣거나 빼면 같아지는지. */
+  function oneEditApart(a, b) {
+    if (Math.abs(a.length - b.length) > 1) return false;
+    if (a.length === b.length) {
+      var diff = 0;
+      for (var i = 0; i < a.length; i++) if (a[i] !== b[i]) diff++;
+      return diff === 1;
+    }
+    var longer = a.length > b.length ? a : b;
+    var shorter = a.length > b.length ? b : a;
+    for (var j = 0, k = 0, skipped = 0; j < longer.length; j++) {
+      if (longer[j] === shorter[k]) k++;
+      else if (++skipped > 1) return false;
+    }
+    return true;
   }
 
   /** 인식기가 흘린 기호를 떼고, 남을 글자만 남긴다. */
@@ -5269,6 +5348,8 @@ button.ghost.danger { color: var(--danger); }
     var text = String((word && word.text) || '').trim();
     text = text.replace(/^[^0-9A-Za-z가-힣]+/, '').replace(/[^0-9A-Za-z가-힣+\-/:.]+$/, '');
     if (!text) return null;
+    // 스케줄의 코드·공항·편명은 모두 대문자다. 인식기가 흘린 소문자를 되돌린다.
+    text = text.toUpperCase();
     var conf = word.conf == null ? 100 : word.conf;
     // 자신 없는 글자 중 한두 자짜리만 버린다. 대개 선이나 무늬를 글자로 본 것이다.
     // 긴 글자는 틀렸더라도 남겨 둔다. 날짜 한 줄이 통째로 사라지는 편이 더 나쁘다.
@@ -5348,33 +5429,107 @@ button.ghost.danger { color: var(--danger); }
     return out;
   }
 
-  /** 달력을 칸으로 되짚어 "날짜 근무" 줄로 만든다. */
+  /**
+   * 날짜 숫자들이 서 있는 세로줄(요일 칸)을 찾는다.
+   *
+   * 한 주만 보고 칸을 나누면, 읽히지 않은 날짜 하나 때문에 그 칸의 근무가 옆 칸으로
+   * 밀린다. 달력 전체의 날짜 자리를 모아 세로줄을 잡으면 그런 일이 없다.
+   */
+  function columnsOf(dayRows) {
+    var centers = [];
+    dayRows.forEach(function (row) {
+      row.words.forEach(function (word) { if (DAY.test(word.text)) centers.push(word.cx); });
+    });
+    if (centers.length < 3) return [];
+    centers.sort(function (a, b) { return a - b; });
+
+    var span = centers[centers.length - 1] - centers[0];
+    var tol = Math.max(4, span / 14);          // 일곱 칸이면 칸 사이의 절반쯤
+    var columns = [];
+    var group = [centers[0]];
+    for (var i = 1; i < centers.length; i++) {
+      if (centers[i] - group[group.length - 1] <= tol) { group.push(centers[i]); continue; }
+      columns.push(mean(group));
+      group = [centers[i]];
+    }
+    columns.push(mean(group));
+    return columns;
+  }
+
+  function mean(values) {
+    return values.reduce(function (sum, v) { return sum + v; }, 0) / values.length;
+  }
+
+  function nearestColumn(x, columns) {
+    var at = 0;
+    for (var i = 1; i < columns.length; i++) {
+      if (Math.abs(x - columns[i]) < Math.abs(x - columns[at])) at = i;
+    }
+    return at;
+  }
+
+  /**
+   * 한 주의 칸마다 날짜를 매긴다. 읽히지 않은 날짜는 옆 칸에서 세어 메운다.
+   * 달력은 칸 하나에 하루씩 늘어나므로, 하나만 알면 나머지가 따라온다.
+   */
+  function daysOfWeekRow(row, columns) {
+    var slots = new Array(columns.length).fill(null);
+    row.words.forEach(function (word) {
+      if (!DAY.test(word.text)) return;
+      var at = nearestColumn(word.cx, columns);
+      if (slots[at] == null) slots[at] = +word.text;
+    });
+
+    var anchor = -1;
+    for (var i = 0; i < slots.length; i++) if (slots[i] != null) { anchor = i; break; }
+    if (anchor < 0) return slots;
+
+    for (var j = 0; j < slots.length; j++) {
+      if (slots[j] != null) { anchor = j; continue; }
+      var guess = slots[anchor] + (j - anchor);
+      slots[j] = guess >= 1 && guess <= 31 ? guess : null;
+    }
+    return slots;
+  }
+
+  /**
+   * 달력을 칸으로 되짚어 "날짜 근무" 줄로 만든다.
+   *
+   * 칸은 달력 전체에서 잡은 세로줄로 나누고, 글자는 가장 가까운 세로줄에 담는다.
+   * 숫자를 왼쪽에 붙여 쓰는 달력도, 가운데에 놓는 달력도 이 기준이면 같이 맞는다.
+   */
   function fromCalendar(rowList) {
     var out = [];
-    rowList.forEach(function (row, index) {
-      if (!isDayRow(row)) return;
+    var dayRows = [];
+    rowList.forEach(function (row, index) { if (isDayRow(row)) dayRows.push(index); });
+    if (!dayRows.length) return out;
 
-      var days = row.words.filter(function (w) { return DAY.test(w.text); });
-      var width = days.length > 1
-        ? (days[days.length - 1].x0 - days[0].x0) / (days.length - 1)
-        : 1e9;
-      var edges = days.map(function (day) { return day.x0 - width * 0.12; });
+    // 한 주가 차지하는 높이. 마지막 주 아래의 딴 글(메뉴 따위)을 끊는 데 쓴다.
+    var heights = [];
+    for (var d = 1; d < dayRows.length; d++) {
+      heights.push(rowList[dayRows[d]].cy - rowList[dayRows[d - 1]].cy);
+    }
+    var weekHeight = heights.length ? median(heights) : Infinity;
 
-      var cells = days.map(function (day) { return { day: +day.text, tokens: [] }; });
+    var columns = columnsOf(dayRows.map(function (index) { return rowList[index]; }));
+    if (!columns.length) return out;
+
+    dayRows.forEach(function (index, which) {
+      var row = rowList[index];
+      var days = daysOfWeekRow(row, columns);
+      var cells = days.map(function (day) { return { day: day, tokens: [] }; });
+      var stopBelow = which === dayRows.length - 1 ? row.cy + weekHeight : Infinity;
 
       for (var i = index + 1; i < rowList.length; i++) {
         if (isDayRow(rowList[i])) break;                    // 다음 주
+        if (rowList[i].cy > stopBelow) break;               // 달력 아래의 딴 글
         rowList[i].words.forEach(function (word) {
-          var at = 0;
-          for (var c = 0; c < edges.length; c++) {
-            if (word.cx >= edges[c]) at = c;
-          }
-          cells[at].tokens.push(word.text);
+          cells[nearestColumn(word.cx, columns)].tokens.push(word.text);
         });
       }
 
       cells.forEach(function (cell) {
-        if (!cell.tokens.length) return;
+        if (cell.day == null || !cell.tokens.length) return;
         out.push({ day: cell.day, tokens: joinTimes(cell.tokens) });
       });
     });
@@ -5477,6 +5632,10 @@ button.ghost.danger { color: var(--danger); }
     toText: toText,
     cellLines: cellLines,
     fixCode: fixCode,
+    snapToKnownCode: snapToKnownCode,
+    columnsOf: columnsOf,
+    daysOfWeekRow: daysOfWeekRow,
+    flightCandidates: flightCandidates,
     rows: rows,
     isDayRow: isDayRow,
     joinTimes: joinTimes
@@ -5508,29 +5667,48 @@ button.ghost.danger { color: var(--danger); }
 
   var BASE = 'vendor/tesseract/';
   var SCRIPT = BASE + 'tesseract.min.js';
-  var MIN_SIDE = 1100;      // 이보다 작으면 키워서 읽는다. 작은 글씨는 그냥은 못 읽는다.
-  var MAX_SIDE = 2800;      // 이보다 크면 줄인다. 더 키워봐야 느리기만 하다.
+  var MIN_WIDTH = 2200;     // 폰 스케줄 화면의 작은 글씨는 이 정도로 키워야 읽힌다
+  var MAX_SIDE = 4000;      // 아이폰 사파리가 감당하는 캔버스 한 변
+  var MAX_PIXELS = 12e6;    // 그리고 넓이도 한계가 있다
   var MAX_SCALE = 3;
 
   var loading = null;
   var worker = null;
 
-  /** 얼마나 키우거나 줄여서 읽을지. */
+  /**
+   * 얼마나 키우거나 줄여서 읽을지.
+   *
+   * 폰으로 찍은 스케줄 화면은 글씨가 20픽셀 남짓이라 그냥은 잘 안 읽힌다. 가로가
+   * 2200픽셀쯤 되게 키우면 또렷해진다. 다만 캔버스가 감당하는 크기가 있어,
+   * 한 변 4000픽셀과 전체 1200만 픽셀을 넘지 않는 선에서 키운다.
+   */
   function scaleFor(width, height) {
     if (!width || !height) return 1;
-    var scale = 1;
-    var min = Math.min(width, height);
-    var max = Math.max(width, height);
-    if (min < MIN_SIDE) scale = Math.min(MAX_SCALE, MIN_SIDE / min);
-    if (max * scale > MAX_SIDE) scale = MAX_SIDE / max;
+    var wanted = width < MIN_WIDTH ? Math.min(MAX_SCALE, MIN_WIDTH / width) : 1;
+
+    // 정수배로 키우면 글자가 덜 뭉갠다. 들어가면 정수배, 아니면 들어가는 만큼만.
+    var whole = Math.max(1, Math.round(wanted));
+    if (whole > 1 && fits(width, height, whole)) return whole;
+
+    var scale = wanted;
+    var longest = Math.max(width, height) * scale;
+    if (longest > MAX_SIDE) scale *= MAX_SIDE / longest;
+    var pixels = width * height * scale * scale;
+    if (pixels > MAX_PIXELS) scale *= Math.sqrt(MAX_PIXELS / pixels);
     return scale;
+  }
+
+  function fits(width, height, scale) {
+    return Math.max(width, height) * scale <= MAX_SIDE &&
+      width * height * scale * scale <= MAX_PIXELS;
   }
 
   /**
    * 흑백으로 바꾸고, 어두운 화면(흰 글씨)이면 뒤집고, 옅은 글자는 진하게 편다.
    * 픽셀 배열을 그 자리에서 고치고 무엇을 했는지 알려준다.
    */
-  function enhance(data) {
+  function enhance(data, options) {
+    var opts = options || {};
     var i;
     var gray = new Uint8Array(data.length / 4);
     var sum = 0;
@@ -5558,6 +5736,8 @@ button.ghost.danger { color: var(--danger); }
     acc = 0;
     for (i = 255; i >= 0; i--) { acc += histogram[i]; if (acc > cut) { high = i; break; } }
     if (high - low < 32) { low = 0; high = 255; }              // 밋밋한 그림은 그대로 둔다
+    // 색 판을 이미 흑백으로 눌러 둔 그림은 더 늘이지 않는다. 글자만 상한다.
+    if (opts.stretch === false) { low = 0; high = 255; }
 
     var span = high - low;
     for (i = 0; i < gray.length; i++) {
@@ -5573,6 +5753,137 @@ button.ghost.danger { color: var(--danger); }
       low: low,
       high: high
     };
+  }
+
+  /**
+   * 색칠한 판 위의 흰 글씨를 검은 글씨로 돌려놓는다.
+   *
+   * 크루넷은 근무를 색 판(파랑·연파랑·연두) 위에 흰 글씨로 적는다. 흑백으로만 바꾸면
+   * 판은 중간 회색, 글씨는 흰색이 되는데, 인식기는 흰 바탕에 검은 글씨를 찾으므로
+   * 이런 판은 통째로 못 읽는다. 실제로 크루넷 화면에서는 근무 코드가 하나도 안 읽혔다.
+   *
+   * 그래서 색이 진한 자리를 판으로 보고, 판마다 따로 밝기를 재어 글씨는 검게, 판은
+   * 희게 바꾼다. 판마다 색이 다르므로 한꺼번에 재면 안 되고, 이어진 판끼리 따로 재야 한다.
+   * 색 글씨(빨간 일요일 숫자 따위)는 속이 빈 가는 획이라 판으로 보지 않는다.
+   */
+  function unchip(data, width, height) {
+    var n = width * height;
+    var gray = new Uint8Array(n);
+    var colored = new Uint8Array(n);
+    var i;
+
+    for (i = 0; i < n; i++) {
+      var r = data[i * 4], g = data[i * 4 + 1], b = data[i * 4 + 2];
+      gray[i] = (r * 299 + g * 587 + b * 114) / 1000;
+      colored[i] = (Math.max(r, g, b) - Math.min(r, g, b)) > 40 ? 1 : 0;
+    }
+
+    // 판 안의 흰 글씨는 색이 없다. 가로로 좁은 틈은 메워 판 하나로 잇는다.
+    var gap = Math.max(8, Math.round(width * 0.022));
+    var region = colored.slice();
+    for (var y = 0; y < height; y++) {
+      var last = -1;
+      for (var x = 0; x < width; x++) {
+        i = y * width + x;
+        if (!colored[i]) continue;
+        if (last >= 0 && x - last <= gap) {
+          for (var k = last + 1; k < x; k++) region[y * width + k] = 1;
+        }
+        last = x;
+      }
+    }
+
+    var label = new Int32Array(n);
+    var stack = new Int32Array(n);
+    var pixels = new Int32Array(n);
+    var plates = 0;
+    var top0 = height, bottom0 = -1, tall = 0;
+
+    for (var seed = 0; seed < n; seed++) {
+      if (!region[seed] || label[seed]) continue;
+      var top = 0;
+      var count = 0;
+      stack[top++] = seed;
+      label[seed] = 1;
+      var x0 = width, x1 = -1, y0 = height, y1 = -1;
+      while (top > 0) {
+        var at = stack[--top];
+        pixels[count++] = at;
+        var ax = at % width, ay = (at / width) | 0;
+        if (ax < x0) x0 = ax;
+        if (ax > x1) x1 = ax;
+        if (ay < y0) y0 = ay;
+        if (ay > y1) y1 = ay;
+        if (ax > 0 && region[at - 1] && !label[at - 1]) { label[at - 1] = 1; stack[top++] = at - 1; }
+        if (ax < width - 1 && region[at + 1] && !label[at + 1]) { label[at + 1] = 1; stack[top++] = at + 1; }
+        if (ay > 0 && region[at - width] && !label[at - width]) { label[at - width] = 1; stack[top++] = at - width; }
+        if (ay < height - 1 && region[at + width] && !label[at + width]) { label[at + width] = 1; stack[top++] = at + width; }
+      }
+
+      var w = x1 - x0 + 1, h = y1 - y0 + 1;
+      if (w < 40 || h < 16 || count < 800) continue;          // 판이라기엔 작다
+      if (count / (w * h) < 0.6) continue;                    // 속이 빈 덩어리 (색 글씨 따위)
+
+      var histogram = new Uint32Array(256);
+      for (i = 0; i < count; i++) histogram[gray[pixels[i]]]++;
+      var plate = 0;
+      for (i = 1; i < 256; i++) if (histogram[i] > histogram[plate]) plate = i;
+
+      var bright = 0, brightCount = 0, darkCount = 0;
+      for (i = 0; i < count; i++) {
+        var value = gray[pixels[i]];
+        if (value > plate + 30) { bright += value; brightCount++; }
+        else if (value < plate - 30) darkCount++;
+      }
+      var ratio = brightCount / count;
+      if (brightCount <= darkCount || ratio < 0.03 || ratio > 0.5) continue;   // 흰 글씨 판이 아니다
+
+      var cut = (plate + bright / brightCount) / 2;
+      for (i = 0; i < count; i++) {
+        gray[pixels[i]] = gray[pixels[i]] >= cut ? 0 : 255;   // 글씨는 검게, 판은 희게
+      }
+      plates++;
+      if (y0 < top0) top0 = y0;
+      if (y1 > bottom0) bottom0 = y1;
+      if (h > tall) tall = h;
+    }
+
+    if (plates) {
+      for (i = 0; i < n; i++) {
+        data[i * 4] = data[i * 4 + 1] = data[i * 4 + 2] = gray[i];
+      }
+    }
+    return {
+      plates: plates,
+      // 날짜 숫자와 요일 머리글이 판 위에 있으므로 넉넉히 남긴다. 바짝 자르면
+      // 인식기가 글의 짜임을 읽지 못해 되레 덜 읽는다.
+      top: plates ? Math.max(0, top0 - tall * 4) : 0,
+      bottom: plates ? Math.min(height, bottom0 + tall * 2) : height
+    };
+  }
+
+  /**
+   * 이중선형으로 키운다. 캔버스에 맡기면 획이 뭉개지거나 너무 날카로워져서,
+   * 같은 화면을 놓고 견줘 보면 이쪽이 더 잘 읽혔다.
+   */
+  function upscale(data, width, height, zoom) {
+    var w = Math.round(width * zoom), h = Math.round(height * zoom);
+    var out = new Uint8ClampedArray(w * h * 4);
+    for (var y = 0; y < h; y++) {
+      var sy = Math.min(height - 1, y / zoom);
+      var y0 = Math.floor(sy), y1 = Math.min(height - 1, y0 + 1), fy = sy - y0;
+      for (var x = 0; x < w; x++) {
+        var sx = Math.min(width - 1, x / zoom);
+        var x0 = Math.floor(sx), x1 = Math.min(width - 1, x0 + 1), fx = sx - x0;
+        var tl = data[(y0 * width + x0) * 4], tr = data[(y0 * width + x1) * 4];
+        var bl = data[(y1 * width + x0) * 4], br = data[(y1 * width + x1) * 4];
+        var value = (tl * (1 - fx) + tr * fx) * (1 - fy) + (bl * (1 - fx) + br * fx) * fy;
+        var at = (y * w + x) * 4;
+        out[at] = out[at + 1] = out[at + 2] = value;
+        out[at + 3] = 255;
+      }
+    }
+    return { data: out, width: w, height: h };
   }
 
   /** 이 브라우저에서 기기 안 인식을 쓸 수 있는지. */
@@ -5622,8 +5933,9 @@ button.ghost.danger { color: var(--danger); }
       });
     }).then(function (created) {
       worker = created;
-      // 칸이 여럿인 표도 줄 단위로 고르게 읽도록 한다
-      return worker.setParameters({ tessedit_pageseg_mode: '6' }).then(function () { return worker; });
+      // 11 = 드문드문 놓인 글자 찾기. 달력처럼 칸칸이 떨어져 적힌 화면에서
+      // 줄 단위(6)보다 훨씬 잘 읽는다. 크루넷 화면으로 견줘 보고 골랐다.
+      return worker.setParameters({ tessedit_pageseg_mode: '11' }).then(function () { return worker; });
     });
   }
 
@@ -5634,17 +5946,43 @@ button.ghost.danger { color: var(--danger); }
       var image = new Image();
       image.onload = function () {
         try {
-          var scale = scaleFor(image.width, image.height);
+          // 1) 원래 크기에서 색 판을 먼저 되돌린다 (키운 뒤에 하면 느리기만 하다)
+          var first = document.createElement('canvas');
+          first.width = image.width;
+          first.height = image.height;
+          var firstCtx = first.getContext('2d');
+          firstCtx.drawImage(image, 0, 0);
+          var pixels = firstCtx.getImageData(0, 0, first.width, first.height);
+          var found = unchip(pixels.data, first.width, first.height);
+          var how = enhance(pixels.data, { stretch: found.plates < 4 });
+          how.plates = found.plates;
+
+          // 2) 근무 판이 있는 자리만 남긴다. 상태 표시줄이나 메뉴를 읽을 일이 없고,
+          //    그만큼 더 키워서 읽을 수 있다. 가로는 그대로 두어 요일 칸을 다 담는다.
+          var cropTop = found.plates >= 4 ? found.top : 0;
+          var cropHeight = (found.plates >= 4 ? found.bottom : image.height) - cropTop;
+          how.cropped = cropHeight < image.height;
+
+          var cut = pixels.data;
+          if (how.cropped) {
+            cut = new Uint8ClampedArray(image.width * cropHeight * 4);
+            var rowBytes = image.width * 4;
+            for (var row = 0; row < cropHeight; row++) {
+              cut.set(pixels.data.subarray((cropTop + row) * rowBytes, (cropTop + row + 1) * rowBytes),
+                row * rowBytes);
+            }
+          }
+
+          // 3) 그런 다음 읽기 좋은 크기로 키운다
+          var scale = scaleFor(image.width, cropHeight);
+          var big = Math.abs(scale - 1) < 0.01
+            ? { data: cut, width: image.width, height: cropHeight }
+            : upscale(cut, image.width, cropHeight, scale);
+
           var canvas = document.createElement('canvas');
-          canvas.width = Math.round(image.width * scale);
-          canvas.height = Math.round(image.height * scale);
-          var ctx = canvas.getContext('2d');
-          ctx.imageSmoothingEnabled = true;
-          ctx.imageSmoothingQuality = 'high';
-          ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-          var pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          var how = enhance(pixels.data);
-          ctx.putImageData(pixels, 0, 0);
+          canvas.width = big.width;
+          canvas.height = big.height;
+          canvas.getContext('2d').putImageData(new ImageData(big.data, big.width, big.height), 0, 0);
           URL.revokeObjectURL(url);
           resolve({ canvas: canvas, scale: scale, how: how });
         } catch (e) {
@@ -5722,6 +6060,8 @@ button.ghost.danger { color: var(--danger); }
     release: release,
     scaleFor: scaleFor,
     enhance: enhance,
+    unchip: unchip,
+    upscale: upscale,
     BASE: BASE
   };
 });
@@ -7776,7 +8116,7 @@ button.ghost.danger { color: var(--danger); }
   /* ---------------- 동료가 보내는 의견 ---------------- */
 
   // 화면 아래와 의견 보내기에 적히는 판 번호. sw.js 의 VERSION 과 함께 올린다.
-  var APP_VERSION = 'v12';
+  var APP_VERSION = 'v13';
 
   /**
    * 의견을 받을 메일 주소. 저장소가 공개라 통짜로 적어두면 스팸 크롤러가 긁어가므로
