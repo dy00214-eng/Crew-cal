@@ -1333,6 +1333,21 @@ button.ghost.danger { color: var(--danger); }
 .bulk-where { grid-column: 3; font-size: 11px; line-height: 1.3; }
 .bulk-where.warn { color: var(--cat-unknown); }
 @media (max-width: 380px) { .bulk-row { grid-template-columns: 64px 30px 1fr; } }
+
+/* 날을 넘겨 나는 중인 날. 도시 대신 '기내'. */
+.cal-city.enroute { opacity: 0.85; font-style: normal; }
+/* 손님으로 타고 가는 편(TVL) */
+.cal-deadhead {
+  align-self: center;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.2;
+  padding: 0 4px;
+  border-radius: 999px;
+  color: var(--muted);
+  background: var(--fill-strong);
+  white-space: nowrap;
+}
 </style>
 <header class="app-header">
   <h1>Crew-cal</h1>
@@ -1606,25 +1621,6 @@ button.ghost.danger { color: var(--danger); }
       </details>
     </div>
 
-    <details id="flightBook" class="flight-book">
-      <summary>편명 시각 <span id="flightCount">0</span>개 기억함</summary>
-      <p class="muted">
-        대한항공 주요 편은 <b id="builtinCount">0</b>편이 기본으로 들어 있어, 코드만 넣어도 구간·시각이 붙습니다.
-        여기에 등록한 값은 언제나 기본 시간표보다 우선합니다.
-        <span id="builtinNote"></span> 실제 로스터가 다르면 아래에 등록해 덮어쓰세요.
-      </p>
-      <label class="field">
-        <span>한꺼번에 등록 <em>(한 줄에 하나: 편명 구간 출발-도착)</em></span>
-        <textarea id="flightBookInput" rows="5" spellcheck="false"
-          placeholder="KE0035  ICN/ATL  0945-1020&#10;KE0036  ATL/ICN  1325-1750+1&#10;KE0901  ICN/CDG  1205-1830"></textarea>
-      </label>
-      <div class="actions">
-        <button type="button" id="importFlightsBtn" class="primary">등록하고 기존 일정에 채우기</button>
-        <button type="button" id="forgetFlightsBtn" class="ghost small danger">편명 기억 지우기</button>
-      </div>
-      <ul id="flightList" class="entry-list"></ul>
-    </details>
-
     <details id="viewSettings" class="flight-book">
       <summary>보기 설정</summary>
       <label class="check-field">
@@ -1636,7 +1632,6 @@ button.ghost.danger { color: var(--danger); }
         <input type="text" id="airlineList" autocomplete="off" spellcheck="false" placeholder="KE, OZ, 7C">
       </label>
       <p class="actions">
-        <button type="button" id="bulkOpen" class="ghost small">미등록 편명 일괄 등록</button>
         <button type="button" id="verifyOpen" class="ghost small">파싱 검증 (개발용)</button>
       </p>
       <p class="muted small-note">
@@ -1644,22 +1639,6 @@ button.ghost.danger { color: var(--danger); }
         잘못 읽힌 글자(AS0016 같은)가 비행으로 달력에 뜨는 것을 막아 줍니다.
       </p>
     </details>
-
-    <section id="bulkPanel" class="verify-panel" hidden>
-      <h2>미등록 편명 일괄 등록</h2>
-      <p class="muted small-note">
-        저장된 일정에서 구간을 모르는 편명을 모았습니다. 도착 공항만 넣으면
-        도시·나라·국기가 채워집니다. 홀수는 한국발, 짝수는 한국행으로 보고
-        짝이 되는 편도 함께 제안합니다. 실제 로스터가 언제나 우선입니다.
-      </p>
-      <div id="bulkList" class="bulk-list"></div>
-      <div class="actions">
-        <button type="button" id="bulkSave" class="primary">전부 저장하고 채우기</button>
-        <button type="button" id="bulkReload" class="ghost small">다시 모으기</button>
-        <button type="button" id="bulkClose" class="ghost small">닫기</button>
-      </div>
-      <p id="bulkStatus" class="status"></p>
-    </section>
 
     <section id="verifyPanel" class="verify-panel" hidden>
       <h2>파싱 검증 <em>(개발용)</em></h2>
@@ -1704,54 +1683,6 @@ button.ghost.danger { color: var(--danger); }
     <span class="app-version" id="appVersion"></span>
   </p>
 </footer>
-
-<div id="routeSheet" class="sheet" hidden>
-  <div class="sheet-backdrop" id="routeBackdrop"></div>
-  <div class="sheet-panel" role="dialog" aria-modal="true" aria-labelledby="routeTitle">
-    <div class="sheet-head">
-      <h2 id="routeTitle">노선 등록</h2>
-      <button type="button" class="welcome-close" id="routeClose" aria-label="닫기">✕</button>
-    </div>
-    <p class="hint">
-      <b id="routeCode">KE0000</b> 이 어디 가는 편인지 기본 시간표에 없습니다.
-      한 번 넣어 두면 다음에 같은 편명이 들어올 때 저절로 붙습니다.
-    </p>
-    <div class="route-grid">
-      <label class="field">
-        <span>출발</span>
-        <input type="text" id="routeFrom" value="ICN" autocomplete="off" spellcheck="false"
-          placeholder="ICN 또는 인천">
-      </label>
-      <label class="field">
-        <span>도착</span>
-        <input type="text" id="routeTo" autocomplete="off" spellcheck="false"
-          placeholder="KOJ 또는 가고시마">
-      </label>
-    </div>
-    <p class="muted small-note" id="routeWhere">도착 공항을 넣으면 어느 나라 어느 도시인지 여기에 뜹니다.</p>
-    <div class="route-grid">
-      <label class="field">
-        <span>출발 시각 <em>(모르면 비워 두세요)</em></span>
-        <input type="text" id="routeStart" inputmode="numeric" autocomplete="off"
-          placeholder="0905 또는 09:05">
-      </label>
-      <label class="field">
-        <span>도착 시각</span>
-        <input type="text" id="routeEnd" inputmode="numeric" autocomplete="off"
-          placeholder="1105 또는 11:05">
-      </label>
-    </div>
-    <label class="check-field">
-      <input type="checkbox" id="routeNextDay">
-      <span>다음 날 도착</span>
-    </label>
-    <p class="muted small-note">이 기기에만 저장됩니다. 지어낸 값을 넣지 말고 실제 로스터대로 적어 주세요.</p>
-    <div class="actions">
-      <button type="button" id="routeSave" class="primary">저장하고 채우기</button>
-      <button type="button" id="routeCancel" class="ghost">취소</button>
-    </div>
-  </div>
-</div>
 
 <div id="feedbackSheet" class="sheet" hidden>
   <div class="sheet-backdrop" id="feedbackBackdrop"></div>
@@ -1799,7 +1730,7 @@ button.ghost.danger { color: var(--danger); }
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 <script>
 /**
- * 노선·공항 자료. data/ke-routes.json 과 data/airports.json 에서 옮겨 적은 것이다.
+ * 공항 자료. data/airports.json 에서 옮겨 적은 것이다.
  * 손으로 고치지 말 것 — scripts/make-routes.js 가 다시 쓴다.
  */
 (function (root, factory) {
@@ -1811,3479 +1742,6 @@ button.ghost.danger { color: var(--danger); }
   }
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
-
-  var ROUTES = {
-    "KE0005": {
-      "from": "ICN",
-      "to": "LAS",
-      "city": "라스베이거스",
-      "country": "US",
-      "flag": "🇺🇸",
-      "start": "21:00",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0006": {
-      "from": "LAS",
-      "to": "ICN",
-      "city": "라스베이거스",
-      "country": "US",
-      "flag": "🇺🇸",
-      "start": null,
-      "end": "04:40",
-      "endOffset": 1
-    },
-    "KE0011": {
-      "from": "ICN",
-      "to": "LAX",
-      "city": "로스앤젤레스",
-      "country": "US",
-      "flag": "🇺🇸",
-      "start": "19:40",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0012": {
-      "from": "LAX",
-      "to": "ICN",
-      "city": "로스앤젤레스",
-      "country": "US",
-      "flag": "🇺🇸",
-      "start": null,
-      "end": "04:40",
-      "endOffset": 1
-    },
-    "KE0017": {
-      "from": "ICN",
-      "to": "LAX",
-      "city": "로스앤젤레스",
-      "country": "US",
-      "flag": "🇺🇸",
-      "start": "14:30",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0018": {
-      "from": "LAX",
-      "to": "ICN",
-      "city": "로스앤젤레스",
-      "country": "US",
-      "flag": "🇺🇸",
-      "start": null,
-      "end": "17:50",
-      "endOffset": 1
-    },
-    "KE0023": {
-      "from": "ICN",
-      "to": "SFO",
-      "city": "샌프란시스코",
-      "country": "US",
-      "flag": "🇺🇸",
-      "start": "16:00",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0024": {
-      "from": "SFO",
-      "to": "ICN",
-      "city": "샌프란시스코",
-      "country": "US",
-      "flag": "🇺🇸",
-      "start": null,
-      "end": "17:20",
-      "endOffset": 1
-    },
-    "KE0031": {
-      "from": "ICN",
-      "to": "DFW",
-      "city": "댈러스",
-      "country": "US",
-      "flag": "🇺🇸",
-      "start": "09:30",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0032": {
-      "from": "DFW",
-      "to": "ICN",
-      "city": "댈러스",
-      "country": "US",
-      "flag": "🇺🇸",
-      "start": null,
-      "end": "16:40",
-      "endOffset": 1
-    },
-    "KE0033": {
-      "from": "ICN",
-      "to": "ATL",
-      "city": "애틀랜타",
-      "country": "US",
-      "flag": "🇺🇸",
-      "start": "08:45",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0034": {
-      "from": "ATL",
-      "to": "ICN",
-      "city": "애틀랜타",
-      "country": "US",
-      "flag": "🇺🇸",
-      "start": null,
-      "end": "15:55",
-      "endOffset": 1
-    },
-    "KE0035": {
-      "from": "ICN",
-      "to": "ATL",
-      "city": "애틀랜타",
-      "country": "US",
-      "flag": "🇺🇸",
-      "start": "10:35",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0036": {
-      "from": "ATL",
-      "to": "ICN",
-      "city": "애틀랜타",
-      "country": "US",
-      "flag": "🇺🇸",
-      "start": null,
-      "end": "17:50",
-      "endOffset": 1
-    },
-    "KE0037": {
-      "from": "ICN",
-      "to": "ORD",
-      "city": "시카고",
-      "country": "US",
-      "flag": "🇺🇸",
-      "start": "10:40",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0038": {
-      "from": "ORD",
-      "to": "ICN",
-      "city": "시카고",
-      "country": "US",
-      "flag": "🇺🇸",
-      "start": null,
-      "end": "16:50",
-      "endOffset": 1
-    },
-    "KE0041": {
-      "from": "ICN",
-      "to": "SEA",
-      "city": "시애틀",
-      "country": "US",
-      "flag": "🇺🇸",
-      "start": "16:40",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0042": {
-      "from": "SEA",
-      "to": "ICN",
-      "city": "시애틀",
-      "country": "US",
-      "flag": "🇺🇸",
-      "start": null,
-      "end": "16:40",
-      "endOffset": 1
-    },
-    "KE0053": {
-      "from": "ICN",
-      "to": "HNL",
-      "city": "호놀룰루",
-      "country": "US",
-      "flag": "🇺🇸",
-      "start": "21:05",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0054": {
-      "from": "HNL",
-      "to": "ICN",
-      "city": "호놀룰루",
-      "country": "US",
-      "flag": "🇺🇸",
-      "start": null,
-      "end": "17:40",
-      "endOffset": 1
-    },
-    "KE0071": {
-      "from": "ICN",
-      "to": "YVR",
-      "city": "밴쿠버",
-      "country": "CA",
-      "flag": "🇨🇦",
-      "start": "18:45",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0072": {
-      "from": "YVR",
-      "to": "ICN",
-      "city": "밴쿠버",
-      "country": "CA",
-      "flag": "🇨🇦",
-      "start": null,
-      "end": "17:50",
-      "endOffset": 1
-    },
-    "KE0075": {
-      "from": "ICN",
-      "to": "YVR",
-      "city": "밴쿠버",
-      "country": "CA",
-      "flag": "🇨🇦",
-      "start": "22:40",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0076": {
-      "from": "YVR",
-      "to": "ICN",
-      "city": "밴쿠버",
-      "country": "CA",
-      "flag": "🇨🇦",
-      "start": null,
-      "end": "04:25",
-      "endOffset": 1
-    },
-    "KE0077": {
-      "from": "ICN",
-      "to": "YYZ",
-      "city": "토론토",
-      "country": "CA",
-      "flag": "🇨🇦",
-      "start": "10:00",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0078": {
-      "from": "YYZ",
-      "to": "ICN",
-      "city": "토론토",
-      "country": "CA",
-      "flag": "🇨🇦",
-      "start": null,
-      "end": "16:30",
-      "endOffset": 1
-    },
-    "KE0081": {
-      "from": "ICN",
-      "to": "JFK",
-      "city": "뉴욕",
-      "country": "US",
-      "flag": "🇺🇸",
-      "start": "10:00",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0082": {
-      "from": "JFK",
-      "to": "ICN",
-      "city": "뉴욕",
-      "country": "US",
-      "flag": "🇺🇸",
-      "start": null,
-      "end": "17:50",
-      "endOffset": 1
-    },
-    "KE0085": {
-      "from": "ICN",
-      "to": "JFK",
-      "city": "뉴욕",
-      "country": "US",
-      "flag": "🇺🇸",
-      "start": "19:30",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0086": {
-      "from": "JFK",
-      "to": "ICN",
-      "city": "뉴욕",
-      "country": "US",
-      "flag": "🇺🇸",
-      "start": null,
-      "end": "05:10",
-      "endOffset": 1
-    },
-    "KE0092": {
-      "from": "BOS",
-      "to": "ICN",
-      "city": "보스턴",
-      "country": "US",
-      "flag": "🇺🇸",
-      "start": null,
-      "end": "17:25",
-      "endOffset": 1
-    },
-    "KE0093": {
-      "from": "ICN",
-      "to": "IAD",
-      "city": "워싱턴",
-      "country": "US",
-      "flag": "🇺🇸",
-      "start": "10:25",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0094": {
-      "from": "IAD",
-      "to": "ICN",
-      "city": "워싱턴",
-      "country": "US",
-      "flag": "🇺🇸",
-      "start": null,
-      "end": "17:40",
-      "endOffset": 1
-    },
-    "KE0101": {
-      "from": "ICN",
-      "to": "NKG",
-      "city": "난징",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": "10:25",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0102": {
-      "from": "NKG",
-      "to": "ICN",
-      "city": "난징",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": null,
-      "end": "16:15",
-      "endOffset": 0
-    },
-    "KE0115": {
-      "from": "ICN",
-      "to": "YNJ",
-      "city": "옌지",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": "09:25",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0116": {
-      "from": "YNJ",
-      "to": "ICN",
-      "city": "옌지",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": null,
-      "end": "15:25",
-      "endOffset": 0
-    },
-    "KE0125": {
-      "from": "ICN",
-      "to": "XMN",
-      "city": "샤먼",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": "10:20",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0126": {
-      "from": "XMN",
-      "to": "ICN",
-      "city": "샤먼",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": null,
-      "end": "18:05",
-      "endOffset": 0
-    },
-    "KE0127": {
-      "from": "ICN",
-      "to": "FOC",
-      "city": "푸저우",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": "08:10",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0134": {
-      "from": "CGO",
-      "to": "ICN",
-      "city": "정저우",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": null,
-      "end": "14:20",
-      "endOffset": 0
-    },
-    "KE0141": {
-      "from": "ICN",
-      "to": "XIY",
-      "city": "시안",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": "09:10",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0142": {
-      "from": "XIY",
-      "to": "ICN",
-      "city": "시안",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": null,
-      "end": "16:40",
-      "endOffset": 0
-    },
-    "KE0155": {
-      "from": "ICN",
-      "to": "HFE",
-      "city": "허페이",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": "13:25",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0156": {
-      "from": "HFE",
-      "to": "ICN",
-      "city": "허페이",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": null,
-      "end": "19:45",
-      "endOffset": 0
-    },
-    "KE0164": {
-      "from": "DYG",
-      "to": "ICN",
-      "city": "장자제",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": null,
-      "end": "04:05",
-      "endOffset": 0
-    },
-    "KE0165": {
-      "from": "ICN",
-      "to": "WUH",
-      "city": "우한",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": "08:40",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0166": {
-      "from": "WUH",
-      "to": "ICN",
-      "city": "우한",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": null,
-      "end": "16:00",
-      "endOffset": 0
-    },
-    "KE0213": {
-      "from": "ICN",
-      "to": "LAX",
-      "city": "로스앤젤레스",
-      "country": "US",
-      "flag": "🇺🇸",
-      "start": "02:20",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0214": {
-      "from": "SFO",
-      "to": "ICN",
-      "city": "샌프란시스코",
-      "country": "US",
-      "flag": "🇺🇸",
-      "start": null,
-      "end": "08:25",
-      "endOffset": 1
-    },
-    "KE0224": {
-      "from": "NRT",
-      "to": "ICN",
-      "city": "도쿄",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": null,
-      "end": "22:15",
-      "endOffset": 0
-    },
-    "KE0234": {
-      "from": "SEA",
-      "to": "ICN",
-      "city": "시애틀",
-      "country": "US",
-      "flag": "🇺🇸",
-      "start": null,
-      "end": "09:45",
-      "endOffset": 1
-    },
-    "KE0250": {
-      "from": "JFK",
-      "to": "ICN",
-      "city": "뉴욕",
-      "country": "US",
-      "flag": "🇺🇸",
-      "start": null,
-      "end": "16:35",
-      "endOffset": 1
-    },
-    "KE0257": {
-      "from": "ICN",
-      "to": "ANC",
-      "city": "앵커리지",
-      "country": "US",
-      "flag": "🇺🇸",
-      "start": "22:05",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0278": {
-      "from": "YVR",
-      "to": "ICN",
-      "city": "밴쿠버",
-      "country": "CA",
-      "flag": "🇨🇦",
-      "start": null,
-      "end": "18:50",
-      "endOffset": 1
-    },
-    "KE0283": {
-      "from": "ICN",
-      "to": "ANC",
-      "city": "앵커리지",
-      "country": "US",
-      "flag": "🇺🇸",
-      "start": "04:00",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0313": {
-      "from": "ICN",
-      "to": "HKG",
-      "city": "홍콩",
-      "country": "HK",
-      "flag": "🇭🇰",
-      "start": "22:25",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0314": {
-      "from": "HKG",
-      "to": "ICN",
-      "city": "홍콩",
-      "country": "HK",
-      "flag": "🇭🇰",
-      "start": null,
-      "end": "07:40",
-      "endOffset": 0
-    },
-    "KE0317": {
-      "from": "ICN",
-      "to": "ANC",
-      "city": "앵커리지",
-      "country": "US",
-      "flag": "🇺🇸",
-      "start": "01:45",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0319": {
-      "from": "ICN",
-      "to": "CAN",
-      "city": "광저우",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": "00:05",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0320": {
-      "from": "CAN",
-      "to": "ICN",
-      "city": "광저우",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": null,
-      "end": "09:20",
-      "endOffset": 0
-    },
-    "KE0321": {
-      "from": "ICN",
-      "to": "CAN",
-      "city": "광저우",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": "00:35",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0322": {
-      "from": "CAN",
-      "to": "ICN",
-      "city": "광저우",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": null,
-      "end": "09:55",
-      "endOffset": 0
-    },
-    "KE0343": {
-      "from": "ICN",
-      "to": "MNL",
-      "city": "마닐라",
-      "country": "PH",
-      "flag": "🇵🇭",
-      "start": "22:40",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0344": {
-      "from": "SIN",
-      "to": "ICN",
-      "city": "싱가포르",
-      "country": "SG",
-      "flag": "🇸🇬",
-      "start": null,
-      "end": "16:35",
-      "endOffset": 0
-    },
-    "KE0349": {
-      "from": "ICN",
-      "to": "CGK",
-      "city": "자카르타",
-      "country": "ID",
-      "flag": "🇮🇩",
-      "start": "22:20",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0350": {
-      "from": "PEN",
-      "to": "ICN",
-      "city": "페낭",
-      "country": "MY",
-      "flag": "🇲🇾",
-      "start": null,
-      "end": "18:15",
-      "endOffset": 0
-    },
-    "KE0361": {
-      "from": "ICN",
-      "to": "HAN",
-      "city": "하노이",
-      "country": "VN",
-      "flag": "🇻🇳",
-      "start": "23:30",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0362": {
-      "from": "HAN",
-      "to": "ICN",
-      "city": "하노이",
-      "country": "VN",
-      "flag": "🇻🇳",
-      "start": null,
-      "end": "10:20",
-      "endOffset": 0
-    },
-    "KE0402": {
-      "from": "SYD",
-      "to": "ICN",
-      "city": "시드니",
-      "country": "AU",
-      "flag": "🇦🇺",
-      "start": null,
-      "end": "17:35",
-      "endOffset": 0
-    },
-    "KE0408": {
-      "from": "BNE",
-      "to": "ICN",
-      "city": "브리즈번",
-      "country": "AU",
-      "flag": "🇦🇺",
-      "start": null,
-      "end": "17:35",
-      "endOffset": 0
-    },
-    "KE0411": {
-      "from": "ICN",
-      "to": "AKL",
-      "city": "오클랜드",
-      "country": "NZ",
-      "flag": "🇳🇿",
-      "start": "18:00",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0415": {
-      "from": "ICN",
-      "to": "GUM",
-      "city": "괌",
-      "country": "GU",
-      "flag": "🇬🇺",
-      "start": "10:05",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0416": {
-      "from": "GUM",
-      "to": "ICN",
-      "city": "괌",
-      "country": "GU",
-      "flag": "🇬🇺",
-      "start": null,
-      "end": "21:00",
-      "endOffset": 0
-    },
-    "KE0417": {
-      "from": "ICN",
-      "to": "GUM",
-      "city": "괌",
-      "country": "GU",
-      "flag": "🇬🇺",
-      "start": "18:25",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0418": {
-      "from": "GUM",
-      "to": "ICN",
-      "city": "괌",
-      "country": "GU",
-      "flag": "🇬🇺",
-      "start": null,
-      "end": "05:40",
-      "endOffset": 0
-    },
-    "KE0427": {
-      "from": "ICN",
-      "to": "KUL",
-      "city": "쿠알라룸푸르",
-      "country": "MY",
-      "flag": "🇲🇾",
-      "start": "16:20",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0428": {
-      "from": "KUL",
-      "to": "ICN",
-      "city": "쿠알라룸푸르",
-      "country": "MY",
-      "flag": "🇲🇾",
-      "start": null,
-      "end": "07:00",
-      "endOffset": 0
-    },
-    "KE0431": {
-      "from": "ICN",
-      "to": "DPS",
-      "city": "발리",
-      "country": "ID",
-      "flag": "🇮🇩",
-      "start": "16:10",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0432": {
-      "from": "DPS",
-      "to": "ICN",
-      "city": "발리",
-      "country": "ID",
-      "flag": "🇮🇩",
-      "start": null,
-      "end": "07:55",
-      "endOffset": 0
-    },
-    "KE0433": {
-      "from": "ICN",
-      "to": "DPS",
-      "city": "발리",
-      "country": "ID",
-      "flag": "🇮🇩",
-      "start": "18:00",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0434": {
-      "from": "DPS",
-      "to": "ICN",
-      "city": "발리",
-      "country": "ID",
-      "flag": "🇮🇩",
-      "start": null,
-      "end": "09:25",
-      "endOffset": 0
-    },
-    "KE0437": {
-      "from": "ICN",
-      "to": "CGK",
-      "city": "자카르타",
-      "country": "ID",
-      "flag": "🇮🇩",
-      "start": null,
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0441": {
-      "from": "ICN",
-      "to": "HAN",
-      "city": "하노이",
-      "country": "VN",
-      "flag": "🇻🇳",
-      "start": "08:00",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0442": {
-      "from": "HAN",
-      "to": "ICN",
-      "city": "하노이",
-      "country": "VN",
-      "flag": "🇻🇳",
-      "start": null,
-      "end": "18:35",
-      "endOffset": 0
-    },
-    "KE0458": {
-      "from": "DAD",
-      "to": "ICN",
-      "city": "다낭",
-      "country": "VN",
-      "flag": "🇻🇳",
-      "start": null,
-      "end": "22:30",
-      "endOffset": 0
-    },
-    "KE0468": {
-      "from": "CXR",
-      "to": "ICN",
-      "city": "나트랑",
-      "country": "VN",
-      "flag": "🇻🇳",
-      "start": null,
-      "end": "07:25",
-      "endOffset": 0
-    },
-    "KE0471": {
-      "from": "ICN",
-      "to": "SGN",
-      "city": "호치민",
-      "country": "VN",
-      "flag": "🇻🇳",
-      "start": "09:05",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0472": {
-      "from": "SGN",
-      "to": "ICN",
-      "city": "호치민",
-      "country": "VN",
-      "flag": "🇻🇳",
-      "start": null,
-      "end": "21:25",
-      "endOffset": 0
-    },
-    "KE0475": {
-      "from": "ICN",
-      "to": "SGN",
-      "city": "호치민",
-      "country": "VN",
-      "flag": "🇻🇳",
-      "start": "18:50",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0476": {
-      "from": "SGN",
-      "to": "ICN",
-      "city": "호치민",
-      "country": "VN",
-      "flag": "🇻🇳",
-      "start": null,
-      "end": "07:00",
-      "endOffset": 0
-    },
-    "KE0479": {
-      "from": "ICN",
-      "to": "SGN",
-      "city": "호치민",
-      "country": "VN",
-      "flag": "🇻🇳",
-      "start": "19:35",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0480": {
-      "from": "SGN",
-      "to": "ICN",
-      "city": "호치민",
-      "country": "VN",
-      "flag": "🇻🇳",
-      "start": null,
-      "end": "14:55",
-      "endOffset": 0
-    },
-    "KE0486": {
-      "from": "PQC",
-      "to": "ICN",
-      "city": "푸꾸옥",
-      "country": "VN",
-      "flag": "🇻🇳",
-      "start": null,
-      "end": "07:50",
-      "endOffset": 0
-    },
-    "KE0497": {
-      "from": "ICN",
-      "to": "DEL",
-      "city": "델리",
-      "country": "IN",
-      "flag": "🇮🇳",
-      "start": "12:50",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0498": {
-      "from": "DEL",
-      "to": "ICN",
-      "city": "델리",
-      "country": "IN",
-      "flag": "🇮🇳",
-      "start": null,
-      "end": "05:20",
-      "endOffset": 1
-    },
-    "KE0504": {
-      "from": "CDG",
-      "to": "ICN",
-      "city": "파리",
-      "country": "FR",
-      "flag": "🇫🇷",
-      "start": null,
-      "end": "20:55",
-      "endOffset": 1
-    },
-    "KE0509": {
-      "from": "ICN",
-      "to": "AMS",
-      "city": "암스테르담",
-      "country": "NL",
-      "flag": "🇳🇱",
-      "start": "11:05",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0538": {
-      "from": "FRA",
-      "to": "ICN",
-      "city": "프랑크푸르트",
-      "country": "DE",
-      "flag": "🇩🇪",
-      "start": null,
-      "end": "15:15",
-      "endOffset": 1
-    },
-    "KE0551": {
-      "from": "ICN",
-      "to": "NRT",
-      "city": "도쿄",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": "13:35",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0552": {
-      "from": "NRT",
-      "to": "ICN",
-      "city": "도쿄",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": null,
-      "end": "21:20",
-      "endOffset": 0
-    },
-    "KE0601": {
-      "from": "ICN",
-      "to": "CEB",
-      "city": "세부",
-      "country": "PH",
-      "flag": "🇵🇭",
-      "start": "18:50",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0602": {
-      "from": "CEB",
-      "to": "ICN",
-      "city": "세부",
-      "country": "PH",
-      "flag": "🇵🇭",
-      "start": null,
-      "end": "06:30",
-      "endOffset": 0
-    },
-    "KE0619": {
-      "from": "ICN",
-      "to": "MNL",
-      "city": "마닐라",
-      "country": "PH",
-      "flag": "🇵🇭",
-      "start": "22:35",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0620": {
-      "from": "MNL",
-      "to": "ICN",
-      "city": "마닐라",
-      "country": "PH",
-      "flag": "🇵🇭",
-      "start": null,
-      "end": "08:20",
-      "endOffset": 0
-    },
-    "KE0622": {
-      "from": "MNL",
-      "to": "ICN",
-      "city": "마닐라",
-      "country": "PH",
-      "flag": "🇵🇭",
-      "start": null,
-      "end": "17:25",
-      "endOffset": 0
-    },
-    "KE0624": {
-      "from": "MNL",
-      "to": "ICN",
-      "city": "마닐라",
-      "country": "PH",
-      "flag": "🇵🇭",
-      "start": null,
-      "end": "04:35",
-      "endOffset": 0
-    },
-    "KE0626": {
-      "from": "MNL",
-      "to": "ICN",
-      "city": "마닐라",
-      "country": "PH",
-      "flag": "🇵🇭",
-      "start": null,
-      "end": "06:15",
-      "endOffset": 0
-    },
-    "KE0644": {
-      "from": "SIN",
-      "to": "ICN",
-      "city": "싱가포르",
-      "country": "SG",
-      "flag": "🇸🇬",
-      "start": null,
-      "end": "05:35",
-      "endOffset": 0
-    },
-    "KE0646": {
-      "from": "SIN",
-      "to": "ICN",
-      "city": "싱가포르",
-      "country": "SG",
-      "flag": "🇸🇬",
-      "start": null,
-      "end": "08:50",
-      "endOffset": 0
-    },
-    "KE0647": {
-      "from": "ICN",
-      "to": "SIN",
-      "city": "싱가포르",
-      "country": "SG",
-      "flag": "🇸🇬",
-      "start": "23:35",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0648": {
-      "from": "SIN",
-      "to": "ICN",
-      "city": "싱가포르",
-      "country": "SG",
-      "flag": "🇸🇬",
-      "start": null,
-      "end": "15:00",
-      "endOffset": 0
-    },
-    "KE0651": {
-      "from": "ICN",
-      "to": "BKK",
-      "city": "방콕",
-      "country": "TH",
-      "flag": "🇹🇭",
-      "start": "18:05",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0652": {
-      "from": "BKK",
-      "to": "ICN",
-      "city": "방콕",
-      "country": "TH",
-      "flag": "🇹🇭",
-      "start": null,
-      "end": "06:55",
-      "endOffset": 0
-    },
-    "KE0656": {
-      "from": "BKK",
-      "to": "ICN",
-      "city": "방콕",
-      "country": "TH",
-      "flag": "🇹🇭",
-      "start": null,
-      "end": "10:15",
-      "endOffset": 0
-    },
-    "KE0658": {
-      "from": "BKK",
-      "to": "ICN",
-      "city": "방콕",
-      "country": "TH",
-      "flag": "🇹🇭",
-      "start": null,
-      "end": "05:05",
-      "endOffset": 0
-    },
-    "KE0660": {
-      "from": "BKK",
-      "to": "ICN",
-      "city": "방콕",
-      "country": "TH",
-      "flag": "🇹🇭",
-      "start": null,
-      "end": "17:20",
-      "endOffset": 0
-    },
-    "KE0677": {
-      "from": "ICN",
-      "to": "HKT",
-      "city": "푸껫",
-      "country": "TH",
-      "flag": "🇹🇭",
-      "start": "17:50",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0678": {
-      "from": "HKT",
-      "to": "ICN",
-      "city": "푸껫",
-      "country": "TH",
-      "flag": "🇹🇭",
-      "start": null,
-      "end": "07:35",
-      "endOffset": 0
-    },
-    "KE0690": {
-      "from": "PNH",
-      "to": "ICN",
-      "city": "프놈펜",
-      "country": "KH",
-      "flag": "🇰🇭",
-      "start": null,
-      "end": "07:00",
-      "endOffset": 0
-    },
-    "KE0703": {
-      "from": "ICN",
-      "to": "NRT",
-      "city": "도쿄",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": "10:10",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0704": {
-      "from": "NRT",
-      "to": "ICN",
-      "city": "도쿄",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": null,
-      "end": "16:30",
-      "endOffset": 0
-    },
-    "KE0706": {
-      "from": "NRT",
-      "to": "ICN",
-      "city": "도쿄",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": null,
-      "end": "11:45",
-      "endOffset": 0
-    },
-    "KE0707": {
-      "from": "ICN",
-      "to": "NRT",
-      "city": "도쿄",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": "14:45",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0708": {
-      "from": "NRT",
-      "to": "ICN",
-      "city": "도쿄",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": null,
-      "end": "21:30",
-      "endOffset": 0
-    },
-    "KE0711": {
-      "from": "ICN",
-      "to": "NRT",
-      "city": "도쿄",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": "13:00",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0712": {
-      "from": "NRT",
-      "to": "ICN",
-      "city": "도쿄",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": null,
-      "end": "20:00",
-      "endOffset": 0
-    },
-    "KE0713": {
-      "from": "ICN",
-      "to": "NRT",
-      "city": "도쿄",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": "17:15",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0714": {
-      "from": "NRT",
-      "to": "ICN",
-      "city": "도쿄",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": null,
-      "end": "23:25",
-      "endOffset": 0
-    },
-    "KE0722": {
-      "from": "KIX",
-      "to": "ICN",
-      "city": "오사카",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": null,
-      "end": "10:55",
-      "endOffset": 0
-    },
-    "KE0723": {
-      "from": "ICN",
-      "to": "KIX",
-      "city": "오사카",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": "09:35",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0724": {
-      "from": "KIX",
-      "to": "ICN",
-      "city": "오사카",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": null,
-      "end": "14:25",
-      "endOffset": 0
-    },
-    "KE0725": {
-      "from": "ICN",
-      "to": "KIX",
-      "city": "오사카",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": "15:05",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0726": {
-      "from": "KIX",
-      "to": "ICN",
-      "city": "오사카",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": null,
-      "end": "20:05",
-      "endOffset": 0
-    },
-    "KE0727": {
-      "from": "ICN",
-      "to": "KIX",
-      "city": "오사카",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": null,
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0728": {
-      "from": "KIX",
-      "to": "ICN",
-      "city": "오사카",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": null,
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0738": {
-      "from": "KIX",
-      "to": "ICN",
-      "city": "오사카",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": null,
-      "end": "04:05",
-      "endOffset": 0
-    },
-    "KE0741": {
-      "from": "ICN",
-      "to": "NGO",
-      "city": "나고야",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": "10:35",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0742": {
-      "from": "NGO",
-      "to": "ICN",
-      "city": "나고야",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": null,
-      "end": "15:40",
-      "endOffset": 0
-    },
-    "KE0743": {
-      "from": "ICN",
-      "to": "NGO",
-      "city": "나고야",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": "18:50",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0744": {
-      "from": "NGO",
-      "to": "ICN",
-      "city": "나고야",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": null,
-      "end": "11:20",
-      "endOffset": 0
-    },
-    "KE0766": {
-      "from": "CTS",
-      "to": "ICN",
-      "city": "삿포로",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": null,
-      "end": "17:55",
-      "endOffset": 0
-    },
-    "KE0769": {
-      "from": "ICN",
-      "to": "CTS",
-      "city": "삿포로",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": "12:35",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0770": {
-      "from": "CTS",
-      "to": "ICN",
-      "city": "삿포로",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": null,
-      "end": "19:30",
-      "endOffset": 0
-    },
-    "KE0782": {
-      "from": "FUK",
-      "to": "ICN",
-      "city": "후쿠오카",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": null,
-      "end": "22:35",
-      "endOffset": 0
-    },
-    "KE0787": {
-      "from": "ICN",
-      "to": "FUK",
-      "city": "후쿠오카",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": "08:00",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0788": {
-      "from": "FUK",
-      "to": "ICN",
-      "city": "후쿠오카",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": null,
-      "end": "12:00",
-      "endOffset": 0
-    },
-    "KE0791": {
-      "from": "ICN",
-      "to": "FUK",
-      "city": "후쿠오카",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": "11:05",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0792": {
-      "from": "FUK",
-      "to": "ICN",
-      "city": "후쿠오카",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": null,
-      "end": "16:30",
-      "endOffset": 0
-    },
-    "KE0795": {
-      "from": "ICN",
-      "to": "FUK",
-      "city": "후쿠오카",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": "16:25",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0796": {
-      "from": "FUK",
-      "to": "ICN",
-      "city": "후쿠오카",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": null,
-      "end": "21:35",
-      "endOffset": 0
-    },
-    "KE0804": {
-      "from": "TSN",
-      "to": "ICN",
-      "city": "톈진",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": null,
-      "end": "17:35",
-      "endOffset": 0
-    },
-    "KE0805": {
-      "from": "ICN",
-      "to": "TSN",
-      "city": "톈진",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": "09:10",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0806": {
-      "from": "TSN",
-      "to": "ICN",
-      "city": "톈진",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": null,
-      "end": "14:20",
-      "endOffset": 0
-    },
-    "KE0831": {
-      "from": "ICN",
-      "to": "SHE",
-      "city": "선양",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": "08:05",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0832": {
-      "from": "SHE",
-      "to": "ICN",
-      "city": "선양",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": null,
-      "end": "13:15",
-      "endOffset": 0
-    },
-    "KE0833": {
-      "from": "ICN",
-      "to": "SHE",
-      "city": "선양",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": "14:35",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0834": {
-      "from": "SHE",
-      "to": "ICN",
-      "city": "선양",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": null,
-      "end": "19:50",
-      "endOffset": 0
-    },
-    "KE0835": {
-      "from": "ICN",
-      "to": "SZX",
-      "city": "선전",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": "08:40",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0841": {
-      "from": "ICN",
-      "to": "TAO",
-      "city": "칭다오",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": "07:50",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0842": {
-      "from": "TAO",
-      "to": "ICN",
-      "city": "칭다오",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": null,
-      "end": "12:25",
-      "endOffset": 0
-    },
-    "KE0843": {
-      "from": "ICN",
-      "to": "TAO",
-      "city": "칭다오",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": "13:05",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0844": {
-      "from": "TAO",
-      "to": "ICN",
-      "city": "칭다오",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": null,
-      "end": "17:30",
-      "endOffset": 0
-    },
-    "KE0851": {
-      "from": "ICN",
-      "to": "PEK",
-      "city": "베이징",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": "08:15",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0852": {
-      "from": "PEK",
-      "to": "ICN",
-      "city": "베이징",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": null,
-      "end": "21:40",
-      "endOffset": 0
-    },
-    "KE0855": {
-      "from": "ICN",
-      "to": "PEK",
-      "city": "베이징",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": "10:40",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0856": {
-      "from": "PEK",
-      "to": "ICN",
-      "city": "베이징",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": null,
-      "end": "16:30",
-      "endOffset": 0
-    },
-    "KE0863": {
-      "from": "ICN",
-      "to": "PEK",
-      "city": "베이징",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": "20:00",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0864": {
-      "from": "PEK",
-      "to": "ICN",
-      "city": "베이징",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": null,
-      "end": "04:40",
-      "endOffset": 0
-    },
-    "KE0867": {
-      "from": "ICN",
-      "to": "CAN",
-      "city": "광저우",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": "08:50",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0868": {
-      "from": "CAN",
-      "to": "ICN",
-      "city": "광저우",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": null,
-      "end": "17:15",
-      "endOffset": 0
-    },
-    "KE0873": {
-      "from": "ICN",
-      "to": "DLC",
-      "city": "다롄",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": "13:00",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0874": {
-      "from": "DLC",
-      "to": "ICN",
-      "city": "다롄",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": null,
-      "end": "16:55",
-      "endOffset": 0
-    },
-    "KE0881": {
-      "from": "ICN",
-      "to": "PVG",
-      "city": "상하이",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": "08:25",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0882": {
-      "from": "PVG",
-      "to": "ICN",
-      "city": "상하이",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": null,
-      "end": "14:20",
-      "endOffset": 0
-    },
-    "KE0887": {
-      "from": "ICN",
-      "to": "PVG",
-      "city": "상하이",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": "11:10",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0888": {
-      "from": "PVG",
-      "to": "ICN",
-      "city": "상하이",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": null,
-      "end": "16:45",
-      "endOffset": 0
-    },
-    "KE0892": {
-      "from": "PVG",
-      "to": "ICN",
-      "city": "상하이",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": null,
-      "end": "11:55",
-      "endOffset": 0
-    },
-    "KE0901": {
-      "from": "ICN",
-      "to": "CDG",
-      "city": "파리",
-      "country": "FR",
-      "flag": "🇫🇷",
-      "start": "12:05",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0902": {
-      "from": "CDG",
-      "to": "ICN",
-      "city": "파리",
-      "country": "FR",
-      "flag": "🇫🇷",
-      "start": null,
-      "end": "15:50",
-      "endOffset": 1
-    },
-    "KE0907": {
-      "from": "ICN",
-      "to": "LHR",
-      "city": "런던",
-      "country": "GB",
-      "flag": "🇬🇧",
-      "start": "10:55",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0908": {
-      "from": "LHR",
-      "to": "ICN",
-      "city": "런던",
-      "country": "GB",
-      "flag": "🇬🇧",
-      "start": null,
-      "end": "16:15",
-      "endOffset": 1
-    },
-    "KE0913": {
-      "from": "ICN",
-      "to": "MAD",
-      "city": "마드리드",
-      "country": "ES",
-      "flag": "🇪🇸",
-      "start": "10:13",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0918": {
-      "from": "ZRH",
-      "to": "ICN",
-      "city": "취리히",
-      "country": "CH",
-      "flag": "🇨🇭",
-      "start": null,
-      "end": "14:10",
-      "endOffset": 1
-    },
-    "KE0921": {
-      "from": "ICN",
-      "to": "LIS",
-      "city": "리스본",
-      "country": "PT",
-      "flag": "🇵🇹",
-      "start": "12:45",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0926": {
-      "from": "AMS",
-      "to": "ICN",
-      "city": "암스테르담",
-      "country": "NL",
-      "flag": "🇳🇱",
-      "start": null,
-      "end": "16:40",
-      "endOffset": 1
-    },
-    "KE0927": {
-      "from": "ICN",
-      "to": "MXP",
-      "city": "밀라노",
-      "country": "IT",
-      "flag": "🇮🇹",
-      "start": "15:25",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0931": {
-      "from": "ICN",
-      "to": "FCO",
-      "city": "로마",
-      "country": "IT",
-      "flag": "🇮🇹",
-      "start": "14:05",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0932": {
-      "from": "FCO",
-      "to": "ICN",
-      "city": "로마",
-      "country": "IT",
-      "flag": "🇮🇹",
-      "start": null,
-      "end": "15:55",
-      "endOffset": 1
-    },
-    "KE0945": {
-      "from": "ICN",
-      "to": "FRA",
-      "city": "프랑크푸르트",
-      "country": "DE",
-      "flag": "🇩🇪",
-      "start": "10:50",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE0956": {
-      "from": "IST",
-      "to": "ICN",
-      "city": "이스탄불",
-      "country": "TR",
-      "flag": "🇹🇷",
-      "start": null,
-      "end": "13:25",
-      "endOffset": 1
-    },
-    "KE0964": {
-      "from": "BUD",
-      "to": "ICN",
-      "city": "부다페스트",
-      "country": "HU",
-      "flag": "🇭🇺",
-      "start": null,
-      "end": "13:40",
-      "endOffset": 1
-    },
-    "KE0970": {
-      "from": "PRG",
-      "to": "ICN",
-      "city": "프라하",
-      "country": "CZ",
-      "flag": "🇨🇿",
-      "start": null,
-      "end": "13:20",
-      "endOffset": 1
-    },
-    "KE1007": {
-      "from": "GMP",
-      "to": "CJU",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "06:35",
-      "end": "07:50",
-      "endOffset": 0
-    },
-    "KE1017": {
-      "from": "GMP",
-      "to": "CJU",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "07:05",
-      "end": "08:20",
-      "endOffset": 0
-    },
-    "KE1019": {
-      "from": "GMP",
-      "to": "CJU",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "07:10",
-      "end": "08:25",
-      "endOffset": 0
-    },
-    "KE1023": {
-      "from": "GMP",
-      "to": "CJU",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "07:20",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE1045": {
-      "from": "GMP",
-      "to": "CJU",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "08:20",
-      "end": "09:35",
-      "endOffset": 0
-    },
-    "KE1073": {
-      "from": "GMP",
-      "to": "CJU",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "10:10",
-      "end": "11:25",
-      "endOffset": 0
-    },
-    "KE1075": {
-      "from": "GMP",
-      "to": "CJU",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "10:40",
-      "end": "11:55",
-      "endOffset": 0
-    },
-    "KE1079": {
-      "from": "GMP",
-      "to": "CJU",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "10:35",
-      "end": "11:50",
-      "endOffset": 0
-    },
-    "KE1081": {
-      "from": "GMP",
-      "to": "CJU",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "11:10",
-      "end": "12:25",
-      "endOffset": 0
-    },
-    "KE1107": {
-      "from": "GMP",
-      "to": "CJU",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "12:45",
-      "end": "14:00",
-      "endOffset": 0
-    },
-    "KE1113": {
-      "from": "GMP",
-      "to": "CJU",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "13:15",
-      "end": "14:30",
-      "endOffset": 0
-    },
-    "KE1118": {
-      "from": "CJU",
-      "to": "GMP",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": null,
-      "end": "08:15",
-      "endOffset": 0
-    },
-    "KE1121": {
-      "from": "GMP",
-      "to": "CJU",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "13:25",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE1136": {
-      "from": "CJU",
-      "to": "GMP",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "08:35",
-      "end": "09:50",
-      "endOffset": 0
-    },
-    "KE1141": {
-      "from": "GMP",
-      "to": "CJU",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "14:00",
-      "end": "15:15",
-      "endOffset": 0
-    },
-    "KE1143": {
-      "from": "GMP",
-      "to": "CJU",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "14:55",
-      "end": "16:10",
-      "endOffset": 0
-    },
-    "KE1150": {
-      "from": "CJU",
-      "to": "GMP",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "09:00",
-      "end": "10:15",
-      "endOffset": 0
-    },
-    "KE1165": {
-      "from": "GMP",
-      "to": "CJU",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "16:35",
-      "end": "17:50",
-      "endOffset": 0
-    },
-    "KE1174": {
-      "from": "CJU",
-      "to": "GMP",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "10:25",
-      "end": "11:40",
-      "endOffset": 0
-    },
-    "KE1177": {
-      "from": "GMP",
-      "to": "CJU",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "17:30",
-      "end": "18:45",
-      "endOffset": 0
-    },
-    "KE1178": {
-      "from": "CJU",
-      "to": "GMP",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": null,
-      "end": "12:05",
-      "endOffset": 0
-    },
-    "KE1185": {
-      "from": "GMP",
-      "to": "CJU",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "17:45",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE1188": {
-      "from": "CJU",
-      "to": "GMP",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "11:20",
-      "end": "12:35",
-      "endOffset": 0
-    },
-    "KE1195": {
-      "from": "GMP",
-      "to": "CJU",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "18:15",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE1205": {
-      "from": "GMP",
-      "to": "CJU",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "18:45",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE1206": {
-      "from": "CJU",
-      "to": "GMP",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "12:05",
-      "end": "13:20",
-      "endOffset": 0
-    },
-    "KE1214": {
-      "from": "CJU",
-      "to": "GMP",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "13:05",
-      "end": "14:20",
-      "endOffset": 0
-    },
-    "KE1238": {
-      "from": "CJU",
-      "to": "GMP",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "14:40",
-      "end": "15:55",
-      "endOffset": 0
-    },
-    "KE1244": {
-      "from": "CJU",
-      "to": "GMP",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "15:20",
-      "end": "16:35",
-      "endOffset": 0
-    },
-    "KE1246": {
-      "from": "CJU",
-      "to": "GMP",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "15:35",
-      "end": "16:50",
-      "endOffset": 0
-    },
-    "KE1264": {
-      "from": "CJU",
-      "to": "GMP",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "16:05",
-      "end": "17:20",
-      "endOffset": 0
-    },
-    "KE1268": {
-      "from": "CJU",
-      "to": "GMP",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "16:50",
-      "end": "18:05",
-      "endOffset": 0
-    },
-    "KE1272": {
-      "from": "CJU",
-      "to": "GMP",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "17:00",
-      "end": "18:15",
-      "endOffset": 0
-    },
-    "KE1294": {
-      "from": "CJU",
-      "to": "GMP",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "18:15",
-      "end": "19:30",
-      "endOffset": 0
-    },
-    "KE1401": {
-      "from": "ICN",
-      "to": "PUS",
-      "city": "부산",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "06:35",
-      "end": "07:45",
-      "endOffset": 0
-    },
-    "KE1402": {
-      "from": "PUS",
-      "to": "ICN",
-      "city": "부산",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "07:00",
-      "end": "08:10",
-      "endOffset": 0
-    },
-    "KE1403": {
-      "from": "ICN",
-      "to": "PUS",
-      "city": "부산",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": null,
-      "end": "09:30",
-      "endOffset": 0
-    },
-    "KE1404": {
-      "from": "PUS",
-      "to": "ICN",
-      "city": "부산",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "08:00",
-      "end": "09:10",
-      "endOffset": 0
-    },
-    "KE1405": {
-      "from": "ICN",
-      "to": "PUS",
-      "city": "부산",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "17:10",
-      "end": "18:20",
-      "endOffset": 0
-    },
-    "KE1406": {
-      "from": "PUS",
-      "to": "ICN",
-      "city": "부산",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "08:45",
-      "end": "09:55",
-      "endOffset": 0
-    },
-    "KE1407": {
-      "from": "ICN",
-      "to": "PUS",
-      "city": "부산",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": null,
-      "end": "19:35",
-      "endOffset": 0
-    },
-    "KE1408": {
-      "from": "PUS",
-      "to": "ICN",
-      "city": "부산",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "10:40",
-      "end": "11:50",
-      "endOffset": 0
-    },
-    "KE1410": {
-      "from": "PUS",
-      "to": "ICN",
-      "city": "부산",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "16:30",
-      "end": "17:40",
-      "endOffset": 0
-    },
-    "KE1431": {
-      "from": "ICN",
-      "to": "TAE",
-      "city": "대구",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": null,
-      "end": "19:55",
-      "endOffset": 0
-    },
-    "KE1432": {
-      "from": "TAE",
-      "to": "ICN",
-      "city": "대구",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "07:55",
-      "end": "09:00",
-      "endOffset": 0
-    },
-    "KE1505": {
-      "from": "PUS",
-      "to": "CJU",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "07:00",
-      "end": "08:00",
-      "endOffset": 0
-    },
-    "KE1512": {
-      "from": "CJU",
-      "to": "PUS",
-      "city": "부산",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "08:45",
-      "end": "09:45",
-      "endOffset": 0
-    },
-    "KE1515": {
-      "from": "PUS",
-      "to": "CJU",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "09:55",
-      "end": "10:55",
-      "endOffset": 0
-    },
-    "KE1517": {
-      "from": "PUS",
-      "to": "CJU",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "10:25",
-      "end": "11:25",
-      "endOffset": 0
-    },
-    "KE1538": {
-      "from": "CJU",
-      "to": "PUS",
-      "city": "부산",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "15:00",
-      "end": "15:55",
-      "endOffset": 0
-    },
-    "KE1543": {
-      "from": "PUS",
-      "to": "CJU",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "16:40",
-      "end": "17:40",
-      "endOffset": 0
-    },
-    "KE1550": {
-      "from": "CJU",
-      "to": "PUS",
-      "city": "부산",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "18:20",
-      "end": "19:20",
-      "endOffset": 0
-    },
-    "KE1558": {
-      "from": "CJU",
-      "to": "PUS",
-      "city": "부산",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": null,
-      "end": "21:30",
-      "endOffset": 0
-    },
-    "KE1562": {
-      "from": "CJU",
-      "to": "PUS",
-      "city": "부산",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": null,
-      "end": "22:05",
-      "endOffset": 0
-    },
-    "KE1569": {
-      "from": "TAE",
-      "to": "CJU",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "11:05",
-      "end": "12:10",
-      "endOffset": 0
-    },
-    "KE1570": {
-      "from": "CJU",
-      "to": "TAE",
-      "city": "대구",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "09:15",
-      "end": "10:20",
-      "endOffset": 0
-    },
-    "KE1575": {
-      "from": "TAE",
-      "to": "CJU",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "18:40",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE1576": {
-      "from": "CJU",
-      "to": "TAE",
-      "city": "대구",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "16:35",
-      "end": "17:45",
-      "endOffset": 0
-    },
-    "KE1585": {
-      "from": "HIN",
-      "to": "CJU",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "15:25",
-      "end": "16:25",
-      "endOffset": 0
-    },
-    "KE1586": {
-      "from": "CJU",
-      "to": "HIN",
-      "city": "사천",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "13:20",
-      "end": "14:25",
-      "endOffset": 0
-    },
-    "KE1595": {
-      "from": "USN",
-      "to": "CJU",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "15:00",
-      "end": "16:10",
-      "endOffset": 0
-    },
-    "KE1596": {
-      "from": "CJU",
-      "to": "USN",
-      "city": "울산",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "13:10",
-      "end": "14:15",
-      "endOffset": 0
-    },
-    "KE1607": {
-      "from": "KWJ",
-      "to": "CJU",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "10:40",
-      "end": "11:35",
-      "endOffset": 0
-    },
-    "KE1608": {
-      "from": "CJU",
-      "to": "KWJ",
-      "city": "광주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "09:10",
-      "end": "10:05",
-      "endOffset": 0
-    },
-    "KE1610": {
-      "from": "CJU",
-      "to": "KWJ",
-      "city": "광주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "11:35",
-      "end": "12:30",
-      "endOffset": 0
-    },
-    "KE1611": {
-      "from": "KWJ",
-      "to": "CJU",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "13:10",
-      "end": "14:05",
-      "endOffset": 0
-    },
-    "KE1612": {
-      "from": "CJU",
-      "to": "KWJ",
-      "city": "광주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "13:05",
-      "end": "14:00",
-      "endOffset": 0
-    },
-    "KE1613": {
-      "from": "KWJ",
-      "to": "CJU",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "14:35",
-      "end": "15:30",
-      "endOffset": 0
-    },
-    "KE1619": {
-      "from": "KWJ",
-      "to": "CJU",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "17:35",
-      "end": "18:30",
-      "endOffset": 0
-    },
-    "KE1620": {
-      "from": "CJU",
-      "to": "KWJ",
-      "city": "광주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "16:05",
-      "end": "17:00",
-      "endOffset": 0
-    },
-    "KE1635": {
-      "from": "RSU",
-      "to": "CJU",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "13:15",
-      "end": "14:10",
-      "endOffset": 0
-    },
-    "KE1636": {
-      "from": "CJU",
-      "to": "RSU",
-      "city": "여수",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "11:40",
-      "end": "12:35",
-      "endOffset": 0
-    },
-    "KE1704": {
-      "from": "CJU",
-      "to": "CJJ",
-      "city": "청주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "07:20",
-      "end": "08:30",
-      "endOffset": 0
-    },
-    "KE1712": {
-      "from": "CJU",
-      "to": "CJJ",
-      "city": "청주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "12:15",
-      "end": "13:25",
-      "endOffset": 0
-    },
-    "KE1717": {
-      "from": "CJJ",
-      "to": "CJU",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "14:05",
-      "end": "15:15",
-      "endOffset": 0
-    },
-    "KE1722": {
-      "from": "CJU",
-      "to": "CJJ",
-      "city": "청주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "14:50",
-      "end": "16:05",
-      "endOffset": 0
-    },
-    "KE1725": {
-      "from": "CJJ",
-      "to": "CJU",
-      "city": "제주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "17:20",
-      "end": "18:30",
-      "endOffset": 0
-    },
-    "KE1762": {
-      "from": "CJU",
-      "to": "CJJ",
-      "city": "청주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": null,
-      "end": "07:45",
-      "endOffset": 0
-    },
-    "KE1766": {
-      "from": "CJU",
-      "to": "CJJ",
-      "city": "청주",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "18:25",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE1803": {
-      "from": "GMP",
-      "to": "PUS",
-      "city": "부산",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "07:00",
-      "end": "08:05",
-      "endOffset": 0
-    },
-    "KE1806": {
-      "from": "PUS",
-      "to": "GMP",
-      "city": "부산",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "08:45",
-      "end": "09:50",
-      "endOffset": 0
-    },
-    "KE1807": {
-      "from": "GMP",
-      "to": "PUS",
-      "city": "부산",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "08:05",
-      "end": "09:10",
-      "endOffset": 0
-    },
-    "KE1811": {
-      "from": "GMP",
-      "to": "PUS",
-      "city": "부산",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "10:30",
-      "end": "11:35",
-      "endOffset": 0
-    },
-    "KE1814": {
-      "from": "PUS",
-      "to": "GMP",
-      "city": "부산",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": null,
-      "end": "13:20",
-      "endOffset": 0
-    },
-    "KE1819": {
-      "from": "GMP",
-      "to": "PUS",
-      "city": "부산",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "14:00",
-      "end": "15:05",
-      "endOffset": 0
-    },
-    "KE1822": {
-      "from": "PUS",
-      "to": "GMP",
-      "city": "부산",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "15:50",
-      "end": "16:55",
-      "endOffset": 0
-    },
-    "KE1827": {
-      "from": "GMP",
-      "to": "PUS",
-      "city": "부산",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "17:35",
-      "end": "18:40",
-      "endOffset": 0
-    },
-    "KE1843": {
-      "from": "GMP",
-      "to": "USN",
-      "city": "울산",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "07:20",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE1844": {
-      "from": "USN",
-      "to": "GMP",
-      "city": "울산",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": null,
-      "end": "10:00",
-      "endOffset": 0
-    },
-    "KE1847": {
-      "from": "GMP",
-      "to": "USN",
-      "city": "울산",
-      "country": "KR",
-      "flag": "🇰🇷",
-      "start": "18:55",
-      "end": "19:55",
-      "endOffset": 0
-    },
-    "KE2002": {
-      "from": "HKG",
-      "to": "ICN",
-      "city": "홍콩",
-      "country": "HK",
-      "flag": "🇭🇰",
-      "start": null,
-      "end": "17:05",
-      "endOffset": 0
-    },
-    "KE2005": {
-      "from": "ICN",
-      "to": "HKG",
-      "city": "홍콩",
-      "country": "HK",
-      "flag": "🇭🇰",
-      "start": "13:25",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE2006": {
-      "from": "HKG",
-      "to": "ICN",
-      "city": "홍콩",
-      "country": "HK",
-      "flag": "🇭🇰",
-      "start": null,
-      "end": "22:45",
-      "endOffset": 0
-    },
-    "KE2011": {
-      "from": "ICN",
-      "to": "HKG",
-      "city": "홍콩",
-      "country": "HK",
-      "flag": "🇭🇰",
-      "start": null,
-      "end": null,
-      "endOffset": 0
-    },
-    "KE2012": {
-      "from": "HKG",
-      "to": "ICN",
-      "city": "홍콩",
-      "country": "HK",
-      "flag": "🇭🇰",
-      "start": null,
-      "end": null,
-      "endOffset": 0
-    },
-    "KE2015": {
-      "from": "ICN",
-      "to": "MFM",
-      "city": "마카오",
-      "country": "MO",
-      "flag": "🇲🇴",
-      "start": "10:10",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE2016": {
-      "from": "MFM",
-      "to": "ICN",
-      "city": "마카오",
-      "country": "MO",
-      "flag": "🇲🇴",
-      "start": null,
-      "end": "19:00",
-      "endOffset": 0
-    },
-    "KE2021": {
-      "from": "ICN",
-      "to": "TPE",
-      "city": "타이베이",
-      "country": "TW",
-      "flag": "🇹🇼",
-      "start": "10:30",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE2022": {
-      "from": "TPE",
-      "to": "ICN",
-      "city": "타이베이",
-      "country": "TW",
-      "flag": "🇹🇼",
-      "start": null,
-      "end": "16:50",
-      "endOffset": 0
-    },
-    "KE2027": {
-      "from": "ICN",
-      "to": "TPE",
-      "city": "타이베이",
-      "country": "TW",
-      "flag": "🇹🇼",
-      "start": "16:10",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE2028": {
-      "from": "TPE",
-      "to": "ICN",
-      "city": "타이베이",
-      "country": "TW",
-      "flag": "🇹🇼",
-      "start": null,
-      "end": "22:35",
-      "endOffset": 0
-    },
-    "KE2041": {
-      "from": "ICN",
-      "to": "ULN",
-      "city": "울란바토르",
-      "country": "MN",
-      "flag": "🇲🇳",
-      "start": "08:35",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE2042": {
-      "from": "ULN",
-      "to": "ICN",
-      "city": "울란바토르",
-      "country": "MN",
-      "flag": "🇲🇳",
-      "start": null,
-      "end": "17:10",
-      "endOffset": 0
-    },
-    "KE2051": {
-      "from": "GMP",
-      "to": "PEK",
-      "city": "베이징",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": "09:05",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE2052": {
-      "from": "PEK",
-      "to": "GMP",
-      "city": "베이징",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": null,
-      "end": "15:00",
-      "endOffset": 0
-    },
-    "KE2057": {
-      "from": "GMP",
-      "to": "PVG",
-      "city": "상하이",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": "16:00",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE2061": {
-      "from": "PUS",
-      "to": "PEK",
-      "city": "베이징",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": "22:20",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE2062": {
-      "from": "PEK",
-      "to": "PUS",
-      "city": "베이징",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": null,
-      "end": "06:30",
-      "endOffset": 0
-    },
-    "KE2065": {
-      "from": "CJU",
-      "to": "PEK",
-      "city": "베이징",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": "15:35",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE2066": {
-      "from": "PEK",
-      "to": "CJU",
-      "city": "베이징",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": null,
-      "end": "14:25",
-      "endOffset": 0
-    },
-    "KE2071": {
-      "from": "PUS",
-      "to": "PVG",
-      "city": "상하이",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": "08:35",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE2072": {
-      "from": "PVG",
-      "to": "PUS",
-      "city": "상하이",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": null,
-      "end": "14:00",
-      "endOffset": 0
-    },
-    "KE2081": {
-      "from": "PUS",
-      "to": "TAO",
-      "city": "칭다오",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": "11:00",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE2082": {
-      "from": "TAO",
-      "to": "PUS",
-      "city": "칭다오",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": null,
-      "end": "16:10",
-      "endOffset": 0
-    },
-    "KE2085": {
-      "from": "PUS",
-      "to": "TPE",
-      "city": "타이베이",
-      "country": "TW",
-      "flag": "🇹🇼",
-      "start": "09:00",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE2086": {
-      "from": "TPE",
-      "to": "PUS",
-      "city": "타이베이",
-      "country": "TW",
-      "flag": "🇹🇼",
-      "start": null,
-      "end": "15:30",
-      "endOffset": 0
-    },
-    "KE2101": {
-      "from": "GMP",
-      "to": "HND",
-      "city": "도쿄",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": "09:00",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE2102": {
-      "from": "HND",
-      "to": "GMP",
-      "city": "도쿄",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": null,
-      "end": "14:55",
-      "endOffset": 0
-    },
-    "KE2103": {
-      "from": "GMP",
-      "to": "HND",
-      "city": "도쿄",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": "16:20",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE2105": {
-      "from": "GMP",
-      "to": "HND",
-      "city": "도쿄",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": "18:40",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE2106": {
-      "from": "HND",
-      "to": "GMP",
-      "city": "도쿄",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": null,
-      "end": "11:45",
-      "endOffset": 0
-    },
-    "KE2117": {
-      "from": "GMP",
-      "to": "KIX",
-      "city": "오사카",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": "09:15",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE2118": {
-      "from": "KIX",
-      "to": "GMP",
-      "city": "오사카",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": null,
-      "end": "14:20",
-      "endOffset": 0
-    },
-    "KE2119": {
-      "from": "GMP",
-      "to": "KIX",
-      "city": "오사카",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": "16:30",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE2125": {
-      "from": "CJU",
-      "to": "NRT",
-      "city": "도쿄",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": "12:55",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE2126": {
-      "from": "NRT",
-      "to": "CJU",
-      "city": "도쿄",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": null,
-      "end": "19:05",
-      "endOffset": 0
-    },
-    "KE2129": {
-      "from": "PUS",
-      "to": "NRT",
-      "city": "도쿄",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": "09:20",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE2130": {
-      "from": "NRT",
-      "to": "PUS",
-      "city": "도쿄",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": null,
-      "end": "14:55",
-      "endOffset": 0
-    },
-    "KE2131": {
-      "from": "PUS",
-      "to": "NRT",
-      "city": "도쿄",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": "16:00",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE2132": {
-      "from": "NRT",
-      "to": "PUS",
-      "city": "도쿄",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": null,
-      "end": "21:35",
-      "endOffset": 0
-    },
-    "KE2133": {
-      "from": "PUS",
-      "to": "NGO",
-      "city": "나고야",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": "17:30",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE2134": {
-      "from": "NGO",
-      "to": "PUS",
-      "city": "나고야",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": null,
-      "end": "21:30",
-      "endOffset": 0
-    },
-    "KE2147": {
-      "from": "ICN",
-      "to": "OKA",
-      "city": "오키나와",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": "09:20",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE2148": {
-      "from": "OKA",
-      "to": "ICN",
-      "city": "오키나와",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": null,
-      "end": "15:10",
-      "endOffset": 0
-    },
-    "KE2155": {
-      "from": "ICN",
-      "to": "KMJ",
-      "city": "구마모토",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": "17:05",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE2156": {
-      "from": "KMJ",
-      "to": "ICN",
-      "city": "구마모토",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": null,
-      "end": "21:20",
-      "endOffset": 0
-    },
-    "KE2171": {
-      "from": "ICN",
-      "to": "UKB",
-      "city": "고베",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": "09:05",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE2172": {
-      "from": "KIX",
-      "to": "ICN",
-      "city": "오사카",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": null,
-      "end": "13:40",
-      "endOffset": 0
-    },
-    "KE2173": {
-      "from": "ICN",
-      "to": "KIX",
-      "city": "오사카",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": "15:50",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE2179": {
-      "from": "ICN",
-      "to": "KOJ",
-      "city": "가고시마",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": null,
-      "end": null,
-      "endOffset": 0
-    },
-    "KE2180": {
-      "from": "KOJ",
-      "to": "ICN",
-      "city": "가고시마",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": null,
-      "end": null,
-      "endOffset": 0
-    },
-    "KE2185": {
-      "from": "ICN",
-      "to": "OKJ",
-      "city": "오카야마",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": "10:30",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE2186": {
-      "from": "OKJ",
-      "to": "ICN",
-      "city": "오카야마",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": null,
-      "end": "14:55",
-      "endOffset": 0
-    },
-    "KE2190": {
-      "from": "KMQ",
-      "to": "ICN",
-      "city": "고마쓰",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": null,
-      "end": "12:10",
-      "endOffset": 0
-    },
-    "KE2193": {
-      "from": "ICN",
-      "to": "AOJ",
-      "city": "아오모리",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": "09:05",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE2194": {
-      "from": "AOJ",
-      "to": "ICN",
-      "city": "아오모리",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": null,
-      "end": "15:30",
-      "endOffset": 0
-    },
-    "KE2197": {
-      "from": "ICN",
-      "to": "KIJ",
-      "city": "니가타",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": "17:10",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE2198": {
-      "from": "KIJ",
-      "to": "ICN",
-      "city": "니가타",
-      "country": "JP",
-      "flag": "🇯🇵",
-      "start": null,
-      "end": "22:55",
-      "endOffset": 0
-    },
-    "KE8053": {
-      "from": "ICN",
-      "to": "HNL",
-      "city": "호놀룰루",
-      "country": "US",
-      "flag": "🇺🇸",
-      "start": "22:35",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE8054": {
-      "from": "HNL",
-      "to": "ICN",
-      "city": "호놀룰루",
-      "country": "US",
-      "flag": "🇺🇸",
-      "start": null,
-      "end": "19:10",
-      "endOffset": 0
-    },
-    "KE8204": {
-      "from": "LAX",
-      "to": "ICN",
-      "city": "로스앤젤레스",
-      "country": "US",
-      "flag": "🇺🇸",
-      "start": null,
-      "end": "00:45",
-      "endOffset": 1
-    },
-    "KE8207": {
-      "from": "ICN",
-      "to": "LAX",
-      "city": "로스앤젤레스",
-      "country": "US",
-      "flag": "🇺🇸",
-      "start": "16:10",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE8315": {
-      "from": "ICN",
-      "to": "PVG",
-      "city": "상하이",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": "01:40",
-      "end": null,
-      "endOffset": 0
-    },
-    "KE8316": {
-      "from": "PVG",
-      "to": "ICN",
-      "city": "상하이",
-      "country": "CN",
-      "flag": "🇨🇳",
-      "start": null,
-      "end": "08:10",
-      "endOffset": 0
-    }
-  };
 
   var AIRPORTS = {
     "ABQ": {
@@ -7378,7 +3836,7 @@ button.ghost.danger { color: var(--danger); }
     }
   };
 
-  return { ROUTES: ROUTES, AIRPORTS: AIRPORTS };
+  return { AIRPORTS: AIRPORTS };
 });
 </script>
 <script>
@@ -8437,434 +4895,6 @@ button.ghost.danger { color: var(--danger); }
 </script>
 <script>
 /**
- * 대한항공 기본 시간표.
- *
- * 인천공항 출발·도착 전광판(2026-09-06 운항)에서 모은 값과, 개별로 확인한 값을 담았다.
- * 앱은 한국 쪽 시각만 보여주므로 여기에도 한국 쪽 시각만 둔다.
- *   - 한국에서 나가는 편: 출발 시각
- *   - 한국으로 들어오는 편: 한국 도착 시각
- * 확인하지 못한 시각은 비워 둔다(지어내지 않는다).
- *
- * 표에 없는 짝수 편명은 바로 앞 홀수 편명의 되돌아오는 편으로 보고 구간만 뒤집어 쓴다.
- * (KE0037 ICN/ORD 이면 KE0038 은 ORD/ICN) 대한항공 편명 규칙이라 구간은 이렇게 맞지만,
- * 시각까지 추측하지는 않는다.
- *
- * 요일과 계절에 따라 시간표가 바뀌므로 실제 로스터가 언제나 우선한다.
- */
-(function (root, factory) {
-  if (typeof module === 'object' && module.exports) {
-    module.exports = factory(require('./routedata.js'));
-  } else {
-    root.CrewCal = root.CrewCal || {};
-    root.CrewCal.schedule = factory(root.CrewCal.routedata);
-  }
-})(typeof self !== 'undefined' ? self : this, function (routedata) {
-  'use strict';
-
-  var SOURCE_NOTE = '인천공항 시간표 기준 (2026년 9월)';
-
-  /* 한국에서 나가는 편: 편명 -> [도착 공항, 출발 시각] */
-  var OUT = {
-    '0005': ['LAS', '21:00'], '0011': ['LAX', '19:40'], '0017': ['LAX', '14:30'],
-    '0023': ['SFO', '16:00'], '0031': ['DFW', '09:30'], '0033': ['ATL', '08:45'],
-    '0035': ['ATL', '10:35'], '0037': ['ORD', '10:40'], '0041': ['SEA', '16:40'],
-    '0053': ['HNL', '21:05'], '0071': ['YVR', '18:45'], '0075': ['YVR', '22:40'],
-    '0077': ['YYZ', '10:00'], '0081': ['JFK', '10:00'], '0093': ['IAD', '10:25'],
-    '0101': ['NKG', '10:25'], '0115': ['YNJ', '09:25'], '0125': ['XMN', '10:20'],
-    '0127': ['FOC', '08:10'], '0141': ['XIY', '09:10'], '0155': ['HFE', '13:25'],
-    '0165': ['WUH', '08:40'], '0213': ['LAX', '02:20'], '0257': ['ANC', '22:05'],
-    '0283': ['ANC', '04:00'], '0313': ['HKG', '22:25'], '0317': ['ANC', '01:45'],
-    '0319': ['CAN', '00:05'], '0321': ['CAN', '00:35'], '0343': ['MNL', '22:40'],
-    '0349': ['CGK', '22:20'], '0361': ['HAN', '23:30'], '0411': ['AKL', '18:00'],
-    '0415': ['GUM', '10:05'], '0417': ['GUM', '18:25'], '0427': ['KUL', '16:20'],
-    '0431': ['DPS', '16:10'], '0433': ['DPS', '18:00'],
-    '0437': ['CGK', null],                 // 자카르타. 크루가 알려준 구간, 시각은 확인 못 했다
-    '0441': ['HAN', '08:00'],
-    '0471': ['SGN', '09:05'], '0497': ['DEL', '12:50'], '0509': ['AMS', '11:05'],
-    '0551': ['NRT', '13:35'], '0619': ['MNL', '22:35'], '0647': ['SIN', '23:35'],
-    '0651': ['BKK', '18:05'], '0677': ['HKT', '17:50'], '0703': ['NRT', '10:10'],
-    '0707': ['NRT', '14:45'], '0711': ['NRT', '13:00'], '0713': ['NRT', '17:15'],
-    '0723': ['KIX', '09:35'], '0725': ['KIX', '15:05'], '0743': ['NGO', '18:50'],
-    '0769': ['CTS', '12:35'], '0787': ['FUK', '08:00'], '0791': ['FUK', '11:05'],
-    '0795': ['FUK', '16:25'], '0805': ['TSN', '09:10'], '0831': ['SHE', '08:05'],
-    '0833': ['SHE', '14:35'], '0835': ['SZX', '08:40'], '0841': ['TAO', '07:50'],
-    '0843': ['TAO', '13:05'], '0851': ['PEK', '08:15'], '0855': ['PEK', '10:40'],
-    '0867': ['CAN', '08:50'], '0873': ['DLC', '13:00'], '0881': ['PVG', '08:25'],
-    '0887': ['PVG', '11:10'], '0901': ['CDG', '12:05'], '0907': ['LHR', '10:55'],
-    '0913': ['MAD', '10:13'], '0921': ['LIS', '12:45'], '0927': ['MXP', '15:25'],
-    '0931': ['FCO', '14:05'], '0945': ['FRA', '10:50'], '1401': ['PUS', '06:35'],
-    '1405': ['PUS', '17:10'], '2005': ['HKG', '13:25'], '2015': ['MFM', '10:10'],
-    '2021': ['TPE', '10:30'], '2027': ['TPE', '16:10'], '2041': ['ULN', '08:35'],
-    '2147': ['OKA', '09:20'], '2155': ['KMJ', '17:05'], '2171': ['UKB', '09:05'],
-    '2173': ['KIX', '15:50'],
-    '2179': ['KOJ', null],                 // 가고시마 정기편. 크루가 알려준 구간, 시각은 확인 못 했다
-    '2185': ['OKJ', '10:30'], '2193': ['AOJ', '09:05'],
-    '2197': ['KIJ', '17:10'], '8053': ['HNL', '22:35'], '8207': ['LAX', '16:10'],
-    '8315': ['PVG', '01:40']
-  };
-
-  /* 한국으로 들어오는 편: 편명 -> [출발 공항, 한국 도착 시각, 익일 도착이면 1] */
-  var IN = {
-    '0006': ['LAS', '04:40', 1], '0012': ['LAX', '04:40', 1], '0018': ['LAX', '17:50', 1],
-    '0024': ['SFO', '17:20', 1], '0032': ['DFW', '16:40', 1], '0034': ['ATL', '15:55', 1],
-    '0036': ['ATL', '17:50', 1], '0038': ['ORD', '16:50', 1], '0042': ['SEA', '16:40', 1],
-    '0054': ['HNL', '17:40', 1], '0072': ['YVR', '17:50', 1], '0076': ['YVR', '04:25', 1],
-    '0078': ['YYZ', '16:30', 1], '0082': ['JFK', '17:50', 1], '0086': ['JFK', '05:10', 1],
-    '0092': ['BOS', '17:25', 1], '0094': ['IAD', '17:40', 1], '0214': ['SFO', '08:25', 1],
-    '0234': ['SEA', '09:45', 1], '0250': ['JFK', '16:35', 1], '0278': ['YVR', '18:50', 1],
-    '8204': ['LAX', '00:45', 1],
-
-    '0102': ['NKG', '16:15', 0], '0116': ['YNJ', '15:25', 0], '0126': ['XMN', '18:05', 0],
-    '0134': ['CGO', '14:20', 0], '0142': ['XIY', '16:40', 0], '0156': ['HFE', '19:45', 0],
-    '0166': ['WUH', '16:00', 0], '0224': ['NRT', '22:15', 0], '0314': ['HKG', '07:40', 0],
-    '0320': ['CAN', '09:20', 0], '0322': ['CAN', '09:55', 0], '0344': ['SIN', '16:35', 0],
-    '0350': ['PEN', '18:15', 0], '0362': ['HAN', '10:20', 0], '0402': ['SYD', '17:35', 0],
-    '0408': ['BNE', '17:35', 0], '0416': ['GUM', '21:00', 0], '0418': ['GUM', '05:40', 0],
-    '0428': ['KUL', '07:00', 0], '0432': ['DPS', '07:55', 0], '0434': ['DPS', '09:25', 0],
-    '0442': ['HAN', '18:35', 0], '0458': ['DAD', '22:30', 0], '0468': ['CXR', '07:25', 0],
-    '0472': ['SGN', '21:25', 0], '0476': ['SGN', '07:00', 0], '0480': ['SGN', '14:55', 0],
-    '0486': ['PQC', '07:50', 0], '0552': ['NRT', '21:20', 0], '0602': ['CEB', '06:30', 0],
-    '0620': ['MNL', '08:20', 0], '0622': ['MNL', '17:25', 0], '0624': ['MNL', '04:35', 0],
-    '0626': ['MNL', '06:15', 0], '0644': ['SIN', '05:35', 0], '0646': ['SIN', '08:50', 0],
-    '0648': ['SIN', '15:00', 0], '0652': ['BKK', '06:55', 0], '0656': ['BKK', '10:15', 0],
-    '0658': ['BKK', '05:05', 0], '0660': ['BKK', '17:20', 0], '0678': ['HKT', '07:35', 0],
-    '0690': ['PNH', '07:00', 0], '0704': ['NRT', '16:30', 0], '0706': ['NRT', '11:45', 0],
-    '0708': ['NRT', '21:30', 0], '0712': ['NRT', '20:00', 0], '0714': ['NRT', '23:25', 0],
-    '0722': ['KIX', '10:55', 0], '0724': ['KIX', '14:25', 0], '0726': ['KIX', '20:05', 0],
-    '0738': ['KIX', '04:05', 0], '0742': ['NGO', '15:40', 0], '0744': ['NGO', '11:20', 0],
-    '0766': ['CTS', '17:55', 0], '0770': ['CTS', '19:30', 0], '0782': ['FUK', '22:35', 0],
-    '0788': ['FUK', '12:00', 0], '0792': ['FUK', '16:30', 0], '0796': ['FUK', '21:35', 0],
-    '0804': ['TSN', '17:35', 0], '0806': ['TSN', '14:20', 0], '0832': ['SHE', '13:15', 0],
-    '0834': ['SHE', '19:50', 0], '0842': ['TAO', '12:25', 0], '0844': ['TAO', '17:30', 0],
-    '0852': ['PEK', '21:40', 0], '0856': ['PEK', '16:30', 0], '0864': ['PEK', '04:40', 0],
-    '0868': ['CAN', '17:15', 0], '0874': ['DLC', '16:55', 0], '0882': ['PVG', '14:20', 0],
-    '0888': ['PVG', '16:45', 0], '0892': ['PVG', '11:55', 0], '8316': ['PVG', '08:10', 0],
-    '2002': ['HKG', '17:05', 0], '2006': ['HKG', '22:45', 0], '2016': ['MFM', '19:00', 0],
-    '2022': ['TPE', '16:50', 0], '2028': ['TPE', '22:35', 0], '2042': ['ULN', '17:10', 0],
-    '2148': ['OKA', '15:10', 0], '2156': ['KMJ', '21:20', 0], '2172': ['KIX', '13:40', 0],
-    '2180': ['KOJ', null, 0],              // 가고시마발 정기편. 시각은 확인 못 했다
-    '2186': ['OKJ', '14:55', 0], '2190': ['KMQ', '12:10', 0], '2194': ['AOJ', '15:30', 0],
-    '8054': ['HNL', '19:10', 0],
-
-    '0504': ['CDG', '20:55', 1], '0538': ['FRA', '15:15', 1], '0902': ['CDG', '15:50', 1],
-    '0908': ['LHR', '16:15', 1], '0918': ['ZRH', '14:10', 1], '0926': ['AMS', '16:40', 1],
-    '0932': ['FCO', '15:55', 1], '0956': ['IST', '13:25', 1], '0964': ['BUD', '13:40', 1],
-    '0970': ['PRG', '13:20', 1],
-
-    '0164': ['DYG', '04:05', 0], '1404': ['PUS', '09:10', 0], '1406': ['PUS', '09:55', 0],
-    '1408': ['PUS', '11:50', 0], '1410': ['PUS', '17:40', 0], '1432': ['TAE', '09:00', 0]
-  };
-
-  /* 김포에서 나가는 편: 편명 -> [도착 공항, 출발 시각] */
-  var GMP_OUT = {
-    '1007': ['CJU', '06:35'], '1017': ['CJU', '07:05'], '1019': ['CJU', '07:10'],
-    '1023': ['CJU', '07:20'], '1045': ['CJU', '08:20'], '1073': ['CJU', '10:10'],
-    '1075': ['CJU', '10:40'], '1079': ['CJU', '10:35'], '1081': ['CJU', '11:10'],
-    '1107': ['CJU', '12:45'], '1113': ['CJU', '13:15'], '1121': ['CJU', '13:25'],
-    '1141': ['CJU', '14:00'], '1143': ['CJU', '14:55'], '1165': ['CJU', '16:35'],
-    '1177': ['CJU', '17:30'], '1185': ['CJU', '17:45'], '1195': ['CJU', '18:15'],
-    '1205': ['CJU', '18:45'],
-    '1803': ['PUS', '07:00'], '1807': ['PUS', '08:05'], '1811': ['PUS', '10:30'],
-    '1819': ['PUS', '14:00'], '1827': ['PUS', '17:35'],
-    '1843': ['USN', '07:20'], '1847': ['USN', '18:55'],
-    '2051': ['PEK', '09:05'], '2057': ['PVG', '16:00'],
-    '2101': ['HND', '09:00'], '2103': ['HND', '16:20'], '2105': ['HND', '18:40'],
-    '2117': ['KIX', '09:15'], '2119': ['KIX', '16:30']
-  };
-
-  /* 김포로 들어오는 편: 편명 -> [출발 공항, 김포 도착 시각] */
-  var GMP_IN = {
-    '1118': ['CJU', '08:15'], '1136': ['CJU', '09:50'], '1150': ['CJU', '10:15'],
-    '1174': ['CJU', '11:40'], '1178': ['CJU', '12:05'], '1188': ['CJU', '12:35'],
-    '1206': ['CJU', '13:20'], '1214': ['CJU', '14:20'], '1238': ['CJU', '15:55'],
-    '1244': ['CJU', '16:35'], '1246': ['CJU', '16:50'], '1264': ['CJU', '17:20'],
-    '1268': ['CJU', '18:05'], '1272': ['CJU', '18:15'], '1294': ['CJU', '19:30'],
-    '1806': ['PUS', '09:50'], '1814': ['PUS', '13:20'], '1822': ['PUS', '16:55'],
-    '1844': ['USN', '10:00'],
-    '2052': ['PEK', '15:00'], '2102': ['HND', '14:55'], '2106': ['HND', '11:45'],
-    '2118': ['KIX', '14:20']
-  };
-
-  /* 부산에서 나가는 편: 편명 -> [도착 공항, 출발 시각] */
-  var PUS_OUT = {
-    '1402': ['ICN', '07:00'], '1404': ['ICN', '08:00'], '1406': ['ICN', '08:45'],
-    '1408': ['ICN', '10:40'], '1410': ['ICN', '16:30'],
-    '1806': ['GMP', '08:45'], '1822': ['GMP', '15:50'],
-    '1505': ['CJU', '07:00'], '1515': ['CJU', '09:55'], '1517': ['CJU', '10:25'],
-    '1543': ['CJU', '16:40'],
-    '2061': ['PEK', '22:20'], '2071': ['PVG', '08:35'], '2081': ['TAO', '11:00'],
-    '2085': ['TPE', '09:00'], '2129': ['NRT', '09:20'], '2131': ['NRT', '16:00'],
-    '2133': ['NGO', '17:30']
-  };
-
-  /* 부산으로 들어오는 편: 편명 -> [출발 공항, 부산 도착 시각] */
-  var PUS_IN = {
-    '1401': ['ICN', '07:45'], '1403': ['ICN', '09:30'], '1405': ['ICN', '18:20'],
-    '1407': ['ICN', '19:35'],
-    '1803': ['GMP', '08:05'], '1807': ['GMP', '09:10'], '1811': ['GMP', '11:35'],
-    '1819': ['GMP', '15:05'], '1827': ['GMP', '18:40'],
-    '1512': ['CJU', '09:45'], '1538': ['CJU', '15:55'], '1550': ['CJU', '19:20'],
-    '1558': ['CJU', '21:30'], '1562': ['CJU', '22:05'],
-    '2062': ['PEK', '06:30'], '2072': ['PVG', '14:00'], '2082': ['TAO', '16:10'],
-    '2086': ['TPE', '15:30'], '2130': ['NRT', '14:55'], '2132': ['NRT', '21:35'],
-    '2134': ['NGO', '21:30']
-  };
-
-  /* 제주에서 나가는 편: 편명 -> [도착 공항, 출발 시각] */
-  var CJU_OUT = {
-    '1136': ['GMP', '08:35'], '1150': ['GMP', '09:00'], '1174': ['GMP', '10:25'],
-    '1188': ['GMP', '11:20'], '1206': ['GMP', '12:05'], '1214': ['GMP', '13:05'],
-    '1238': ['GMP', '14:40'], '1244': ['GMP', '15:20'], '1246': ['GMP', '15:35'],
-    '1264': ['GMP', '16:05'], '1268': ['GMP', '16:50'], '1272': ['GMP', '17:00'],
-    '1294': ['GMP', '18:15'],
-    '1512': ['PUS', '08:45'], '1538': ['PUS', '15:00'], '1550': ['PUS', '18:20'],
-    '1570': ['TAE', '09:15'], '1576': ['TAE', '16:35'], '1586': ['HIN', '13:20'],
-    '1596': ['USN', '13:10'],
-    '1608': ['KWJ', '09:10'], '1610': ['KWJ', '11:35'], '1612': ['KWJ', '13:05'],
-    '1620': ['KWJ', '16:05'], '1636': ['RSU', '11:40'],
-    '1704': ['CJJ', '07:20'], '1712': ['CJJ', '12:15'], '1722': ['CJJ', '14:50'],
-    '1766': ['CJJ', '18:25'],
-    '2065': ['PEK', '15:35'], '2125': ['NRT', '12:55']
-  };
-
-  /* 제주로 들어오는 편: 편명 -> [출발 공항, 제주 도착 시각] */
-  var CJU_IN = {
-    '1007': ['GMP', '07:50'], '1017': ['GMP', '08:20'], '1019': ['GMP', '08:25'],
-    '1045': ['GMP', '09:35'], '1073': ['GMP', '11:25'], '1075': ['GMP', '11:55'],
-    '1079': ['GMP', '11:50'], '1081': ['GMP', '12:25'], '1107': ['GMP', '14:00'],
-    '1113': ['GMP', '14:30'], '1141': ['GMP', '15:15'], '1143': ['GMP', '16:10'],
-    '1165': ['GMP', '17:50'], '1177': ['GMP', '18:45'],
-    '1505': ['PUS', '08:00'], '1515': ['PUS', '10:55'], '1517': ['PUS', '11:25'],
-    '1543': ['PUS', '17:40'],
-    '1569': ['TAE', '12:10'], '1585': ['HIN', '16:25'], '1595': ['USN', '16:10'],
-    '1607': ['KWJ', '11:35'], '1611': ['KWJ', '14:05'], '1613': ['KWJ', '15:30'],
-    '1619': ['KWJ', '18:30'], '1635': ['RSU', '14:10'],
-    '1717': ['CJJ', '15:15'], '1725': ['CJJ', '18:30'],
-    '2066': ['PEK', '14:25'], '2126': ['NRT', '19:05']
-  };
-
-  /*
-   * 지방 공항(대구·광주·청주·여수·울산·사천) 전광판에서 모은 값.
-   * 대부분 위 표의 반대쪽 시각이라, 합쳐지면 국내선 출발·도착이 모두 채워진다.
-   * [편명, 구간, 출발, 도착]
-   */
-  var LOCAL = [
-    // 그날 전광판에 뜨지 않아 따로 확인한 편 (요일별로 뜨는 편들)
-    ['0475', 'ICN/SGN', '18:50', null], ['0479', 'ICN/SGN', '19:35', null],
-    ['0863', 'ICN/PEK', '20:00', null], ['0085', 'ICN/JFK', '19:30', null],
-    ['0741', 'ICN/NGO', '10:35', null], ['0601', 'ICN/CEB', '18:50', null],
-
-    ['1431', 'ICN/TAE', null, '19:55'], ['1432', 'TAE/ICN', '07:55', null],
-    ['1569', 'TAE/CJU', '11:05', null], ['1575', 'TAE/CJU', '18:40', null],
-    ['1570', 'CJU/TAE', null, '10:20'], ['1576', 'CJU/TAE', null, '17:45'],
-
-    ['1607', 'KWJ/CJU', '10:40', null], ['1611', 'KWJ/CJU', '13:10', null],
-    ['1613', 'KWJ/CJU', '14:35', null], ['1619', 'KWJ/CJU', '17:35', null],
-    ['1608', 'CJU/KWJ', null, '10:05'], ['1610', 'CJU/KWJ', null, '12:30'],
-    ['1612', 'CJU/KWJ', null, '14:00'], ['1620', 'CJU/KWJ', null, '17:00'],
-
-    ['1717', 'CJJ/CJU', '14:05', null], ['1725', 'CJJ/CJU', '17:20', null],
-    ['1704', 'CJU/CJJ', null, '08:30'], ['1712', 'CJU/CJJ', null, '13:25'],
-    ['1722', 'CJU/CJJ', null, '16:05'], ['1762', 'CJU/CJJ', null, '07:45'],
-
-    ['1635', 'RSU/CJU', '13:15', null], ['1636', 'CJU/RSU', null, '12:35'],
-    ['1595', 'USN/CJU', '15:00', null], ['1596', 'CJU/USN', null, '14:15'],
-    ['1847', 'GMP/USN', null, '19:55'],
-    ['1585', 'HIN/CJU', '15:25', null], ['1586', 'CJU/HIN', null, '14:25']
-  ];
-
-  /* 익일 도착까지 확인한 편 */
-  var LOCAL_NEXTDAY = [
-    ['0498', 'DEL/ICN', '05:20', 1],
-    ['2198', 'KIJ/ICN', '22:55', 0]
-  ];
-
-  /* 국내선이나 한국을 거치지 않는 편처럼 양쪽 시각을 다 아는 편 */
-  var FULL = {
-    '1402': ['PUS/ICN', '07:00', '08:10', 0]
-  };
-
-  /*
-   * 대한항공 편명 대역. 어느 대역인지만으로도 국내선인지 국제선인지 갈린다.
-   *   1~999    국제선 정기편
-   *   1000~1999 국내선
-   *   2000~2999 국제선 (계절편·증편 포함. KE2179 ICN/KOJ 처럼 정기편도 여기 든다)
-   *   9000~9999 화물편
-   */
-  var BANDS = [
-    { from: 1, to: 999, kind: 'international', label: '국제선 정기편' },
-    { from: 1000, to: 1999, kind: 'domestic', label: '국내선' },
-    { from: 2000, to: 2999, kind: 'international', label: '국제선(계절편·증편 포함)' },
-    { from: 9000, to: 9999, kind: 'cargo', label: '화물편' }
-  ];
-
-  /**
-   * 국내선 편명 대역 -> 구간. 홀수가 앞에서 뒤로, 짝수가 뒤에서 앞으로 간다.
-   * (KE1807 GMP/PUS 이면 KE1810 은 PUS/GMP) 전광판에서 모은 편들이 모두 이 규칙을
-   * 따랐다. 시각까지 짐작하지는 않는다.
-   */
-  var DOMESTIC_BANDS = [
-    { from: 1000, to: 1299, route: ['GMP', 'CJU'] },
-    { from: 1400, to: 1429, route: ['ICN', 'PUS'] },
-    { from: 1430, to: 1439, route: ['ICN', 'TAE'] },
-    // 1563~1568 은 어느 쪽인지 확인하지 못해 비워 둔다(1562 는 부산, 1569 는 대구).
-    { from: 1500, to: 1562, route: ['PUS', 'CJU'] },
-    { from: 1569, to: 1579, route: ['TAE', 'CJU'] },
-    { from: 1580, to: 1589, route: ['HIN', 'CJU'] },
-    { from: 1590, to: 1599, route: ['USN', 'CJU'] },
-    { from: 1600, to: 1629, route: ['KWJ', 'CJU'] },
-    { from: 1630, to: 1639, route: ['RSU', 'CJU'] },
-    { from: 1700, to: 1799, route: ['CJJ', 'CJU'] },
-    { from: 1800, to: 1839, route: ['GMP', 'PUS'] },
-    { from: 1840, to: 1899, route: ['GMP', 'USN'] }
-  ];
-
-  /** 편명 숫자 -> 어느 대역인지. 대역 밖이면 null. */
-  function bandOf(number) {
-    var n = +number;
-    if (!n && n !== 0) return null;
-    for (var i = 0; i < BANDS.length; i++) {
-      if (n >= BANDS[i].from && n <= BANDS[i].to) return BANDS[i];
-    }
-    return null;
-  }
-
-  /** 국내선 대역 규칙으로 구간을 뽑는다. 대역에 없으면 null. */
-  function domesticRoute(number) {
-    var n = +number;
-    for (var i = 0; i < DOMESTIC_BANDS.length; i++) {
-      var band = DOMESTIC_BANDS[i];
-      if (n < band.from || n > band.to) continue;
-      var pair = band.route;
-      return n % 2 === 1 ? pair[0] + '/' + pair[1] : pair[1] + '/' + pair[0];
-    }
-    return null;
-  }
-
-  // 짝 편명으로 구간을 뒤집을 때 기준이 되는 국내 출발지
-  var KR_HUBS = {
-    ICN: true, GMP: true, PUS: true, CJU: true, TAE: true, KWJ: true,
-    USN: true, CJJ: true, RSU: true, HIN: true, WJU: true, KUV: true
-  };
-
-  /*
-   * 표는 data/ke-routes.json 에서 온다. 노선을 더할 때는 그 파일만 고치고
-   * node scripts/make-routes.js 를 돌리면 된다(build.js 가 알아서 부른다).
-   */
-  var TABLE = {};
-  var SOURCE = (routedata && routedata.ROUTES) || {};
-  Object.keys(SOURCE).forEach(function (code) {
-    var row = SOURCE[code];
-    if (!row || !row.from || !row.to) return;
-    TABLE[code] = {
-      route: row.from + '/' + row.to,
-      start: row.start || null,
-      end: row.end || null,
-      endOffset: row.endOffset || 0
-    };
-  });
-
-  /** 편명을 표기 차이와 상관없이 찾는다. KE35, KE035, KE0035 모두 같은 편으로 본다. */
-  function normalize(code) {
-    var m = String(code || '').toUpperCase().match(/^([A-Z]{2})(\d{1,4})([A-Z]?)$/);
-    if (!m) return null;
-    var digits = m[2];
-    while (digits.length < 4) digits = '0' + digits;
-    return m[1] + digits;
-  }
-
-  /**
-   * 표에 없는 짝수 편은 바로 앞 홀수 편(나가는 편)의 되돌아오는 편으로 본다.
-   * 구간만 뒤집어 쓰고 시각은 넣지 않는다.
-   */
-  function pairedReturn(key) {
-    var m = key.match(/^KE(\d{4})$/);
-    if (!m) return null;
-    var num = parseInt(m[1], 10);
-    if (num % 2 !== 0 || num < 2) return null;
-
-    var outbound = TABLE['KE' + String(num - 1).padStart(4, '0')];
-    if (!outbound || !outbound.route) return null;
-
-    var parts = outbound.route.split('/');
-    if (parts.length !== 2 || !KR_HUBS[parts[0]]) return null;
-    return { route: parts[1] + '/' + parts[0], start: null, end: null, endOffset: 0, derived: true };
-  }
-
-  /**
-   * 표에 없는 홀수 편은 바로 뒤 짝수 편(들어오는 편)의 나가는 편으로 본다.
-   * (KE0086 JFK/ICN 이면 KE0085 는 ICN/JFK) 구간만 쓰고 시각은 넣지 않는다.
-   */
-  function pairedOutbound(key) {
-    var m = key.match(/^KE(\d{4})$/);
-    if (!m) return null;
-    var num = parseInt(m[1], 10);
-    if (num % 2 !== 1) return null;
-
-    var inbound = TABLE['KE' + String(num + 1).padStart(4, '0')];
-    if (!inbound || !inbound.route) return null;
-
-    var parts = inbound.route.split('/');
-    if (parts.length !== 2 || !KR_HUBS[parts[1]]) return null;
-    return { route: parts[1] + '/' + parts[0], start: null, end: null, endOffset: 0, derived: true };
-  }
-
-  /** 국내선 대역 규칙으로 채운다. 구간만 확실하고 시각은 모른다. */
-  function fromDomesticBand(key) {
-    var m = key.match(/^[A-Z]{2}(\d{4})$/);
-    if (!m) return null;
-    var route = domesticRoute(m[1]);
-    if (!route) return null;
-    return { route: route, start: null, end: null, endOffset: 0, derived: 'domestic-band' };
-  }
-
-  function lookup(code) {
-    var key = normalize(code);
-    if (!key) return null;
-    // 표에 있는 값이 먼저. 없으면 국내선 대역 규칙, 그다음 홀짝 짝 편명.
-    var hit = TABLE[key] || fromDomesticBand(key) || pairedReturn(key) || pairedOutbound(key);
-    if (!hit) return null;
-    var number = +key.slice(2);
-    var band = bandOf(number);
-    return {
-      route: hit.route,
-      start: hit.start,
-      end: hit.end,
-      endOffset: hit.endOffset,
-      derived: hit.derived || false,
-      kind: band ? band.kind : null,
-      source: 'schedule'
-    };
-  }
-
-  /** 편명이 국내선인지. 대역으로 먼저 보고, 구간을 알면 그것으로 확인한다. */
-  function isDomestic(code) {
-    var key = normalize(code);
-    if (!key) return false;
-    var band = bandOf(+key.slice(2));
-    return !!band && band.kind === 'domestic';
-  }
-
-  function size() {
-    return Object.keys(TABLE).length;
-  }
-
-  return {
-    TABLE: TABLE,
-    SOURCE_NOTE: SOURCE_NOTE,
-    BANDS: BANDS,
-    DOMESTIC_BANDS: DOMESTIC_BANDS,
-    normalize: normalize,
-    bandOf: bandOf,
-    domesticRoute: domesticRoute,
-    isDomestic: isDomestic,
-    lookup: lookup,
-    size: size
-  };
-});
-</script>
-<script>
-/**
  * 하루에 겹쳐 들어온 근무를 살펴본다.
  *
  * 예전에는 여기서 겹친 것을 지웠다. 그러다 3월 1일 국내선 네 편(KE1807·1810·
@@ -8877,12 +4907,12 @@ button.ghost.danger { color: var(--danger); }
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
-    module.exports = factory(require('./codes.js'), require('./airports.js'), require('./schedule.js'));
+    module.exports = factory(require('./codes.js'), require('./airports.js'));
   } else {
     root.CrewCal = root.CrewCal || {};
-    root.CrewCal.resolve = factory(root.CrewCal.codes, root.CrewCal.airports, root.CrewCal.schedule);
+    root.CrewCal.resolve = factory(root.CrewCal.codes, root.CrewCal.airports);
   }
-})(typeof self !== 'undefined' ? self : this, function (codes, airports, schedule) {
+})(typeof self !== 'undefined' ? self : this, function (codes, airports) {
   'use strict';
 
   /** 휴무 계열끼리 겹쳤을 때 어느 것을 대표로 볼지. 앞에 있을수록 구체적이다. */
@@ -8926,13 +4956,9 @@ button.ghost.danger { color: var(--danger); }
     return d.toISOString().slice(0, 10);
   }
 
-  /** 그 편의 구간. 아직 안 붙어 있으면 시간표에서 찾아본다. 모르면 null. */
+  /** 그 편의 구간. 크루넷 원본이 적어 준 것만 쓴다. 없으면 null. */
   function routeOf(entry) {
-    if (!isFlight(entry)) return null;
-    if (entry.route) return entry.route;
-    if (!schedule) return null;
-    var hit = schedule.lookup(entry.code);
-    return (hit && hit.route) || null;
+    return isFlight(entry) && entry.route ? entry.route : null;
   }
 
   /** 국내선인지. 구간을 알면 그것으로, 모르면 편명 대역으로 본다. */
@@ -8945,7 +4971,7 @@ button.ghost.danger { color: var(--danger); }
         return airports.countryOf(parts.from) === 'KR' && airports.countryOf(parts.to) === 'KR';
       }
     }
-    return !!schedule && schedule.isDomestic(entry.code);
+    return false;   // 구간을 모르면 국내선인지도 모른다
   }
 
   /** 도착지가 한국 밖인 비행이면 참. 구간을 모르면 판단하지 않는다(null). */
@@ -9288,119 +5314,350 @@ button.ghost.danger { color: var(--danger); }
 </script>
 <script>
 /**
- * 미등록 편명 일괄 등록.
+ * 크루넷 홈 화면(crewnet.koreanair.com) 일정 읽기.
  *
- * 저장된 일정을 훑어 구간을 모르는 편명을 모은다. 칸을 하나씩 눌러 고치는 것은
- * 한 달에 열 편씩 나올 때 쓸 수가 없다. 여기서 도착 공항만 줄줄이 적으면 된다.
+ * 화면은 날짜별 목록이다. 왼쪽에 날짜 블록이 세 줄로 서고, 오른쪽에 그날의
+ * 듀티 카드가 하나 이상 붙는다.
  *
- * 대한항공 편명은 홀수가 한국발, 짝수가 한국행이다(1997년 이후 체계). 그래서
- * 도착 공항 하나만 알면 구간이 정해지고, 짝이 되는 편명도 거꾸로 제안할 수 있다.
- * 어디까지나 편명 규칙이므로 실제 로스터가 언제나 우선한다.
+ *   왼쪽 날짜 블록      오른쪽 듀티 카드
+ *     01  (월)          KE 0727
+ *     7   (일)          ICN -KIX / 11:03 - 12:41
+ *     WED (요일)
+ *
+ * 첫 줄의 "01" 은 달이지 날짜가 아니다. 이걸 1일로 읽는 바람에 17일 비행이
+ * 1월 1일에 유령으로 들어간 일이 있었다. 그래서 세 줄을 한 덩어리로만 인정하고,
+ * 요일까지 맞는지 달력과 대조한다.
+ *
+ * 시각 칸은 "그날 이 듀티에서 무슨 일이 있었나" 를 적는다. 하이픈 앞이 출발,
+ * 뒤가 도착이고, 비어 있으면 그날은 그 일이 없었다는 뜻이다.
+ *
+ *   "21:03 - 14:43"  그날 출발하고 그날 도착
+ *   "22:46 -"        그날 출발, 도착은 다른 날
+ *   "- 05:07"        출발은 다른 날, 그날 도착
+ *   "-"              그날은 기내에 있거나 체류 중
+ *
+ * 시각은 언제나 그 공항의 현지 시각이다. 마음대로 한국 시각으로 돌리지 않는다.
+ * 구간도 원본의 "ICN -LAS" 를 그대로 읽는다. 편명으로 목적지를 짐작하지 않는다.
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
-    module.exports = factory(require('./codes.js'), require('./airports.js'));
+    module.exports = factory(require('./codes.js'));
   } else {
     root.CrewCal = root.CrewCal || {};
-    root.CrewCal.bulkroutes = factory(root.CrewCal.codes, root.CrewCal.airports);
+    root.CrewCal.crewnet = factory(root.CrewCal.codes);
   }
-})(typeof self !== 'undefined' ? self : this, function (codes, airports) {
+})(typeof self !== 'undefined' ? self : this, function (codes) {
   'use strict';
 
-  var BASE = 'ICN';
+  var WEEKDAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
-  function numberOf(code) {
-    var parts = codes && codes.splitFlight ? codes.splitFlight(code) : null;
-    return parts ? +parts.number : null;
+  var RE = {
+    month: /^(0?[1-9]|1[0-2])$/,
+    day: /^([12]\d|3[01]|0?[1-9])$/,
+    weekday: /^(SUN|MON|TUE|WED|THU|FRI|SAT)$/,
+    // 한 줄에 붙어 읽힌 날짜 블록: "01 7 WED"
+    dateLine: /^(0?[1-9]|1[0-2])\s+([12]\d|3[01]|0?[1-9])\s+(SUN|MON|TUE|WED|THU|FRI|SAT)\b/,
+    flight: /^([A-Z]{2})\s?-?\s?(\d{3,4})$/,
+    // "ICN -LAS / 21:03 - 14:43"
+    legLine: /^([A-Z]{3})\s*-\s*([A-Z]{3})\s*\/\s*(.*)$/,
+    // "LAS / -" 또는 "LAS / - 21:30"
+    stayLine: /^([A-Z]{3})\s*\/\s*(.*)$/,
+    times: /^(\d{1,2}:[0-5]\d)?\s*-\s*(\d{1,2}:[0-5]\d)?$/,
+    clock: /^(\d{1,2}):([0-5]\d)$/
+  };
+
+  // 화면 껍데기. 일정과 상관없는 줄들.
+  var NOISE = [
+    /^HANWAY/i, /^Crewnet$/i, /^crewnet\.koreanair\.com$/i,
+    /^(홈|스케줄|공지사항|브리핑시트)$/, /^\d{1,2}:[0-5]\d$/,
+    /^[\s|·∨˅v×✕]+$/i
+  ];
+
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+
+  function isNoise(line) {
+    if (!line) return true;
+    return NOISE.some(function (re) { return re.test(line); });
   }
 
-  /** 홀수면 한국발, 짝수면 한국행. 짝이 되는 편명(없으면 null). */
-  function pairOf(code) {
-    var parts = codes && codes.splitFlight ? codes.splitFlight(code) : null;
-    if (!parts) return null;
-    var n = +parts.number;
-    if (!n) return null;
-    var mate = n % 2 === 1 ? n + 1 : n - 1;
-    if (mate < 1) return null;
-    var digits = String(mate);
-    while (digits.length < parts.number.length) digits = '0' + digits;
-    return parts.airline + digits;
+  /** 'HH:MM' 로 다듬는다. 시각이 아니면 null. */
+  function clock(text) {
+    var m = RE.clock.exec(String(text || '').trim());
+    if (!m) return null;
+    var h = +m[1];
+    return h > 23 ? null : pad2(h) + ':' + m[2];
   }
 
   /**
-   * 도착 공항 하나로 구간을 정한다.
-   *  홀수 -> 한국에서 나가는 편 (ICN/XXX)
-   *  짝수 -> 한국으로 들어오는 편 (XXX/ICN)
-   * base 를 주면 인천 대신 그 공항을 한국 쪽으로 쓴다(김포 출발 등).
+   * 시각 칸을 읽는다. 하이픈 앞이 출발, 뒤가 도착.
+   * 읽을 수 없으면 null (시각 칸이 아니라는 뜻).
    */
-  function routeFor(code, outstation, base) {
-    var iata = airports && airports.findCode ? airports.findCode(outstation) : null;
-    if (!iata) return null;
-    var home = (airports && airports.findCode ? airports.findCode(base || BASE) : null) || BASE;
-    var n = numberOf(code);
-    if (n == null) return null;
-    return n % 2 === 1 ? { from: home, to: iata } : { from: iata, to: home };
+  function readTimes(field) {
+    var text = String(field == null ? '' : field).trim();
+    if (!text) return null;
+    var m = RE.times.exec(text);
+    if (!m) return null;
+    return { start: clock(m[1]) || null, end: clock(m[2]) || null };
   }
 
-  /** 한쪽을 넣으면 반대쪽 편을 제안한다. { code, from, to } 또는 null. */
-  function pairSuggestion(code, outstation, base) {
-    var mate = pairOf(code);
-    if (!mate) return null;
-    var route = routeFor(mate, outstation, base);
-    if (!route) return null;
-    return { code: mate, from: route.from, to: route.to };
+  /** 그 달 그 날의 요일. 0 이 일요일. */
+  function weekdayOf(year, month, day) {
+    var d = new Date(Date.UTC(year, month - 1, day));
+    if (isNaN(d.getTime())) return null;
+    if (d.getUTCMonth() !== month - 1 || d.getUTCDate() !== day) return null;   // 없는 날
+    return d.getUTCDay();
   }
 
-  /** ke-routes.json 한 줄 모양으로. 도시·나라·국기는 공항표에서 채운다. */
-  function toRouteRow(route) {
-    if (!route) return null;
-    var outIata = airports && airports.outstation
-      ? airports.outstation(route.from + '/' + route.to)
-      : route.to;
-    var info = airports && airports.describeAirport ? airports.describeAirport(outIata) : null;
+  /** 읽은 요일이 달력과 맞는지. 연·월을 모르면 따지지 않는다. */
+  function weekdayMatches(year, month, day, weekday) {
+    if (!year || !month) return true;
+    var index = WEEKDAYS.indexOf(String(weekday || '').toUpperCase());
+    if (index === -1) return true;
+    var actual = weekdayOf(year, month, day);
+    return actual == null ? false : actual === index;
+  }
+
+  function normalize(text) {
+    return String(text == null ? '' : text)
+      .replace(/\r\n?/g, '\n')
+      .replace(/[   　]/g, ' ')
+      .replace(/[‐-―−－]/g, '-')
+      .replace(/[／]/g, '/')
+      .split('\n')
+      .map(function (line) { return line.replace(/\s+/g, ' ').trim(); })
+      .filter(function (line) { return line && !isNoise(line); });
+  }
+
+  /**
+   * 줄을 훑어 날짜 블록을 찾는다. 세 줄(달/일/요일)이 나란히 있어야 하고,
+   * 한 줄에 붙어 읽힌 "01 7 WED" 도 받는다. 그 밖에는 날짜로 보지 않는다.
+   */
+  function readDateBlock(lines, at) {
+    var joined = RE.dateLine.exec(lines[at]);
+    if (joined) {
+      return {
+        month: +joined[1], day: +joined[2], weekday: joined[3],
+        next: at + 1,
+        rest: lines[at].slice(joined[0].length).trim()
+      };
+    }
+    if (at + 2 >= lines.length) return null;
+    if (!RE.month.test(lines[at])) return null;
+    if (!RE.day.test(lines[at + 1])) return null;
+    if (!RE.weekday.test(lines[at + 2])) return null;
     return {
-      from: route.from,
-      to: route.to,
-      city: info ? info.city : outIata,
-      country: info ? info.country : null,
-      flag: info ? info.flag : '',
-      start: route.start || null,
-      end: route.end || null,
-      endOffset: route.endOffset || 0
+      month: +lines[at], day: +lines[at + 1], weekday: lines[at + 2],
+      next: at + 3, rest: ''
+    };
+  }
+
+  function dutyItem(code) {
+    var hit = codes ? codes.lookup(code) : null;
+    return {
+      code: code,
+      type: 'duty',
+      category: hit ? hit.category : 'unknown',
+      label: hit ? hit.label : '미확인 코드',
+      known: !!hit
     };
   }
 
   /**
-   * 저장된 일정에서 구간을 모르는 편명을 모은다.
-   *   entriesByDate: 날짜 -> 일정 목록
-   *   recall(code): 아는 구간을 돌려주는 함수(store.recallFlight)
-   * 편명마다 몇 번 나왔는지, 어느 날에 있는지, 짝 편명이 무엇인지 함께 준다.
+   * 한 달치를 읽는다. options { year, month } 를 주면 날짜를 또렷이 적고
+   * 요일까지 대조한다. month 를 안 주면 원본의 달을 쓴다.
    */
-  function missingFlights(entriesByDate, recall) {
-    var found = {};
-    Object.keys(entriesByDate || {}).sort().forEach(function (date) {
-      (entriesByDate[date] || []).forEach(function (entry) {
-        if (!entry || entry.type !== 'flight' || entry.strange) return;
-        if (entry.route) return;
-        var code = String(entry.code || '').toUpperCase();
-        if (!code) return;
-        var known = recall ? recall(code) : null;
-        if (known && known.route) return;
-        if (!found[code]) found[code] = { code: code, count: 0, dates: [], pair: pairOf(code) };
-        found[code].count++;
-        if (found[code].dates.indexOf(date) === -1) found[code].dates.push(date);
+  function parse(text, options) {
+    var opts = options || {};
+    var lines = normalize(text);
+    var entries = [];
+    var warnings = [];
+    var days = [];
+    var seq = 0;
+
+    var current = null;        // 지금 날짜
+    var card = null;           // 지금 듀티 카드
+
+    function pushEntry(item) {
+      if (!current) return null;
+      item.id = 'c' + (++seq);
+      item.date = current.date;
+      entries.push(item);
+      return item;
+    }
+
+    function startDay(block) {
+      var month = opts.month || block.month;
+      var year = opts.year || new Date().getFullYear();
+      // 원본의 달과 보고 있는 달이 다르면 원본을 믿되 알린다
+      if (opts.month && block.month !== opts.month) {
+        warnings.push({
+          text: pad2(block.month) + '/' + pad2(block.day),
+          message: '원본의 달(' + pad2(block.month) + ')이 보고 있는 달(' +
+            pad2(opts.month) + ')과 다릅니다.'
+        });
+        month = block.month;
+      }
+      if (!weekdayMatches(year, month, block.day, block.weekday)) {
+        warnings.push({
+          text: pad2(month) + '/' + pad2(block.day) + ' ' + block.weekday,
+          message: year + '년 ' + month + '월 ' + block.day + '일은 ' +
+            block.weekday + ' 이 아닙니다. 날짜를 잘못 읽었을 수 있습니다.'
+        });
+      }
+      current = { date: year + '-' + pad2(month) + '-' + pad2(block.day), weekday: block.weekday };
+      days.push(current.date);
+      card = null;
+    }
+
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+
+      var block = readDateBlock(lines, i);
+      if (block) {
+        startDay(block);
+        i = block.next - 1;
+        if (block.rest) lines.splice(i + 1, 0, block.rest);
+        continue;
+      }
+
+      var upper = line.toUpperCase();
+
+      // 편명 카드의 첫 줄
+      var flight = RE.flight.exec(upper);
+      if (flight && codes && codes.isAirline(flight[1])) {
+        card = pushEntry({
+          code: flight[1] + flight[2],
+          type: 'flight',
+          category: 'flight',
+          label: flight[1] + ' ' + flight[2] + '편',
+          known: true,
+          route: null, from: null, to: null,
+          start: null, end: null,
+          deadhead: false
+        });
+        continue;
+      }
+
+      // 손님으로 타고 가는 표시. 바로 앞 편명 카드에 붙는다.
+      if (upper === 'TVL') {
+        if (card && card.type === 'flight') card.deadhead = true;
+        else pushEntry(dutyItem('TVL'));
+        continue;
+      }
+
+      // 편명 카드의 둘째 줄: 구간과 시각
+      var leg = RE.legLine.exec(upper);
+      if (leg && card && card.type === 'flight' && !card.route) {
+        var legTimes = readTimes(leg[3]);
+        card.from = leg[1];
+        card.to = leg[2];
+        card.route = leg[1] + '/' + leg[2];
+        if (legTimes) { card.start = legTimes.start; card.end = legTimes.end; }
+        continue;
+      }
+
+      // 체류 카드의 둘째 줄: 머무는 공항과 시각
+      var stay = RE.stayLine.exec(upper);
+      if (stay && card && card.category === 'layover' && !card.from) {
+        var stayTimes = readTimes(stay[2]);
+        card.from = stay[1];
+        card.to = stay[1];
+        card.route = stay[1];
+        if (stayTimes) { card.start = stayTimes.start; card.end = stayTimes.end; }
+        continue;
+      }
+
+      // 근무 코드 카드 (LO / ADO / ATDO / DO …). 코드는 읽은 그대로 쓴다.
+      if (codes && codes.lookup(upper)) {
+        card = pushEntry(dutyItem(upper));
+        card.route = null; card.from = null; card.to = null;
+        card.start = null; card.end = null;
+        continue;
+      }
+
+      if (current) {
+        warnings.push({ text: line, message: current.date + ' 에서 알아보지 못한 줄입니다.' });
+      }
+    }
+
+    linkSegments(entries);
+    return {
+      entries: entries,
+      days: days,
+      warnings: warnings,
+      shape: 'crewnet'
+    };
+  }
+
+  /**
+   * 같은 편명이 이어진 날에 거듭 나오면 날짜를 넘어가는 한 비행이다.
+   * 세 편이 아니라 한 편으로 세도록 묶고, 그날이 출발인지 기내인지 도착인지 적는다.
+   */
+  function linkSegments(entries) {
+    var byCode = {};
+    entries.forEach(function (entry) {
+      if (entry.type !== 'flight') return;
+      (byCode[entry.code] = byCode[entry.code] || []).push(entry);
+    });
+
+    var segment = 0;
+    Object.keys(byCode).forEach(function (code) {
+      var list = byCode[code].slice().sort(function (a, b) {
+        return a.date < b.date ? -1 : a.date > b.date ? 1 : 0;
+      });
+      var prev = null;
+      var id = null;
+      list.forEach(function (entry) {
+        if (!prev || !isNextDay(prev.date, entry.date)) {
+          id = 's' + (++segment);
+          entry.segmentStart = true;
+        } else {
+          entry.segmentStart = false;
+        }
+        entry.segment = id;
+        entry.legRole = entry.start ? 'depart' : (entry.end ? 'arrive' : 'enroute');
+        prev = entry;
       });
     });
-    return Object.keys(found).sort().map(function (code) { return found[code]; });
+
+    // 묶이지 않은 근무에도 자리를 만들어 둔다
+    entries.forEach(function (entry) {
+      if (entry.type === 'flight') return;
+      entry.segment = null;
+      entry.segmentStart = true;
+      entry.legRole = entry.start ? 'depart' : (entry.end ? 'arrive' : null);
+    });
+  }
+
+  function isNextDay(a, b) {
+    var d = new Date(a + 'T00:00:00Z');
+    if (isNaN(d.getTime())) return false;
+    d.setUTCDate(d.getUTCDate() + 1);
+    return d.toISOString().slice(0, 10) === b;
+  }
+
+  /** 크루넷 홈 목록처럼 보이는 글인지. 구간 줄이나 날짜 블록이 있으면 그렇다. */
+  function looksLikeCrewnet(text) {
+    var lines = normalize(text);
+    var legs = 0;
+    var blocks = 0;
+    for (var i = 0; i < lines.length; i++) {
+      if (RE.legLine.test(lines[i].toUpperCase())) legs++;
+      if (readDateBlock(lines, i)) blocks++;
+    }
+    return blocks >= 2 && (legs >= 1 || blocks >= 3);
   }
 
   return {
-    BASE: BASE,
-    pairOf: pairOf,
-    routeFor: routeFor,
-    pairSuggestion: pairSuggestion,
-    toRouteRow: toRouteRow,
-    missingFlights: missingFlights
+    parse: parse,
+    looksLikeCrewnet: looksLikeCrewnet,
+    normalize: normalize,
+    readDateBlock: readDateBlock,
+    readTimes: readTimes,
+    weekdayOf: weekdayOf,
+    weekdayMatches: weekdayMatches,
+    linkSegments: linkSegments,
+    WEEKDAYS: WEEKDAYS
   };
 });
 </script>
@@ -9415,12 +5672,12 @@ button.ghost.danger { color: var(--danger); }
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
-    module.exports = factory(require('./codes.js'), require('./resolve.js'));
+    module.exports = factory(require('./codes.js'), require('./resolve.js'), require('./crewnet.js'));
   } else {
     root.CrewCal = root.CrewCal || {};
-    root.CrewCal.parser = factory(root.CrewCal.codes, root.CrewCal.resolve);
+    root.CrewCal.parser = factory(root.CrewCal.codes, root.CrewCal.resolve, root.CrewCal.crewnet);
   }
-})(typeof self !== 'undefined' ? self : this, function (codes, resolver) {
+})(typeof self !== 'undefined' ? self : this, function (codes, resolver, crewnet) {
   'use strict';
 
   var MONTHS = codes.MONTHS;
@@ -9734,7 +5991,68 @@ button.ghost.danger { color: var(--danger); }
     return false;
   }
 
+  /**
+   * 크루넷 홈 목록을 읽은 결과를 이 파서와 같은 모양으로 돌려준다.
+   * 구간·시각이 원본에 다 들어 있으므로 여기서 더 채우거나 짐작할 것이 없다.
+   */
+  function fromCrewnet(text, options) {
+    var read = crewnet.parse(text, options);
+    var seq = 0;
+    var entries = read.entries.map(function (item) {
+      return {
+        id: 'p' + (++seq),
+        date: item.date,
+        code: item.code,
+        type: item.type,
+        category: item.category,
+        label: item.label,
+        known: item.known,
+        route: item.route || null,
+        from: item.from || null,
+        to: item.to || null,
+        start: item.start || null,
+        end: item.end || null,
+        endOffset: 0,
+        deadhead: !!item.deadhead,
+        segment: item.segment || null,
+        segmentStart: item.segmentStart !== false,
+        legRole: item.legRole || null,
+        strange: false,
+        source: 'crewnet'
+      };
+    });
+
+    var warnings = read.warnings.map(function (w) {
+      return { line: 0, text: w.text, message: w.message };
+    });
+    var checked = resolver ? resolver.resolve(entries) : { entries: entries, dropped: [], conflicts: [] };
+    checked.conflicts.forEach(function (item) {
+      warnings.push({
+        line: 0, text: item.date + ' ' + item.codes.join(', '),
+        message: item.date + ' — ' + item.message + '. 지우지 않았으니 확인해 보세요.'
+      });
+    });
+
+    return {
+      entries: checked.entries,
+      warnings: warnings,
+      dropped: checked.dropped,
+      conflicts: checked.conflicts,
+      ignoredLines: 0,
+      skippedLines: [],
+      shape: 'crewnet',
+      stats: summarize(checked.entries)
+    };
+  }
+
   function parse(text, options) {
+    // 크루넷 홈 목록은 전용 읽기로 보낸다. 날짜 블록(달/일/요일)과 구간이 있어
+    // 줄 단위로 훑는 이 파서보다 훨씬 또렷하게 읽힌다.
+    if (crewnet && crewnet.looksLikeCrewnet(text)) return fromCrewnet(text, options);
+    return parseLines(text, options);
+  }
+
+  function parseLines(text, options) {
     options = options || {};
     var base = options.baseDate ? new Date(options.baseDate + 'T00:00:00Z') : new Date();
     var ctx = {
@@ -10100,6 +6418,8 @@ button.ghost.danger { color: var(--danger); }
 
   return {
     parse: parse,
+    parseLines: parseLines,
+    fromCrewnet: fromCrewnet,
     normalizeText: normalizeText,
     preprocessLine: preprocessLine,
     tokenize: tokenize,
@@ -10118,18 +6438,16 @@ button.ghost.danger { color: var(--danger); }
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
-    module.exports = factory(require('./codes.js'), require('./schedule.js'), require('./resolve.js'));
+    module.exports = factory(require('./codes.js'), require('./resolve.js'));
   } else {
     root.CrewCal = root.CrewCal || {};
-    root.CrewCal.store = factory(root.CrewCal.codes, root.CrewCal.schedule, root.CrewCal.resolve);
+    root.CrewCal.store = factory(root.CrewCal.codes, root.CrewCal.resolve);
   }
-})(typeof self !== 'undefined' ? self : this, function (codes, schedule, resolver) {
+})(typeof self !== 'undefined' ? self : this, function (codes, resolver) {
   'use strict';
 
   var KEY = 'crew-cal.schedule.v1';
-  var FLIGHTS_KEY = 'crew-cal.flights.v1';
   var memory = null;
-  var flightMemory = null;
   var seq = 0;
 
   function storage() {
@@ -10177,128 +6495,10 @@ button.ghost.danger { color: var(--danger); }
     return 'e' + Date.now().toString(36) + (seq++).toString(36) + Math.random().toString(36).slice(2, 6);
   }
 
-  /* ---------------- 편명 기억 ----------------
-   * 크루넷 월간 화면에는 편명만 있고 시각이 없다. 한 번이라도 구간·시각을 넣은
-   * 편명은 여기에 적어두었다가, 다음에 같은 편명이 코드만으로 들어오면 채워준다.
-   * 없는 정보를 지어내지 않도록, 사용자가 직접 넣은 값만 기억한다.
+  /*
+   * 편명 기억·시간표 채우기는 걷어냈다. 크루넷 홈 화면 원본에 구간과 시각이
+   * 다 적혀 있어, 편명으로 목적지를 짐작할 까닭이 없어졌다.
    */
-
-  function loadFlights() {
-    var ls = storage();
-    if (!ls) return flightMemory || (flightMemory = {});
-    try {
-      var raw = ls.getItem(FLIGHTS_KEY);
-      var data = raw ? JSON.parse(raw) : null;
-      return (data && typeof data === 'object') ? data : {};
-    } catch (e) {
-      return {};
-    }
-  }
-
-  function saveFlights(data) {
-    var ls = storage();
-    if (!ls) { flightMemory = data; return data; }
-    try {
-      ls.setItem(FLIGHTS_KEY, JSON.stringify(data));
-    } catch (e) {
-      flightMemory = data;
-    }
-    return data;
-  }
-
-  function isFlightCode(entry) {
-    return !!entry && entry.type === 'flight' && codes.isFlightCode(entry.code);
-  }
-
-  /** 구간이나 시각이 들어 있는 항공편이면 그 값을 기억한다. */
-  function learnFlight(entry) {
-    if (!isFlightCode(entry)) return null;
-    if (!entry.route && !entry.start && !entry.end) return null;
-
-    var data = loadFlights();
-    var known = data[entry.code] || {};
-    data[entry.code] = {
-      route: entry.route || known.route || null,
-      start: entry.start || known.start || null,
-      end: entry.end || known.end || null,
-      endOffset: entry.end ? (entry.endOffset || 0) : (known.endOffset || 0),
-      updatedAt: new Date().toISOString()
-    };
-    saveFlights(data);
-    return data[entry.code];
-  }
-
-  /** 기본 시간표. 스크립트 순서에 상관없도록 쓸 때 찾는다. */
-  function builtinSchedule() {
-    if (schedule) return schedule;
-    if (typeof self !== 'undefined' && self.CrewCal && self.CrewCal.schedule) return self.CrewCal.schedule;
-    return null;
-  }
-
-  /** 사용자가 등록한 값이 먼저, 없으면 기본 시간표에서 찾는다. */
-  function recallFlight(code) {
-    if (!code) return null;
-    var mine = loadFlights()[String(code).toUpperCase()];
-    if (mine && mine.route) return mine;    // 사용자가 넣은 값이 언제나 먼저
-    var table = builtinSchedule();
-    return table ? table.lookup(code) : null;
-  }
-
-  /** 코드만 있는 항공편에 기억해둔 구간·시각을 채운다. 채운 항목은 표시를 남긴다. */
-  function enrich(entry) {
-    if (!isFlightCode(entry)) return entry;
-    if (entry.route && entry.start && entry.end) return entry;
-
-    var known = recallFlight(entry.code);
-    if (!known) return entry;
-
-    var filled = [];
-    if (!entry.route && known.route) { entry.route = known.route; filled.push('route'); }
-    if (!entry.start && known.start) { entry.start = known.start; filled.push('start'); }
-    if (!entry.end && known.end) {
-      entry.end = known.end;
-      entry.endOffset = known.endOffset || 0;
-      filled.push('end');
-    }
-    if (filled.length) entry.autoFilled = filled;
-    // 표에 없어 대역·홀짝 규칙으로 짐작한 구간은 짐작이라고 남긴다.
-    // 사용자가 직접 넣은 값에는 표시하지 않는다.
-    if (filled.indexOf('route') !== -1 && known.derived) entry.derived = known.derived;
-    return entry;
-  }
-
-  function forgetFlights() {
-    saveFlights({});
-  }
-
-  /** 이미 저장된 일정 가운데 구간·시각이 비어 있는 항공편을 기억한 값으로 채운다. */
-  function enrichAll() {
-    var data = load();
-    var filled = 0;
-    Object.keys(data.entries).forEach(function (date) {
-      data.entries[date].forEach(function (entry) {
-        var before = [entry.route, entry.start, entry.end].join('|');
-        enrich(entry);
-        if ([entry.route, entry.start, entry.end].join('|') !== before) filled++;
-      });
-    });
-    if (filled) save(data);
-    return filled;
-  }
-
-  function flightList() {
-    var data = loadFlights();
-    return Object.keys(data).sort().map(function (code) {
-      var item = data[code];
-      return {
-        code: code,
-        route: item.route || null,
-        start: item.start || null,
-        end: item.end || null,
-        endOffset: item.endOffset || 0
-      };
-    });
-  }
 
   /** KE704 와 KE0704 가 다른 일정으로 남지 않도록 편명 숫자를 네 자리로 맞춘다. */
   function normalizeCode(code) {
@@ -10326,8 +6526,13 @@ button.ghost.danger { color: var(--danger); }
       end: entry.end || entry.arr || null,       // 도착(종료) 시각 HH:MM
       endOffset: +(entry.endOffset || entry.arrOffset || 0) || 0, // 도착이 익일이면 1
       memo: entry.memo || null,
-      autoFilled: entry.autoFilled || null,
-      derived: entry.derived || null,
+      // 크루넷 원본이 알려 주는 것들. 짐작한 값이 아니라 화면에 적혀 있던 값이다.
+      from: entry.from || null,
+      to: entry.to || null,
+      deadhead: !!entry.deadhead,
+      segment: entry.segment || null,
+      segmentStart: entry.segmentStart !== false,
+      legRole: entry.legRole || null,
       strange: entry.strange || false
     };
     if (!out.end) out.endOffset = 0;
@@ -10408,8 +6613,6 @@ button.ghost.danger { color: var(--danger); }
     var e = decorate(entry);
     if (!e.date) throw new Error('날짜가 필요합니다.');
     if (!e.code) throw new Error('코드가 필요합니다.');
-    learnFlight(e);
-    enrich(e);
     data.entries[e.date] = data.entries[e.date] || [];
     data.entries[e.date].push(e);
     save(data);
@@ -10458,10 +6661,8 @@ button.ghost.danger { color: var(--danger); }
       });
     }
 
-    entries.forEach(function (entry) { learnFlight(entry); });
-
     entries.forEach(function (entry) {
-      var e = enrich(decorate(entry));
+      var e = decorate(entry);
       e.id = newId();
       data.entries[e.date] = data.entries[e.date] || [];
       if (mode !== 'replace') {
@@ -10550,13 +6751,6 @@ button.ghost.danger { color: var(--danger); }
     relabel: relabel,
     normalizeCode: normalizeCode,
     sortByTime: sortByTime,
-    learnFlight: learnFlight,
-    recallFlight: recallFlight,
-    enrich: enrich,
-    flightList: flightList,
-    forgetFlights: forgetFlights,
-    enrichAll: enrichAll,
-    FLIGHTS_KEY: FLIGHTS_KEY,
     newId: newId
   };
 });
@@ -10597,43 +6791,69 @@ button.ghost.danger { color: var(--danger); }
   }
 
   /**
-   * 어느 쪽 시각을 보여줄지 고른다.
-   * 시차가 섞이면 헷갈리므로 한국 시각만 남긴다.
-   *   한국에서 출발 -> 출발 시각만 (현지 도착 시각은 감춘다)
-   *   한국에 도착   -> 한국 도착 시각만 (현지 출발 시각은 감춘다)
-   *   국내선이나 한국과 무관한 구간, 구간을 모르면 -> 둘 다
+   * 그날 이 듀티에 무슨 일이 있었는지. 크루넷이 시각 칸에 적어 준 그대로 읽는다.
+   *   'depart'  그날 출발했다        (시각 칸 "22:46 -")
+   *   'arrive'  그날 도착했다        (시각 칸 "- 05:07")
+   *   'enroute' 그날은 기내에 있었다 (시각 칸 "-")
+   */
+  function legRole(entry) {
+    if (!entry) return null;
+    if (entry.legRole) return entry.legRole;
+    if (entry.start) return 'depart';
+    if (entry.end) return 'arrive';
+    return entry.type === 'flight' ? 'enroute' : null;
+  }
+
+  /** 도착지가 한국인가. 구간을 알 때만 참·거짓, 모르면 null. */
+  function arrivesKorea(entry) {
+    if (!entry || !airports) return null;
+    var to = entry.to || (entry.route ? airports.splitRoute(entry.route).to : null);
+    if (!to) return null;
+    var country = airports.countryOf(to);
+    return country ? country === 'KR' : null;
+  }
+
+  function skipTime() { return false; }
+
+  /**
+   * 그날 떠나고 그날 닿은 편은 시각이 둘이다. 한국에서 나가는 편은 출발 시각이,
+   * 한국으로 들어오는 편은 한국 도착 시각이 궁금하다. 시차가 섞이면 헷갈리니
+   * 한쪽만 고른다. 한국과 무관한 구간이면 둘 다 보여준다.
    */
   function koreanSide(entry) {
-    if (!entry || !entry.route || !airports) return null;
-    var parts = airports.splitRoute(entry.route);
-    var fromKR = airports.countryOf(parts.from) === 'KR';
-    var toKR = airports.countryOf(parts.to) === 'KR';
+    if (!entry || !airports) return null;
+    var from = entry.from || (entry.route ? airports.splitRoute(entry.route).from : null);
+    var to = entry.to || (entry.route ? airports.splitRoute(entry.route).to : null);
+    if (!from || !to) return null;
+    var fromKR = airports.countryOf(from) === 'KR';
+    var toKR = airports.countryOf(to) === 'KR';
     if (fromKR && !toKR) return 'start';
     if (toKR && !fromKR) return 'end';
     return null;
   }
 
   /**
-   * 체류(LO)는 시각을 쓰지 않는다. 며칠에 걸쳐 이어지는 상태라 특정 시각이 뜻이 없다.
-   * full 을 주면(툴팁 등) 갖고 있는 값을 그대로 보여준다.
+   * 달력 칸에 넣을 짧은 시각 표기.
+   * 시각은 언제나 그 공항의 현지 시각이다. 한국 시각으로 돌리지 않는다.
+   *   '11:03 출발' · '05:07 한국 도착' · '21:30 도착' · 기내인 날은 빈 문자열
    */
-  function skipTime(entry, full) {
-    return !full && !!entry && entry.category === 'layover';
-  }
-
-  /** 달력 칸에 넣을 짧은 시각 표기: '09:45 출발', '17:50+1 도착', 국내선은 '06:35→07:45' */
   function formatTimeRange(entry, full) {
-    if (!entry || skipTime(entry, full)) return '';
-    var suffix = entry.endOffset ? '+' + entry.endOffset : '';
+    if (!entry) return '';
+    var role = legRole(entry);
     var side = full ? null : koreanSide(entry);
-
     if (side === 'start' && entry.start) return entry.start + ' 출발';
-    if (side === 'end' && entry.end) return entry.end + suffix + ' 한국 도착';
+    if (side === 'end' && entry.end) return entry.end + ' 한국 도착';
 
-    // \u200B(폭 없는 공백)은 칸이 좁을 때 도착 시각이 아랫줄로 넘어가게 해준다.
-    if (entry.start && entry.end) return entry.start + '\u2192\u200B' + entry.end + suffix;
-    if (entry.start) return entry.start + ' 출발';
-    if (entry.end) return entry.end + suffix + ' 도착';
+    if (role === 'depart' && entry.start) {
+      // 한국과 무관한 구간이 그날 떠나 그날 닿았으면 양쪽을 다 적는다.
+      // \u200B(폭 없는 공백)은 칸이 좁을 때 도착 시각이 아랫줄로 넘어가게 해준다.
+      if (entry.end) return entry.start + '\u2192\u200B' + entry.end;
+      return entry.start + ' 출발';
+    }
+    if (role === 'arrive' && entry.end) {
+      return entry.end + (arrivesKorea(entry) ? ' 한국 도착' : ' 도착');
+    }
+    if (full && entry.start) return entry.start + ' 출발';
     return '';
   }
 
@@ -10657,28 +6877,25 @@ button.ghost.danger { color: var(--danger); }
     return (place.flag ? place.flag + ' ' : '') + place.city;
   }
 
-  /** 목록에 쓸 자세한 시각 표기. 비행이면 출발/도착, 그 밖에는 시작/종료로 읽는다. */
   /**
-   * 목록에 쓸 자세한 시각 표기. 비행이면 출발/도착, 그 밖에는 시작/종료로 읽는다.
-   * full 을 주면 한국 시각만 남기는 규칙을 건너뛰고 양쪽을 모두 보여준다.
+   * 날짜별 목록에 쓸 자세한 시각 표기. 원본이 적어 준 것만 쓴다.
+   * 현지 시각이므로 어느 공항 시각인지 함께 적는다.
    */
   function describeTimes(entry, full) {
-    if (!entry || (!entry.start && !entry.end)) return '';
-    if (skipTime(entry, full)) return '';
+    if (!entry) return '';
+    var role = legRole(entry);
     var flight = entry.type === 'flight' || entry.category === 'flight';
-    var startLabel = flight ? '출발' : '시작';
-    var endLabel = flight ? '도착' : '종료';
-    var nextDay = entry.endOffset ? ' (익일)' : '';
-    var side = full ? null : koreanSide(entry);
-
-    if (side === 'start' && entry.start) return startLabel + ' ' + entry.start;
-    if (side === 'end' && entry.end) return '한국 ' + endLabel + ' ' + entry.end + nextDay;
-
-    if (entry.start && entry.end) {
-      return startLabel + ' ' + entry.start + ' \u2192 ' + endLabel + ' ' + entry.end + nextDay;
+    var out = [];
+    if (entry.start) {
+      out.push((flight ? '출발' : '시작') + ' ' + entry.start +
+        (entry.from ? ' (' + entry.from + ' 현지)' : ''));
     }
-    if (entry.start) return startLabel + ' ' + entry.start;
-    return endLabel + ' ' + entry.end + nextDay;
+    if (entry.end) {
+      out.push((flight ? '도착' : '종료') + ' ' + entry.end +
+        (entry.to ? ' (' + entry.to + ' 현지)' : ''));
+    }
+    if (!out.length && role === 'enroute') return '기내';
+    return out.join(' \u2192 ');
   }
 
   /**
@@ -10756,20 +6973,6 @@ button.ghost.danger { color: var(--danger); }
     return null;
   }
 
-  /** 구간을 모르는 항공편인지. 편명만 있고 어디 가는지 모르는 것들. */
-  function needsRoute(entry) {
-    return !!entry && entry.type === 'flight' && !entry.route;
-  }
-
-  /** 대역·홀짝 규칙으로 짐작한 구간에 붙이는 작은 표. */
-  function guessMark() {
-    var mark = document.createElement('span');
-    mark.className = 'cal-guess';
-    mark.textContent = '추정';
-    mark.title = '시간표에 없어 편명 규칙으로 짐작한 구간입니다. 실제 로스터를 따르세요.';
-    return mark;
-  }
-
   function nextDay(date) {
     var d = new Date(date + 'T00:00:00Z');
     if (isNaN(d)) return null;
@@ -10778,29 +6981,13 @@ button.ghost.danger { color: var(--danger); }
   }
 
   /**
-   * 체류하는 날에 붙는 시각을 걸러낸다.
-   * 크루넷은 익일 도착하는 편을 출발일과 도착일 두 칸에 모두 적는다. 출발일에는 아직
-   * 한국에 오지 않았으므로(그날은 체류 중이다) 그 칸의 시각은 빼고 도착일에만 남긴다.
-   * 결과는 '날짜|편명' 을 키로 하는 표.
+   * 예전에는 익일 도착 편의 출발일 시각을 감췄다. 크루넷 원본이 날마다 그날
+   * 무슨 일이 있었는지 따로 적어 주므로 감출 것이 없다. 빈 표를 준다.
    */
-  function suppressedTimes(entriesByDate) {
-    var out = {};
-    Object.keys(entriesByDate || {}).forEach(function (date) {
-      var after = nextDay(date);
-      var later = (entriesByDate[after] || []);
-      entriesByDate[date].forEach(function (e) {
-        if (e.type !== 'flight' || !e.endOffset) return;
-        var repeats = later.some(function (x) { return x.code === e.code; });
-        if (repeats) out[date + '|' + e.code] = true;
-      });
-    });
-    return out;
+  function suppressedTimes() {
+    return {};
   }
 
-  /**
-   * 오늘(또는 준 날짜)로부터 가장 가까운 앞으로의 일정.
-   * 하루에 여러 건이면 비행을 앞세운다. 앱을 열자마자 "다음에 뭐였지" 를 없애려는 것.
-   */
   function upcoming(entriesByDate, fromIso) {
     var byDate = entriesByDate || {};
     var from = fromIso || todayIso();
@@ -10856,8 +7043,6 @@ button.ghost.danger { color: var(--danger); }
     var selected = options.selectedDate;
     var onSelect = options.onSelect || function () {};
     var hideTimes = options.hideTimes || {};
-    // 구간을 모르는 편의 '노선 미등록' 표를 눌렀을 때. 없으면 칸 고르기로 떨어진다.
-    var onFixRoute = options.onFixRoute || null;
     // 코드가 안 잡힌 이 달의 날은 휴무로 본다. 크루넷도 빈 칸은 쉬는 날이다.
     var assumeOff = options.assumeOff !== false;
 
@@ -10939,10 +7124,25 @@ button.ghost.danger { color: var(--danger); }
             describeTimes(e, true)].filter(Boolean).join(' · ');
 
           // 도시가 주인공이다. 비행하는 날은 그 편이 가는 곳, 체류하는 날은 머무는 곳.
+          // 기내에서 날을 넘기는 날은 도시 대신 '기내' 라고 적는다.
           var place = e.type === 'flight' ? (airports ? airports.tripPlace(e) : null)
-            : (e.category === 'layover' && !dayHasFlight ? staying : null);
+            : (e.category === 'layover'
+              ? (airports && e.route ? airports.tripPlace(e) : null) || (dayHasFlight ? null : staying)
+              : null);
+          var enroute = e.type === 'flight' && legRole(e) === 'enroute';
 
-          if (place) {
+          if (enroute) {
+            var air = document.createElement('span');
+            air.className = 'cal-flag';
+            air.textContent = '\u2708\uFE0F';
+            item.appendChild(air);
+            var inflight = document.createElement('span');
+            inflight.className = 'cal-city cat-flight enroute';
+            inflight.textContent = '기내';
+            item.appendChild(inflight);
+            item.title = e.code + ' 기내 — 날을 넘겨 나는 중입니다' +
+              (e.route ? ' (' + e.route + ')' : '');
+          } else if (place) {
             if (place.flag || e.type === 'flight') {
               var flag = document.createElement('span');
               flag.className = 'cal-flag';
@@ -10953,7 +7153,6 @@ button.ghost.danger { color: var(--danger); }
             city.className = 'cal-city cat-' + (e.category || 'other');
             city.textContent = place.city;
             item.appendChild(city);
-            if (e.derived) item.appendChild(guessMark());
           } else {
             var title = document.createElement('span');
             title.className = 'cal-title cat-' + (e.category || 'other');
@@ -10962,25 +7161,6 @@ button.ghost.danger { color: var(--danger); }
               ? '\u2708\uFE0F ' + e.code
               : (e.label || e.code);
             item.appendChild(title);
-
-            // 어디 가는 편인지 모르는 비행. 눌러서 넣어 달라고 표를 남긴다.
-            if (needsRoute(e)) {
-              var badge = document.createElement(onFixRoute ? 'button' : 'span');
-              badge.className = 'cal-badge';
-              badge.textContent = '노선 미등록';
-              if (onFixRoute) {
-                badge.type = 'button';
-                (function (entry) {
-                  badge.addEventListener('click', function (event) {
-                    event.stopPropagation();
-                    onFixRoute(entry, date);
-                  });
-                })(e);
-              }
-              item.appendChild(badge);
-              item.title = e.code + ' 의 구간을 모릅니다. 칸을 눌러 넣어 주세요.';
-              cell.classList.add('needs-route');
-            }
           }
 
           var timeText = hideTimes[date + '|' + e.code] ? '' : formatTimeRange(e);
@@ -10991,9 +7171,18 @@ button.ghost.danger { color: var(--danger); }
             item.appendChild(time);
           }
 
+          // 손님으로 타고 가는 편(TVL)은 실제 승무가 아니므로 표를 남긴다
+          if (e.deadhead) {
+            var dh = document.createElement('span');
+            dh.className = 'cal-deadhead';
+            dh.textContent = '탑승 근무';
+            dh.title = 'TVL — 손님으로 타고 이동하는 편입니다. 비행 편수에 넣지 않습니다.';
+            item.appendChild(dh);
+          }
+
           // 큰 글씨 밑에는 작은 글씨로 한 줄. 도시 밑에는 편명(체류면 '체류'),
           // 휴무·대기처럼 이름이 제목인 경우에는 원래 코드를 적는다.
-          var subText = place
+          var subText = (place || enroute)
             ? (e.type === 'flight' ? e.code : (e.label || ''))
             : (e.type === 'flight' ? '' : (e.code !== e.label ? e.code : ''));
           if (subText) {
@@ -11331,7 +7520,10 @@ button.ghost.danger { color: var(--danger); }
           seenHere[c] = true;
           dayCounts[c] = (dayCounts[c] || 0) + 1;
         }
-        if (e.type === 'flight' && e.code) flightCodes[e.code] = true;
+        // 날을 넘겨 나는 편은 한 편으로 센다. 손님으로 타고 가는 편은 세지 않는다.
+        if (e.type === 'flight' && e.code && !e.deadhead) {
+          flightCodes[e.segment || (e.code + '|' + e.date)] = true;
+        }
         var place = airports && airports.tripPlace ? airports.tripPlace(e) : null;
         if (place && !seenCity[place.city]) {
           seenCity[place.city] = true;
@@ -11414,14 +7606,15 @@ button.ghost.danger { color: var(--danger); }
     search: search,
     formatTimeRange: formatTimeRange,
     describeTimes: describeTimes,
+    legRole: legRole,
     koreanSide: koreanSide,
+    arrivesKorea: arrivesKorea,
     departureFlag: departureFlag,
     skipTime: skipTime,
     routeLabel: routeLabel,
     placeLabel: placeLabel,
     chipText: chipText,
     dayCategory: dayCategory,
-    needsRoute: needsRoute,
     cellItems: cellItems,
     canAssumeOff: canAssumeOff,
     assertNoEntries: assertNoEntries,
@@ -11986,13 +8179,15 @@ button.ghost.danger { color: var(--danger); }
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
-    module.exports = factory(require('./codes.js'), require('./schedule.js'));
+    module.exports = factory(require('./codes.js'));
   } else {
     root.CrewCal = root.CrewCal || {};
-    root.CrewCal.ocrlayout = factory(root.CrewCal.codes, root.CrewCal.schedule);
+    root.CrewCal.ocrlayout = factory(root.CrewCal.codes);
   }
-})(typeof self !== 'undefined' ? self : this, function (codes, schedule) {
+})(typeof self !== 'undefined' ? self : this, function (codes) {
   'use strict';
+
+  var schedule = null;   // 시간표는 더 쓰지 않는다. 구간은 원본에 적혀 있다.
 
   var DAY = /^([1-9]|[12][0-9]|3[01])$/;
   var DATE_HEAD = /^(\d{4}-\d{1,2}-\d{1,2}|\d{1,2}[./]\d{1,2}|\d{1,2}[A-Z]{3}\d{2})$/;
@@ -13984,7 +10179,6 @@ button.ghost.danger { color: var(--danger); }
   var holidays = CrewCal.holidays;
   var clock = CrewCal.clock;
   var verify = CrewCal.verify;
-  var bulkroutes = CrewCal.bulkroutes;
 
   var $ = function (id) { return document.getElementById(id); };
 
@@ -14115,8 +10309,7 @@ button.ghost.danger { color: var(--danger); }
       selectedDate: state.selectedDate,
       hideTimes: state.hideTimes,
       assumeOff: state.assumeOff,
-      onSelect: selectDate,
-      onFixRoute: function (entry, date) { selectDate(date); openRouteSheet(entry); }
+      onSelect: selectDate
     };
 
     var mode = state.view;
@@ -14352,25 +10545,6 @@ button.ghost.danger { color: var(--danger); }
       }
       li.appendChild(main);
 
-      if (entry.derived) {
-        var guess = document.createElement('span');
-        guess.className = 'entry-guess';
-        guess.textContent = '추정';
-        guess.title = '시간표에 없어 편명 규칙으로 짐작한 구간입니다. 실제 로스터를 따르세요.';
-        main.appendChild(guess);
-      }
-
-      // 어디 가는 편인지 모르는 비행은 눌러서 넣을 수 있게 한다
-      if (calendar.needsRoute(entry)) {
-        var badge = document.createElement('button');
-        badge.type = 'button';
-        badge.className = 'entry-badge';
-        badge.textContent = '노선 미등록';
-        badge.title = entry.code + ' 의 구간·시각을 넣습니다';
-        badge.addEventListener('click', function () { openRouteSheet(entry); });
-        main.appendChild(badge);
-      }
-
       var del = document.createElement('button');
       del.type = 'button';
       del.className = 'icon-btn';
@@ -14539,8 +10713,7 @@ button.ghost.danger { color: var(--danger); }
 
       syncPasteBase();
       refresh();
-      renderFlightBook();
-      toast(date + ' 에 ' + code + ' 추가');
+        toast(date + ' 에 ' + code + ' 추가');
     });
   }
 
@@ -14850,7 +11023,6 @@ button.ghost.danger { color: var(--danger); }
     hidePreview();
     syncPasteBase();
     refresh();
-    renderFlightBook();
     toast(res.added + '건 반영' + (res.removed ? ' · 기존 ' + res.removed + '건 교체' : ''));
   }
 
@@ -15343,76 +11515,8 @@ button.ghost.danger { color: var(--danger); }
   }
 
   /** 기억해둔 편명 목록을 그린다. */
-  function renderFlightBook() {
-    var list = store.flightList();
-    $('flightCount').textContent = list.length;
-    $('builtinCount').textContent = CrewCal.schedule.size();
-    $('builtinNote').textContent = CrewCal.schedule.SOURCE_NOTE + '.';
-
-    var ul = $('flightList');
-    ul.innerHTML = '';
-    list.forEach(function (item) {
-      var li = document.createElement('li');
-
-      var chip = document.createElement('span');
-      chip.className = 'chip cat-flight';
-      chip.textContent = item.code;
-      li.appendChild(chip);
-
-      var text = document.createElement('span');
-      text.className = 'entry-main';
-      text.textContent = [calendar.routeLabel(item), calendar.describeTimes({
-        type: 'flight', start: item.start, end: item.end, endOffset: item.endOffset
-      }, true)].filter(Boolean).join(' · ') || '기억한 정보 없음';
-      li.appendChild(text);
-
-      ul.appendChild(li);
-    });
-  }
-
-  /**
-   * "KE0035 ICN/ATL 0945-1020" 같은 줄을 한꺼번에 읽어 편명 사전에 넣는다.
-   * 날짜만 붙이면 텍스트 파서를 그대로 쓸 수 있어, 시각 표기도 붙여넣기와 똑같이 처리된다.
-   */
-  function importFlightBook() {
-    var text = $('flightBookInput').value;
-    if (!text.trim()) {
-      toast('등록할 내용이 없습니다.');
-      return;
-    }
-
-    var lines = text.split('\n').filter(function (line) { return line.trim(); });
-    var dated = lines.map(function (line) { return '2000-01-01\t' + line.trim(); }).join('\n');
-    var result = parser.parse(dated, { year: 2000, month: 1 });
-
-    var learned = 0;
-    result.entries.forEach(function (entry) {
-      if (store.learnFlight(entry)) learned++;
-    });
-
-    if (!learned) {
-      toast('편명을 찾지 못했습니다. "KE0035 ICN/ATL 0945-1020" 형식으로 적어주세요.');
-      return;
-    }
-
-    var filled = store.enrichAll();
-    $('flightBookInput').value = '';
-    renderFlightBook();
-    refresh();
-    toast(learned + '개 편명 등록' + (filled ? ' · 기존 일정 ' + filled + '건에 채움' : ''));
-  }
-
   function initDataTools() {
-    renderFlightBook();
 
-    $('importFlightsBtn').addEventListener('click', importFlightBook);
-
-    $('forgetFlightsBtn').addEventListener('click', function () {
-      if (!window.confirm('기억해둔 편명의 구간·시각을 모두 지웁니다. 계속할까요?')) return;
-      store.forgetFlights();
-      renderFlightBook();
-      toast('편명 기억을 지웠습니다.');
-    });
 
     $('exportBtn').addEventListener('click', exportBackup);
     $('icsBtn').addEventListener('click', exportIcs);
@@ -15577,7 +11681,7 @@ button.ghost.danger { color: var(--danger); }
   /* ---------------- 동료가 보내는 의견 ---------------- */
 
   // 화면 아래와 의견 보내기에 적히는 판 번호. sw.js 의 VERSION 과 함께 올린다.
-  var APP_VERSION = 'v25';
+  var APP_VERSION = 'v26';
 
   /**
    * 의견을 받을 메일 주소. 저장소가 공개라 통짜로 적어두면 스팸 크롤러가 긁어가므로
@@ -15744,218 +11848,6 @@ button.ghost.danger { color: var(--danger); }
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape' && !$('feedbackSheet').hidden) closeFeedback();
     });
-  }
-
-  /* ---------------- 노선 등록 ---------------- */
-
-  var routeTarget = null;
-
-  /** '0905' '9:05' '09:05' 을 'HH:MM' 으로. 시각이 아니면 null. */
-  function readTime(text) {
-    var raw = String(text == null ? '' : text).trim().replace(/[.\s]/g, '');
-    if (!raw) return null;
-    var m = raw.match(/^(\d{1,2}):?([0-5]\d)$/);
-    if (!m) return null;
-    var h = +m[1];
-    if (h > 23) return null;
-    return pad2(h) + ':' + m[2];
-  }
-
-  /** 도착 공항을 넣는 대로 어느 나라 어느 도시인지 알려 준다. */
-  function syncRouteWhere() {
-    var to = airports.describeAirport($('routeTo').value);
-    var from = airports.describeAirport($('routeFrom').value);
-    var el = $('routeWhere');
-    if (!to) {
-      el.textContent = $('routeTo').value.trim()
-        ? '모르는 공항입니다. IATA 세 글자(KOJ)나 도시 이름(가고시마)으로 넣어 주세요.'
-        : '도착 공항을 넣으면 어느 나라 어느 도시인지 여기에 뜹니다.';
-      el.className = 'muted small-note' + ($('routeTo').value.trim() ? ' warn' : '');
-      return;
-    }
-    el.className = 'muted small-note';
-    el.textContent = (from ? from.flag + ' ' + from.city + ' → ' : '') +
-      to.flag + ' ' + to.countryName + ' · ' + to.city + ' (' + to.iata + ')';
-  }
-
-  function openRouteSheet(entry) {
-    routeTarget = entry;
-    $('routeCode').textContent = entry.code;
-    var known = store.recallFlight(entry.code);
-    var parts = airports.splitRoute((known && known.route) || entry.route || '');
-    $('routeFrom').value = parts.from || 'ICN';
-    $('routeTo').value = parts.to || '';
-    $('routeStart').value = entry.start || (known && known.start) || '';
-    $('routeEnd').value = entry.end || (known && known.end) || '';
-    $('routeNextDay').checked = !!(entry.endOffset || (known && known.endOffset));
-    syncRouteWhere();
-    $('routeSheet').hidden = false;
-    $('routeTo').focus();
-  }
-
-  function closeRouteSheet() {
-    $('routeSheet').hidden = true;
-    routeTarget = null;
-  }
-
-  function saveRoute() {
-    if (!routeTarget) return closeRouteSheet();
-    var from = airports.findCode($('routeFrom').value);
-    var to = airports.findCode($('routeTo').value);
-    if (!from || !to) {
-      syncRouteWhere();
-      toast('출발·도착 공항을 알아볼 수 있게 넣어 주세요.');
-      return;
-    }
-    var start = readTime($('routeStart').value);
-    var end = readTime($('routeEnd').value);
-    if ($('routeStart').value.trim() && !start) return toast('출발 시각을 0905 처럼 넣어 주세요.');
-    if ($('routeEnd').value.trim() && !end) return toast('도착 시각을 1105 처럼 넣어 주세요.');
-
-    store.learnFlight({
-      type: 'flight',
-      code: store.normalizeCode(routeTarget.code),
-      route: from + '/' + to,
-      start: start,
-      end: end,
-      endOffset: end && $('routeNextDay').checked ? 1 : 0
-    });
-    var filled = store.enrichAll();
-    closeRouteSheet();
-    renderFlightBook();
-    refresh();
-    toast(filled > 1 ? '저장했습니다. 같은 편명 ' + filled + '건에 채웠습니다.' : '저장했습니다.');
-  }
-
-  function initRouteSheet() {
-    $('routeClose').addEventListener('click', closeRouteSheet);
-    $('routeBackdrop').addEventListener('click', closeRouteSheet);
-    $('routeCancel').addEventListener('click', closeRouteSheet);
-    $('routeSave').addEventListener('click', saveRoute);
-    $('routeTo').addEventListener('input', syncRouteWhere);
-    $('routeFrom').addEventListener('input', syncRouteWhere);
-    document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape' && !$('routeSheet').hidden) closeRouteSheet();
-    });
-  }
-
-  /* ---------------- 미등록 편명 일괄 등록 ----------------
-   * 칸을 하나씩 눌러 고치는 것은 한 달에 열 편씩 나올 때 쓸 수가 없다.
-   * 구간을 모르는 편명을 모아 도착 공항만 줄줄이 넣게 한다.
-   */
-
-  function openBulk() {
-    $('bulkPanel').hidden = false;
-    renderBulk();
-    $('bulkPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-
-  function renderBulk() {
-    var missing = bulkroutes.missingFlights(store.getAll(), store.recallFlight);
-    var box = $('bulkList');
-    box.innerHTML = '';
-    $('bulkStatus').textContent = '';
-    $('bulkStatus').className = 'status';
-
-    if (!missing.length) {
-      var done = document.createElement('p');
-      done.className = 'muted';
-      done.textContent = '구간을 모르는 편명이 없습니다.';
-      box.appendChild(done);
-      return;
-    }
-
-    missing.forEach(function (item) {
-      var row = document.createElement('div');
-      row.className = 'bulk-row';
-      row.setAttribute('data-code', item.code);
-
-      var name = document.createElement('span');
-      name.className = 'bulk-code';
-      name.textContent = item.code;
-      name.title = item.dates.join(', ');
-      row.appendChild(name);
-
-      var when = document.createElement('span');
-      when.className = 'bulk-when';
-      when.textContent = item.count + '일';
-      row.appendChild(when);
-
-      var input = document.createElement('input');
-      input.type = 'text';
-      input.className = 'bulk-input';
-      input.autocomplete = 'off';
-      input.spellcheck = false;
-      input.placeholder = '도착 공항 (HKG / 홍콩)';
-      row.appendChild(input);
-
-      var where = document.createElement('span');
-      where.className = 'bulk-where muted';
-      row.appendChild(where);
-
-      input.addEventListener('input', function () { syncBulkRow(item, input, where); });
-      box.appendChild(row);
-    });
-  }
-
-  /** 공항을 넣는 대로 구간·도시·나라를 보여 주고, 짝 편명도 같이 채운다. */
-  function syncBulkRow(item, input, where) {
-    var route = bulkroutes.routeFor(item.code, input.value);
-    if (!route) {
-      where.textContent = input.value.trim() ? '모르는 공항입니다' : '';
-      where.className = 'bulk-where ' + (input.value.trim() ? 'warn' : 'muted');
-      return;
-    }
-    var row = bulkroutes.toRouteRow(route);
-    where.className = 'bulk-where muted';
-    where.textContent = route.from + '/' + route.to + ' · ' + (row.flag || '') + ' ' + row.city;
-
-    // 짝이 되는 편이 목록에 있고 아직 비어 있으면 거꾸로 채워 준다
-    var mate = bulkroutes.pairSuggestion(item.code, input.value);
-    if (!mate) return;
-    var mateRow = $('bulkList').querySelector('[data-code="' + mate.code + '"]');
-    if (!mateRow) return;
-    var mateInput = mateRow.querySelector('.bulk-input');
-    if (!mateInput || mateInput.value.trim()) return;
-    mateInput.value = input.value;
-    mateInput.classList.add('suggested');
-    syncBulkRow({ code: mate.code }, mateInput, mateRow.querySelector('.bulk-where'));
-  }
-
-  function saveBulk() {
-    var rows = $('bulkList').querySelectorAll('.bulk-row');
-    var saved = 0;
-    var bad = [];
-    Array.prototype.forEach.call(rows, function (row) {
-      var code = row.getAttribute('data-code');
-      var value = row.querySelector('.bulk-input').value.trim();
-      if (!value) return;
-      var route = bulkroutes.routeFor(code, value);
-      if (!route) { bad.push(code + ' (' + value + ')'); return; }
-      store.learnFlight({ type: 'flight', code: code, route: route.from + '/' + route.to });
-      saved++;
-    });
-
-    if (!saved && !bad.length) {
-      $('bulkStatus').textContent = '넣은 공항이 없습니다.';
-      $('bulkStatus').className = 'status';
-      return;
-    }
-    var filled = store.enrichAll();
-    renderFlightBook();
-    refresh();
-    var message = saved + '편을 등록해 일정 ' + filled + '건에 채웠습니다.';
-    if (bad.length) message += ' 못 알아본 공항: ' + bad.join(', ');
-    if (!bad.length) renderBulk();            // 목록을 새로 뽑고 나서 알린다
-    $('bulkStatus').textContent = message;
-    $('bulkStatus').className = 'status ' + (bad.length ? 'error' : 'ok');
-  }
-
-  function initBulk() {
-    $('bulkOpen').addEventListener('click', openBulk);
-    $('bulkClose').addEventListener('click', function () { $('bulkPanel').hidden = true; });
-    $('bulkReload').addEventListener('click', renderBulk);
-    $('bulkSave').addEventListener('click', saveBulk);
   }
 
   /* ---------------- 파싱 검증 (개발용) ----------------
@@ -16182,9 +12074,7 @@ button.ghost.danger { color: var(--danger); }
     initViewToggle();
     initAssumeOff();
     initAirlines();
-    initBulk();
     initVerify();
-    initRouteSheet();
     initTabs();
     initSingleForm();
     initPaste();

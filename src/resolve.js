@@ -11,12 +11,12 @@
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
-    module.exports = factory(require('./codes.js'), require('./airports.js'), require('./schedule.js'));
+    module.exports = factory(require('./codes.js'), require('./airports.js'));
   } else {
     root.CrewCal = root.CrewCal || {};
-    root.CrewCal.resolve = factory(root.CrewCal.codes, root.CrewCal.airports, root.CrewCal.schedule);
+    root.CrewCal.resolve = factory(root.CrewCal.codes, root.CrewCal.airports);
   }
-})(typeof self !== 'undefined' ? self : this, function (codes, airports, schedule) {
+})(typeof self !== 'undefined' ? self : this, function (codes, airports) {
   'use strict';
 
   /** 휴무 계열끼리 겹쳤을 때 어느 것을 대표로 볼지. 앞에 있을수록 구체적이다. */
@@ -60,13 +60,9 @@
     return d.toISOString().slice(0, 10);
   }
 
-  /** 그 편의 구간. 아직 안 붙어 있으면 시간표에서 찾아본다. 모르면 null. */
+  /** 그 편의 구간. 크루넷 원본이 적어 준 것만 쓴다. 없으면 null. */
   function routeOf(entry) {
-    if (!isFlight(entry)) return null;
-    if (entry.route) return entry.route;
-    if (!schedule) return null;
-    var hit = schedule.lookup(entry.code);
-    return (hit && hit.route) || null;
+    return isFlight(entry) && entry.route ? entry.route : null;
   }
 
   /** 국내선인지. 구간을 알면 그것으로, 모르면 편명 대역으로 본다. */
@@ -79,7 +75,7 @@
         return airports.countryOf(parts.from) === 'KR' && airports.countryOf(parts.to) === 'KR';
       }
     }
-    return !!schedule && schedule.isDomestic(entry.code);
+    return false;   // 구간을 모르면 국내선인지도 모른다
   }
 
   /** 도착지가 한국 밖인 비행이면 참. 구간을 모르면 판단하지 않는다(null). */

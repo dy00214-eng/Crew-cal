@@ -161,13 +161,6 @@ test('판 색을 알면 두 글자 코드도 되돌린다', () => {
   assert.strictEqual(ocrlayout.fixCode('STBV', 'green'), 'STBV');
 });
 
-test('앞 글자가 떨어져 나간 편명은 시간표를 보고 되살린다', () => {
-  assert.strictEqual(ocrlayout.fixCode('E0805'), 'KE0805');
-  assert.strictEqual(ocrlayout.fixCode('0805'), '0805', '숫자만 남은 것은 시각일 수 있다');
-  assert.strictEqual(ocrlayout.fixCode('1020'), '1020');
-  assert.strictEqual(ocrlayout.fixCode('E9999'), 'E9999', '시간표에 없으면 그냥 둔다');
-});
-
 test('붙어 읽힌 두 편명은 가른다', () => {
   assert.deepStrictEqual(ocrlayout.splitCodes(['KE2071KE1402']), ['KE2071', 'KE1402']);
   assert.deepStrictEqual(ocrlayout.splitCodes(['KE2071{KE1402']), ['KE2071', 'KE1402']);

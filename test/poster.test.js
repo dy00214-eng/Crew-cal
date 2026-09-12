@@ -52,18 +52,6 @@ test('쉬는 날은 이름을 크게, 코드를 작게', () => {
   assert.strictEqual(lines[0].sub, 'ATDO');
 });
 
-test('감춰야 할 시각은 그림에서도 빠진다', () => {
-  const entry = { type: 'flight', code: 'KE0036', route: 'ATL/ICN', end: '17:50', endOffset: 1, category: 'flight' };
-  const shown = poster.cellLines([entry], { date: '2026-09-05' });
-  assert.strictEqual(shown[0].time, '17:50+1 한국 도착');
-
-  const hidden = poster.cellLines([entry], {
-    date: '2026-09-04',
-    hideTimes: { '2026-09-04|KE0036': true }
-  });
-  assert.strictEqual(hidden[0].time, '');
-});
-
 test('하루에 네 건이 넘으면 나머지는 개수로 적는다', () => {
   const many = [1, 2, 3, 4, 5].map((n) => ({ type: 'duty', code: 'D' + n, label: '근무' + n, category: 'other' }));
   const lines = poster.cellLines(many, { date: '2026-09-10' });

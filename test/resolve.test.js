@@ -83,14 +83,6 @@ test('해외 도착 비행을 앞뒤로 짚어 낸다', () => {
   }, '2026-04-12'), null, '구간을 모르면 판단하지 않는다');
 });
 
-test('국내선인지 대역으로도 구간으로도 알아본다', () => {
-  assert.strictEqual(resolve.isDomesticFlight(entry('2026-03-01', 'KE1810')), true);
-  assert.strictEqual(resolve.isDomesticFlight(entry('2026-03-01', 'KE2179', 'ICN/KOJ')), false);
-  assert.strictEqual(resolve.isDomesticFlight(entry('2026-03-01', 'LO')), false);
-  assert.strictEqual(resolve.routeOf(entry('2026-03-01', 'KE1810')), 'PUS/GMP',
-    '구간이 안 붙어 있으면 시간표에서 찾는다');
-});
-
 test('날짜별 표를 그대로 받아도 지우지 않는다', () => {
   const { out } = quiet(() => resolve.resolveByDate({
     '2026-03-01': ['KE1807', 'KE1810', 'KE1815', 'KE1820'].map((c) => entry('2026-03-01', c)),

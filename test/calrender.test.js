@@ -81,29 +81,6 @@ test('설정을 끄면 빈 날을 휴무로 적지 않는다', () => {
   assert.ok(!textOf(cell).includes('휴무'), textOf(cell));
 });
 
-test('구간을 모르는 비행에는 노선 미등록 표를 붙인다', () => {
-  const known = store.decorate({ date: '2026-04-24', code: 'KE2179', route: 'ICN/KOJ' });
-  const unknown = store.decorate({ date: '2026-04-25', code: 'KE9994' });
-  const cells = draw({ entriesByDate: { '2026-04-24': [known], '2026-04-25': [unknown] } });
-
-  assert.ok(!textOf(cells['2026-04-24']).includes('노선 미등록'), textOf(cells['2026-04-24']));
-  assert.ok(textOf(cells['2026-04-25']).includes('노선 미등록'), textOf(cells['2026-04-25']));
-  assert.ok(cells['2026-04-25'].classList.contains('needs-route'));
-});
-
-test('가고시마 KE2179 / KE2180 은 기본 시간표에 있다', () => {
-  const schedule = require('../src/schedule.js');
-  assert.strictEqual(schedule.lookup('KE2179').route, 'ICN/KOJ');
-  assert.strictEqual(schedule.lookup('KE2180').route, 'KOJ/ICN');
-  assert.strictEqual(schedule.lookup('KE2179').derived, false, '짐작이 아니라 표에 든 값이다');
-  assert.strictEqual(calendar.needsRoute(store.decorate({ date: '2026-04-24', code: 'KE2179' })), true);
-
-  // 저장소를 거치면 시간표에서 구간이 붙는다
-  const filled = store.enrich(store.decorate({ date: '2026-04-24', code: 'KE2179' }));
-  assert.strictEqual(filled.route, 'ICN/KOJ');
-  assert.strictEqual(calendar.needsRoute(filled), false);
-});
-
 test('아는 항공사가 아닌 편명 꼴은 칸에 띄우지 않는다', () => {
   const entries = [
     store.decorate({ date: '2026-03-09', code: 'ATDO' }),
@@ -122,7 +99,7 @@ test('아는 항공사가 아닌 편명 꼴은 칸에 띄우지 않는다', () =
 
 test('하루 네 편도 모두 그린다 — 지우거나 휴무로 덮지 않는다', () => {
   const list = ['KE1807', 'KE1810', 'KE1815', 'KE1820'].map(
-    (code) => store.enrich(store.decorate({ date: '2026-03-01', code })));
+    (code) => store.decorate({ date: '2026-03-01', code, route: 'GMP/PUS' }));
   const cells = draw({ year: 2026, month: 3, entriesByDate: { '2026-03-01': list } });
   const cell = cells['2026-03-01'];
   const text = textOf(cell);
@@ -136,8 +113,8 @@ test('하루 네 편도 모두 그린다 — 지우거나 휴무로 덮지 않�
 });
 
 test('코드가 있는 날은 절대 추정 휴무로 덮지 않는다', () => {
-  const list = [store.enrich(store.decorate({ date: '2026-03-08', code: 'KE0125' })),
-    store.enrich(store.decorate({ date: '2026-03-08', code: 'KE0126' }))];
+  const list = [store.decorate({ date: '2026-03-08', code: 'KE0125', route: 'ICN/XMN', start: '10:20', legRole: 'depart' }),
+    store.decorate({ date: '2026-03-08', code: 'KE0126', route: 'XMN/ICN', end: '18:05', legRole: 'arrive' })];
   const cells = draw({ year: 2026, month: 3, entriesByDate: { '2026-03-08': list }, assumeOff: true });
   const text = textOf(cells['2026-03-08']);
   assert.ok(!text.includes('휴무'), text);
@@ -157,7 +134,7 @@ test('읽었지만 못 그린 날은 휴무로 덮지 않고 파싱 실패라고
 
 test('휴무와 비행이 겹친 날은 확인 필요 표를 띄운다', () => {
   const list = [store.decorate({ date: '2026-03-01', code: 'ADO' }),
-    store.enrich(store.decorate({ date: '2026-03-01', code: 'KE1807' }))];
+    store.decorate({ date: '2026-03-01', code: 'KE1807', route: 'GMP/PUS' })];
   const cells = draw({ year: 2026, month: 3, entriesByDate: { '2026-03-01': list } });
   const text = textOf(cells['2026-03-01']);
   assert.ok(text.includes('확인 필요'), text);

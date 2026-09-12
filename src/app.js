@@ -15,7 +15,6 @@
   var holidays = CrewCal.holidays;
   var clock = CrewCal.clock;
   var verify = CrewCal.verify;
-  var bulkroutes = CrewCal.bulkroutes;
 
   var $ = function (id) { return document.getElementById(id); };
 
@@ -146,8 +145,7 @@
       selectedDate: state.selectedDate,
       hideTimes: state.hideTimes,
       assumeOff: state.assumeOff,
-      onSelect: selectDate,
-      onFixRoute: function (entry, date) { selectDate(date); openRouteSheet(entry); }
+      onSelect: selectDate
     };
 
     var mode = state.view;
@@ -383,25 +381,6 @@
       }
       li.appendChild(main);
 
-      if (entry.derived) {
-        var guess = document.createElement('span');
-        guess.className = 'entry-guess';
-        guess.textContent = '추정';
-        guess.title = '시간표에 없어 편명 규칙으로 짐작한 구간입니다. 실제 로스터를 따르세요.';
-        main.appendChild(guess);
-      }
-
-      // 어디 가는 편인지 모르는 비행은 눌러서 넣을 수 있게 한다
-      if (calendar.needsRoute(entry)) {
-        var badge = document.createElement('button');
-        badge.type = 'button';
-        badge.className = 'entry-badge';
-        badge.textContent = '노선 미등록';
-        badge.title = entry.code + ' 의 구간·시각을 넣습니다';
-        badge.addEventListener('click', function () { openRouteSheet(entry); });
-        main.appendChild(badge);
-      }
-
       var del = document.createElement('button');
       del.type = 'button';
       del.className = 'icon-btn';
@@ -570,8 +549,7 @@
 
       syncPasteBase();
       refresh();
-      renderFlightBook();
-      toast(date + ' 에 ' + code + ' 추가');
+        toast(date + ' 에 ' + code + ' 추가');
     });
   }
 
@@ -881,7 +859,6 @@
     hidePreview();
     syncPasteBase();
     refresh();
-    renderFlightBook();
     toast(res.added + '건 반영' + (res.removed ? ' · 기존 ' + res.removed + '건 교체' : ''));
   }
 
@@ -1374,76 +1351,8 @@
   }
 
   /** 기억해둔 편명 목록을 그린다. */
-  function renderFlightBook() {
-    var list = store.flightList();
-    $('flightCount').textContent = list.length;
-    $('builtinCount').textContent = CrewCal.schedule.size();
-    $('builtinNote').textContent = CrewCal.schedule.SOURCE_NOTE + '.';
-
-    var ul = $('flightList');
-    ul.innerHTML = '';
-    list.forEach(function (item) {
-      var li = document.createElement('li');
-
-      var chip = document.createElement('span');
-      chip.className = 'chip cat-flight';
-      chip.textContent = item.code;
-      li.appendChild(chip);
-
-      var text = document.createElement('span');
-      text.className = 'entry-main';
-      text.textContent = [calendar.routeLabel(item), calendar.describeTimes({
-        type: 'flight', start: item.start, end: item.end, endOffset: item.endOffset
-      }, true)].filter(Boolean).join(' · ') || '기억한 정보 없음';
-      li.appendChild(text);
-
-      ul.appendChild(li);
-    });
-  }
-
-  /**
-   * "KE0035 ICN/ATL 0945-1020" 같은 줄을 한꺼번에 읽어 편명 사전에 넣는다.
-   * 날짜만 붙이면 텍스트 파서를 그대로 쓸 수 있어, 시각 표기도 붙여넣기와 똑같이 처리된다.
-   */
-  function importFlightBook() {
-    var text = $('flightBookInput').value;
-    if (!text.trim()) {
-      toast('등록할 내용이 없습니다.');
-      return;
-    }
-
-    var lines = text.split('\n').filter(function (line) { return line.trim(); });
-    var dated = lines.map(function (line) { return '2000-01-01\t' + line.trim(); }).join('\n');
-    var result = parser.parse(dated, { year: 2000, month: 1 });
-
-    var learned = 0;
-    result.entries.forEach(function (entry) {
-      if (store.learnFlight(entry)) learned++;
-    });
-
-    if (!learned) {
-      toast('편명을 찾지 못했습니다. "KE0035 ICN/ATL 0945-1020" 형식으로 적어주세요.');
-      return;
-    }
-
-    var filled = store.enrichAll();
-    $('flightBookInput').value = '';
-    renderFlightBook();
-    refresh();
-    toast(learned + '개 편명 등록' + (filled ? ' · 기존 일정 ' + filled + '건에 채움' : ''));
-  }
-
   function initDataTools() {
-    renderFlightBook();
 
-    $('importFlightsBtn').addEventListener('click', importFlightBook);
-
-    $('forgetFlightsBtn').addEventListener('click', function () {
-      if (!window.confirm('기억해둔 편명의 구간·시각을 모두 지웁니다. 계속할까요?')) return;
-      store.forgetFlights();
-      renderFlightBook();
-      toast('편명 기억을 지웠습니다.');
-    });
 
     $('exportBtn').addEventListener('click', exportBackup);
     $('icsBtn').addEventListener('click', exportIcs);
@@ -1608,7 +1517,7 @@
   /* ---------------- 동료가 보내는 의견 ---------------- */
 
   // 화면 아래와 의견 보내기에 적히는 판 번호. sw.js 의 VERSION 과 함께 올린다.
-  var APP_VERSION = 'v25';
+  var APP_VERSION = 'v26';
 
   /**
    * 의견을 받을 메일 주소. 저장소가 공개라 통짜로 적어두면 스팸 크롤러가 긁어가므로
@@ -1775,218 +1684,6 @@
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape' && !$('feedbackSheet').hidden) closeFeedback();
     });
-  }
-
-  /* ---------------- 노선 등록 ---------------- */
-
-  var routeTarget = null;
-
-  /** '0905' '9:05' '09:05' 을 'HH:MM' 으로. 시각이 아니면 null. */
-  function readTime(text) {
-    var raw = String(text == null ? '' : text).trim().replace(/[.\s]/g, '');
-    if (!raw) return null;
-    var m = raw.match(/^(\d{1,2}):?([0-5]\d)$/);
-    if (!m) return null;
-    var h = +m[1];
-    if (h > 23) return null;
-    return pad2(h) + ':' + m[2];
-  }
-
-  /** 도착 공항을 넣는 대로 어느 나라 어느 도시인지 알려 준다. */
-  function syncRouteWhere() {
-    var to = airports.describeAirport($('routeTo').value);
-    var from = airports.describeAirport($('routeFrom').value);
-    var el = $('routeWhere');
-    if (!to) {
-      el.textContent = $('routeTo').value.trim()
-        ? '모르는 공항입니다. IATA 세 글자(KOJ)나 도시 이름(가고시마)으로 넣어 주세요.'
-        : '도착 공항을 넣으면 어느 나라 어느 도시인지 여기에 뜹니다.';
-      el.className = 'muted small-note' + ($('routeTo').value.trim() ? ' warn' : '');
-      return;
-    }
-    el.className = 'muted small-note';
-    el.textContent = (from ? from.flag + ' ' + from.city + ' → ' : '') +
-      to.flag + ' ' + to.countryName + ' · ' + to.city + ' (' + to.iata + ')';
-  }
-
-  function openRouteSheet(entry) {
-    routeTarget = entry;
-    $('routeCode').textContent = entry.code;
-    var known = store.recallFlight(entry.code);
-    var parts = airports.splitRoute((known && known.route) || entry.route || '');
-    $('routeFrom').value = parts.from || 'ICN';
-    $('routeTo').value = parts.to || '';
-    $('routeStart').value = entry.start || (known && known.start) || '';
-    $('routeEnd').value = entry.end || (known && known.end) || '';
-    $('routeNextDay').checked = !!(entry.endOffset || (known && known.endOffset));
-    syncRouteWhere();
-    $('routeSheet').hidden = false;
-    $('routeTo').focus();
-  }
-
-  function closeRouteSheet() {
-    $('routeSheet').hidden = true;
-    routeTarget = null;
-  }
-
-  function saveRoute() {
-    if (!routeTarget) return closeRouteSheet();
-    var from = airports.findCode($('routeFrom').value);
-    var to = airports.findCode($('routeTo').value);
-    if (!from || !to) {
-      syncRouteWhere();
-      toast('출발·도착 공항을 알아볼 수 있게 넣어 주세요.');
-      return;
-    }
-    var start = readTime($('routeStart').value);
-    var end = readTime($('routeEnd').value);
-    if ($('routeStart').value.trim() && !start) return toast('출발 시각을 0905 처럼 넣어 주세요.');
-    if ($('routeEnd').value.trim() && !end) return toast('도착 시각을 1105 처럼 넣어 주세요.');
-
-    store.learnFlight({
-      type: 'flight',
-      code: store.normalizeCode(routeTarget.code),
-      route: from + '/' + to,
-      start: start,
-      end: end,
-      endOffset: end && $('routeNextDay').checked ? 1 : 0
-    });
-    var filled = store.enrichAll();
-    closeRouteSheet();
-    renderFlightBook();
-    refresh();
-    toast(filled > 1 ? '저장했습니다. 같은 편명 ' + filled + '건에 채웠습니다.' : '저장했습니다.');
-  }
-
-  function initRouteSheet() {
-    $('routeClose').addEventListener('click', closeRouteSheet);
-    $('routeBackdrop').addEventListener('click', closeRouteSheet);
-    $('routeCancel').addEventListener('click', closeRouteSheet);
-    $('routeSave').addEventListener('click', saveRoute);
-    $('routeTo').addEventListener('input', syncRouteWhere);
-    $('routeFrom').addEventListener('input', syncRouteWhere);
-    document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape' && !$('routeSheet').hidden) closeRouteSheet();
-    });
-  }
-
-  /* ---------------- 미등록 편명 일괄 등록 ----------------
-   * 칸을 하나씩 눌러 고치는 것은 한 달에 열 편씩 나올 때 쓸 수가 없다.
-   * 구간을 모르는 편명을 모아 도착 공항만 줄줄이 넣게 한다.
-   */
-
-  function openBulk() {
-    $('bulkPanel').hidden = false;
-    renderBulk();
-    $('bulkPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-
-  function renderBulk() {
-    var missing = bulkroutes.missingFlights(store.getAll(), store.recallFlight);
-    var box = $('bulkList');
-    box.innerHTML = '';
-    $('bulkStatus').textContent = '';
-    $('bulkStatus').className = 'status';
-
-    if (!missing.length) {
-      var done = document.createElement('p');
-      done.className = 'muted';
-      done.textContent = '구간을 모르는 편명이 없습니다.';
-      box.appendChild(done);
-      return;
-    }
-
-    missing.forEach(function (item) {
-      var row = document.createElement('div');
-      row.className = 'bulk-row';
-      row.setAttribute('data-code', item.code);
-
-      var name = document.createElement('span');
-      name.className = 'bulk-code';
-      name.textContent = item.code;
-      name.title = item.dates.join(', ');
-      row.appendChild(name);
-
-      var when = document.createElement('span');
-      when.className = 'bulk-when';
-      when.textContent = item.count + '일';
-      row.appendChild(when);
-
-      var input = document.createElement('input');
-      input.type = 'text';
-      input.className = 'bulk-input';
-      input.autocomplete = 'off';
-      input.spellcheck = false;
-      input.placeholder = '도착 공항 (HKG / 홍콩)';
-      row.appendChild(input);
-
-      var where = document.createElement('span');
-      where.className = 'bulk-where muted';
-      row.appendChild(where);
-
-      input.addEventListener('input', function () { syncBulkRow(item, input, where); });
-      box.appendChild(row);
-    });
-  }
-
-  /** 공항을 넣는 대로 구간·도시·나라를 보여 주고, 짝 편명도 같이 채운다. */
-  function syncBulkRow(item, input, where) {
-    var route = bulkroutes.routeFor(item.code, input.value);
-    if (!route) {
-      where.textContent = input.value.trim() ? '모르는 공항입니다' : '';
-      where.className = 'bulk-where ' + (input.value.trim() ? 'warn' : 'muted');
-      return;
-    }
-    var row = bulkroutes.toRouteRow(route);
-    where.className = 'bulk-where muted';
-    where.textContent = route.from + '/' + route.to + ' · ' + (row.flag || '') + ' ' + row.city;
-
-    // 짝이 되는 편이 목록에 있고 아직 비어 있으면 거꾸로 채워 준다
-    var mate = bulkroutes.pairSuggestion(item.code, input.value);
-    if (!mate) return;
-    var mateRow = $('bulkList').querySelector('[data-code="' + mate.code + '"]');
-    if (!mateRow) return;
-    var mateInput = mateRow.querySelector('.bulk-input');
-    if (!mateInput || mateInput.value.trim()) return;
-    mateInput.value = input.value;
-    mateInput.classList.add('suggested');
-    syncBulkRow({ code: mate.code }, mateInput, mateRow.querySelector('.bulk-where'));
-  }
-
-  function saveBulk() {
-    var rows = $('bulkList').querySelectorAll('.bulk-row');
-    var saved = 0;
-    var bad = [];
-    Array.prototype.forEach.call(rows, function (row) {
-      var code = row.getAttribute('data-code');
-      var value = row.querySelector('.bulk-input').value.trim();
-      if (!value) return;
-      var route = bulkroutes.routeFor(code, value);
-      if (!route) { bad.push(code + ' (' + value + ')'); return; }
-      store.learnFlight({ type: 'flight', code: code, route: route.from + '/' + route.to });
-      saved++;
-    });
-
-    if (!saved && !bad.length) {
-      $('bulkStatus').textContent = '넣은 공항이 없습니다.';
-      $('bulkStatus').className = 'status';
-      return;
-    }
-    var filled = store.enrichAll();
-    renderFlightBook();
-    refresh();
-    var message = saved + '편을 등록해 일정 ' + filled + '건에 채웠습니다.';
-    if (bad.length) message += ' 못 알아본 공항: ' + bad.join(', ');
-    if (!bad.length) renderBulk();            // 목록을 새로 뽑고 나서 알린다
-    $('bulkStatus').textContent = message;
-    $('bulkStatus').className = 'status ' + (bad.length ? 'error' : 'ok');
-  }
-
-  function initBulk() {
-    $('bulkOpen').addEventListener('click', openBulk);
-    $('bulkClose').addEventListener('click', function () { $('bulkPanel').hidden = true; });
-    $('bulkReload').addEventListener('click', renderBulk);
-    $('bulkSave').addEventListener('click', saveBulk);
   }
 
   /* ---------------- 파싱 검증 (개발용) ----------------
@@ -2213,9 +1910,7 @@
     initViewToggle();
     initAssumeOff();
     initAirlines();
-    initBulk();
     initVerify();
-    initRouteSheet();
     initTabs();
     initSingleForm();
     initPaste();

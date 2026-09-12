@@ -12,13 +12,15 @@
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
-    module.exports = factory(require('./codes.js'), require('./schedule.js'));
+    module.exports = factory(require('./codes.js'));
   } else {
     root.CrewCal = root.CrewCal || {};
-    root.CrewCal.ocrlayout = factory(root.CrewCal.codes, root.CrewCal.schedule);
+    root.CrewCal.ocrlayout = factory(root.CrewCal.codes);
   }
-})(typeof self !== 'undefined' ? self : this, function (codes, schedule) {
+})(typeof self !== 'undefined' ? self : this, function (codes) {
   'use strict';
+
+  var schedule = null;   // 시간표는 더 쓰지 않는다. 구간은 원본에 적혀 있다.
 
   var DAY = /^([1-9]|[12][0-9]|3[01])$/;
   var DATE_HEAD = /^(\d{4}-\d{1,2}-\d{1,2}|\d{1,2}[./]\d{1,2}|\d{1,2}[A-Z]{3}\d{2})$/;

@@ -8,12 +8,12 @@
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
-    module.exports = factory(require('./codes.js'), require('./resolve.js'));
+    module.exports = factory(require('./codes.js'), require('./resolve.js'), require('./crewnet.js'));
   } else {
     root.CrewCal = root.CrewCal || {};
-    root.CrewCal.parser = factory(root.CrewCal.codes, root.CrewCal.resolve);
+    root.CrewCal.parser = factory(root.CrewCal.codes, root.CrewCal.resolve, root.CrewCal.crewnet);
   }
-})(typeof self !== 'undefined' ? self : this, function (codes, resolver) {
+})(typeof self !== 'undefined' ? self : this, function (codes, resolver, crewnet) {
   'use strict';
 
   var MONTHS = codes.MONTHS;
@@ -327,7 +327,68 @@
     return false;
   }
 
+  /**
+   * 크루넷 홈 목록을 읽은 결과를 이 파서와 같은 모양으로 돌려준다.
+   * 구간·시각이 원본에 다 들어 있으므로 여기서 더 채우거나 짐작할 것이 없다.
+   */
+  function fromCrewnet(text, options) {
+    var read = crewnet.parse(text, options);
+    var seq = 0;
+    var entries = read.entries.map(function (item) {
+      return {
+        id: 'p' + (++seq),
+        date: item.date,
+        code: item.code,
+        type: item.type,
+        category: item.category,
+        label: item.label,
+        known: item.known,
+        route: item.route || null,
+        from: item.from || null,
+        to: item.to || null,
+        start: item.start || null,
+        end: item.end || null,
+        endOffset: 0,
+        deadhead: !!item.deadhead,
+        segment: item.segment || null,
+        segmentStart: item.segmentStart !== false,
+        legRole: item.legRole || null,
+        strange: false,
+        source: 'crewnet'
+      };
+    });
+
+    var warnings = read.warnings.map(function (w) {
+      return { line: 0, text: w.text, message: w.message };
+    });
+    var checked = resolver ? resolver.resolve(entries) : { entries: entries, dropped: [], conflicts: [] };
+    checked.conflicts.forEach(function (item) {
+      warnings.push({
+        line: 0, text: item.date + ' ' + item.codes.join(', '),
+        message: item.date + ' — ' + item.message + '. 지우지 않았으니 확인해 보세요.'
+      });
+    });
+
+    return {
+      entries: checked.entries,
+      warnings: warnings,
+      dropped: checked.dropped,
+      conflicts: checked.conflicts,
+      ignoredLines: 0,
+      skippedLines: [],
+      shape: 'crewnet',
+      stats: summarize(checked.entries)
+    };
+  }
+
   function parse(text, options) {
+    // 크루넷 홈 목록은 전용 읽기로 보낸다. 날짜 블록(달/일/요일)과 구간이 있어
+    // 줄 단위로 훑는 이 파서보다 훨씬 또렷하게 읽힌다.
+    if (crewnet && crewnet.looksLikeCrewnet(text)) return fromCrewnet(text, options);
+    return parseLines(text, options);
+  }
+
+  function parseLines(text, options) {
     options = options || {};
     var base = options.baseDate ? new Date(options.baseDate + 'T00:00:00Z') : new Date();
     var ctx = {
@@ -693,6 +754,8 @@
 
   return {
     parse: parse,
+    parseLines: parseLines,
+    fromCrewnet: fromCrewnet,
     normalizeText: normalizeText,
     preprocessLine: preprocessLine,
     tokenize: tokenize,

@@ -49,16 +49,6 @@ test('체류는 시각이 있어도 하루 종일로 넣는다', () => {
   assert.doesNotMatch(out.text, /DTSTART;TZID/);
 });
 
-test('이틀에 걸쳐 적힌 도착편은 한 번만 들어간다', () => {
-  const entry = { type: 'flight', code: 'KE0036', route: 'ATL/ICN', end: '17:50', endOffset: 1 };
-  const out = build({
-    '2026-09-04': [{ type: 'duty', category: 'layover', code: 'LO', label: '체류' }, entry],
-    '2026-09-05': [entry]
-  });
-  assert.strictEqual((out.text.match(/UID:crewcal-\d+-KE0036/g) || []).length, 1);
-  assert.match(out.text, /UID:crewcal-20260905-KE0036/);
-});
-
 test('기간을 주면 그 안의 일정만 담는다', () => {
   const byDate = {
     '2026-08-31': [{ type: 'duty', category: 'off', code: 'PDO' }],

@@ -24,10 +24,20 @@
    * "다녀온 횟수" 는 한국에서 뜨는 편만 센다. 나가는 편과 들어오는 편을 다 세면
    * 한 번 다녀온 것이 두 번이 되기 때문이다. 거리는 실제로 탄 모든 편을 더한다.
    */
+  /** 어제 날짜. 이어지는 날인지 보는 데 쓴다. */
+  function prevDay(date) {
+    var d = new Date(date + 'T00:00:00Z');
+    if (isNaN(d.getTime())) return null;
+    d.setUTCDate(d.getUTCDate() - 1);
+    return d.toISOString().slice(0, 10);
+  }
+
   function collect(entriesByDate, options) {
     var opts = options || {};
     var byDate = entriesByDate || {};
-    var hidden = calendar ? calendar.suppressedTimes(byDate) : {};
+    // 날을 넘겨 나는 편은 크루넷이 날마다 적어 주지만 한 번 간 것이다.
+    // 이어지는 날의 같은 편은 세지 않는다.
+    var counted = {};
     var legs = {};
     var places = {};
     var years = {};
@@ -41,7 +51,9 @@
 
       (byDate[date] || []).forEach(function (entry) {
         if (entry.type !== 'flight' || !entry.route) return;
-        if (hidden[date + '|' + entry.code]) return;
+        var run = entry.segment || entry.code;
+        if (counted[run] === prevDay(date) || counted[run] === date) { counted[run] = date; return; }
+        counted[run] = date;
         var ends = airports.splitRoute(entry.route);
         if (!ends.from || !ends.to) return;
 

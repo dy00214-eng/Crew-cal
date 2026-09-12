@@ -14,12 +14,6 @@ test('개별 입력으로 추가하고 날짜별로 읽는다', () => {
   assert.strictEqual(list[0].label, 'KE 0035편');
 });
 
-test('알려진 근무 코드는 라벨과 분류가 채워진다', () => {
-  const e = store.addEntry({ date: '2026-09-07', code: 'ATDO' });
-  assert.strictEqual(e.category, 'off');
-  assert.strictEqual(e.label, '휴무');
-});
-
 test('날짜나 코드가 없으면 거절한다', () => {
   assert.throws(() => store.addEntry({ code: 'LO' }), /날짜/);
   assert.throws(() => store.addEntry({ date: '2026-09-06' }), /코드/);
@@ -109,106 +103,6 @@ test('하루치 일정은 출발 시각 순으로, 시각 없는 건은 뒤로 �
   );
 });
 
-test.beforeEach(() => store.forgetFlights());
-
-test('구간·시각을 넣은 편명은 기억했다가 코드만 들어와도 채운다', () => {
-  store.addEntry({ date: '2026-09-02', code: 'KE0035', route: 'ICN/JFK', start: '10:30', end: '14:20' });
-  const later = store.addEntry({ date: '2026-09-16', code: 'KE0035' });
-  assert.strictEqual(later.route, 'ICN/JFK');
-  assert.strictEqual(later.start, '10:30');
-  assert.strictEqual(later.end, '14:20');
-  assert.deepStrictEqual(later.autoFilled, ['route', 'start', 'end']);
-});
-
-test('직접 넣은 값이 기억한 값보다 우선한다', () => {
-  store.addEntry({ date: '2026-09-02', code: 'KE0035', route: 'ICN/JFK', start: '10:30', end: '14:20' });
-  const e = store.addEntry({ date: '2026-09-16', code: 'KE0035', start: '11:00' });
-  assert.strictEqual(e.start, '11:00');
-  assert.strictEqual(e.end, '14:20');
-  assert.deepStrictEqual(e.autoFilled, ['route', 'end']);
-});
-
-test('익일 도착 표시도 함께 기억한다', () => {
-  store.addEntry({ date: '2026-09-04', code: 'KE0036', route: 'JFK/ICN', start: '23:50', end: '06:20', endOffset: 1 });
-  const e = store.addEntry({ date: '2026-09-21', code: 'KE0036' });
-  assert.strictEqual(e.endOffset, 1);
-});
-
-test('근무 코드는 기억하지 않는다', () => {
-  store.addEntry({ date: '2026-09-08', code: 'STBY', start: '09:00', end: '17:00' });
-  assert.deepStrictEqual(store.flightList(), []);
-  const e = store.addEntry({ date: '2026-09-26', code: 'STBY' });
-  assert.strictEqual(e.start, null);
-});
-
-test('기억할 정보가 없으면 아무것도 채우지 않는다', () => {
-  const e = store.addEntry({ date: '2026-09-02', code: 'KE9999' });
-  assert.strictEqual(e.route, null);
-  assert.strictEqual(e.autoFilled, null);
-  assert.deepStrictEqual(store.flightList(), []);
-});
-
-test('일괄 반영에서도 기억한 값을 채운다', () => {
-  store.addEntry({ date: '2026-09-02', code: 'KE0054', route: 'ICN/HNL', start: '20:00', end: '09:30' });
-  store.applyEntries([{ date: '2026-09-12', code: 'KE0054', type: 'flight' }], 'merge');
-  const [entry] = store.getByDate('2026-09-12');
-  assert.strictEqual(entry.route, 'ICN/HNL');
-  assert.strictEqual(entry.start, '20:00');
-});
-
-test('편명 기억은 따로 지울 수 있다', () => {
-  store.addEntry({ date: '2026-09-02', code: 'KE0035', route: 'ICN/JFK' });
-  assert.strictEqual(store.flightList().length, 1);
-  store.forgetFlights();
-  assert.deepStrictEqual(store.flightList(), []);
-  assert.strictEqual(store.getByDate('2026-09-02').length, 1);
-});
-
-test('이미 저장된 일정에도 기억한 값을 소급해서 채운다', () => {
-  // 기본 시간표에 없는 편명이라야 소급 적용을 제대로 확인할 수 있다
-  store.applyEntries([
-    { date: '2026-09-02', code: 'KE7701', type: 'flight' },
-    { date: '2026-09-16', code: 'KE7701', type: 'flight' },
-    { date: '2026-09-03', code: 'LO', type: 'duty' }
-  ], 'replace');
-  assert.strictEqual(store.getByDate('2026-09-02')[0].start, null);
-
-  store.learnFlight({ code: 'KE7701', type: 'flight', route: 'ICN/ATL', start: '09:45', end: '10:20' });
-
-  assert.strictEqual(store.enrichAll(), 2);
-  assert.strictEqual(store.getByDate('2026-09-02')[0].start, '09:45');
-  assert.strictEqual(store.getByDate('2026-09-16')[0].route, 'ICN/ATL');
-  assert.strictEqual(store.getByDate('2026-09-03')[0].start, null);
-  assert.strictEqual(store.enrichAll(), 0);   // 다시 돌려도 바뀌는 게 없다
-});
-
-test('기본 시간표에 있는 편은 등록 없이도 채워진다', () => {
-  const e = store.addEntry({ date: '2026-09-19', code: 'KE0901' });
-  assert.strictEqual(e.route, 'ICN/CDG');
-  assert.strictEqual(e.start, '12:05');   // 한국 출발 시각
-  assert.strictEqual(e.end, null);        // 현지 도착 시각은 화면에 쓰지 않는다
-});
-
-test('직접 등록한 값이 기본 시간표를 이긴다', () => {
-  store.learnFlight({ code: 'KE0901', type: 'flight', route: 'ICN/CDG', start: '13:00', end: '19:30' });
-  const e = store.addEntry({ date: '2026-09-19', code: 'KE0901' });
-  assert.strictEqual(e.start, '13:00');
-  assert.strictEqual(e.end, '19:30');
-});
-
-test('기본 시간표에 없는 짝수 편도 구간은 채워진다', () => {
-  const e = store.addEntry({ date: '2026-08-09', code: 'KE0128' });
-  assert.strictEqual(e.route, 'FOC/ICN');
-  assert.strictEqual(e.start, null);
-  assert.strictEqual(e.end, null);
-});
-
-test('한국으로 들어오는 편은 한국 도착 시각이 채워진다', () => {
-  const e = store.addEntry({ date: '2026-08-09', code: 'KE0038' });
-  assert.strictEqual(e.route, 'ORD/ICN');
-  assert.strictEqual(e.end, '16:50');
-  assert.strictEqual(e.endOffset, 1);
-});
 
 test('편명 숫자를 네 자리로 맞춰 같은 편을 하나로 본다', () => {
   assert.strictEqual(store.normalizeCode('KE704'), 'KE0704');
@@ -218,7 +112,7 @@ test('편명 숫자를 네 자리로 맞춰 같은 편을 하나로 본다', () 
   assert.strictEqual(store.normalizeCode('STBY'), 'STBY');
   const e = store.addEntry({ date: '2026-08-13', code: 'KE704' });
   assert.strictEqual(e.code, 'KE0704');
-  assert.strictEqual(e.route, 'NRT/ICN');
+  assert.strictEqual(e.route, null, '구간은 원본이 알려 줄 때만 붙는다');
 });
 
 test('사전에서 이름이 바뀌면 예전에 넣어둔 일정도 새 이름으로 읽는다', () => {

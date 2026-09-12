@@ -2,27 +2,6 @@ const test = require('node:test');
 const assert = require('node:assert');
 const calendar = require('../src/calendar.js');
 
-test('구간을 모르면 출발→도착을 함께, 익일은 +1', () => {
-  // 화살표 뒤 \u200B 는 좁은 칸에서 도착 시각이 아랫줄로 넘어가게 하는 줄바꿈 지점
-  assert.strictEqual(calendar.formatTimeRange({ start: '10:30', end: '14:20' }), '10:30\u2192\u200B14:20');
-  assert.strictEqual(calendar.formatTimeRange({ start: '23:50', end: '06:20', endOffset: 1 }), '23:50\u2192\u200B06:20+1');
-  assert.strictEqual(calendar.formatTimeRange({ start: '10:30' }), '10:30 출발');
-  assert.strictEqual(calendar.formatTimeRange({ end: '14:20' }), '14:20 도착');
-  assert.strictEqual(calendar.formatTimeRange({}), '');
-});
-
-test('비행은 출발/도착, 그 밖의 근무는 시작/종료로 읽는다', () => {
-  assert.strictEqual(
-    calendar.describeTimes({ type: 'flight', start: '23:50', end: '06:20', endOffset: 1 }),
-    '출발 23:50 → 도착 06:20 (익일)'
-  );
-  assert.strictEqual(
-    calendar.describeTimes({ type: 'duty', start: '09:00', end: '17:00' }),
-    '시작 09:00 → 종료 17:00'
-  );
-  assert.strictEqual(calendar.describeTimes({ type: 'duty' }), '');
-});
-
 test('구간이 있으면 출발 나라 국기를 붙인다', () => {
   assert.strictEqual(calendar.departureFlag({ route: 'ICN/JFK' }), '🇰🇷');
   assert.strictEqual(calendar.departureFlag({ route: 'JFK/ICN' }), '🇺🇸');
@@ -30,16 +9,6 @@ test('구간이 있으면 출발 나라 국기를 붙인다', () => {
   assert.strictEqual(calendar.departureFlag({ route: 'ZZZ/YYY' }), '');
   assert.strictEqual(calendar.departureFlag({}), '');
   assert.strictEqual(calendar.routeLabel({ code: 'LO' }), '');
-});
-
-test('한국 출발편은 출발 시각만, 한국 도착편은 한국 도착 시각만 보여준다', () => {
-  const out = { type: 'flight', route: 'ICN/ATL', start: '09:45', end: '10:20' };
-  const back = { type: 'flight', route: 'ATL/ICN', start: '13:25', end: '17:50', endOffset: 1 };
-
-  assert.strictEqual(calendar.formatTimeRange(out), '09:45 출발');
-  assert.strictEqual(calendar.formatTimeRange(back), '17:50+1 한국 도착');
-  assert.strictEqual(calendar.describeTimes(out), '출발 09:45');
-  assert.strictEqual(calendar.describeTimes(back), '한국 도착 17:50 (익일)');
 });
 
 test('국내선과 해외-해외 구간은 시차가 없거나 한국과 무관하니 양쪽을 보여준다', () => {
@@ -55,43 +24,10 @@ test('full 을 주면 한국 시각만 남기는 규칙을 건너뛴다', () => 
   assert.strictEqual(calendar.formatTimeRange(out, true), '09:45→​10:20');
 });
 
-test('구간을 모르는 항공편은 규칙을 적용하지 않는다', () => {
-  assert.strictEqual(calendar.koreanSide({ route: 'ICN/JFK' }), 'start');
-  assert.strictEqual(calendar.koreanSide({ route: 'JFK/ICN' }), 'end');
-  assert.strictEqual(calendar.koreanSide({ route: 'GMP/PUS' }), null);
-  assert.strictEqual(calendar.koreanSide({}), null);
-});
-
-test('체류에는 시각을 쓰지 않는다', () => {
-  const lo = { type: 'duty', category: 'layover', code: 'LO', start: '09:00', end: '17:00' };
-  assert.strictEqual(calendar.formatTimeRange(lo), '');
-  assert.strictEqual(calendar.describeTimes(lo), '');
-  // 툴팁처럼 전부 보여줘야 할 때는 그대로 나온다
-  assert.strictEqual(calendar.describeTimes(lo, true), '시작 09:00 → 종료 17:00');
-});
-
 test('체류가 아닌 근무는 시각을 그대로 쓴다', () => {
   const stby = { type: 'duty', category: 'standby', code: 'STBY', start: '09:00', end: '17:00' };
   assert.strictEqual(calendar.formatTimeRange(stby), '09:00→​17:00');
   assert.strictEqual(calendar.describeTimes(stby), '시작 09:00 → 종료 17:00');
-});
-
-test('다음날 도착하는 편은 체류하는 전날 칸에서 시각을 감춘다', () => {
-  const entriesByDate = {
-    '2026-09-02': [
-      { type: 'flight', code: 'KE0035', route: 'ICN/ATL', start: '10:35' },
-      { type: 'duty', category: 'layover', code: 'LO' }
-    ],
-    '2026-09-04': [
-      { type: 'duty', category: 'layover', code: 'LO' },
-      { type: 'flight', code: 'KE0036', route: 'ATL/ICN', end: '17:50', endOffset: 1 }
-    ],
-    '2026-09-05': [
-      { type: 'flight', code: 'KE0036', route: 'ATL/ICN', end: '17:50', endOffset: 1 }
-    ]
-  };
-  const hidden = calendar.suppressedTimes(entriesByDate);
-  assert.deepStrictEqual(hidden, { '2026-09-04|KE0036': true });
 });
 
 test('다음날에 같은 편이 없으면 시각을 감추지 않는다', () => {
@@ -203,22 +139,6 @@ test('비행은 편명을 쓰고, 칸이 좁으면 항공사 두 글자만 뗀�
   assert.strictEqual(calendar.chipText(flight, true), '0035');
 });
 
-test('한국에 내리는 편은 "한국 도착" 이라고 못박는다', () => {
-  const back = { type: 'flight', route: 'CDG/ICN', end: '15:50', endOffset: 1 };
-  assert.strictEqual(calendar.formatTimeRange(back), '15:50+1 한국 도착');
-  assert.strictEqual(calendar.describeTimes(back), '한국 도착 15:50 (익일)');
-
-  // 한국에서 뜨는 편과 국내선은 그대로 둔다
-  const out = { type: 'flight', route: 'ICN/CDG', start: '12:05' };
-  assert.strictEqual(calendar.formatTimeRange(out), '12:05 출발');
-  const dom = { type: 'flight', route: 'GMP/CJU', start: '06:35', end: '07:45' };
-  assert.strictEqual(calendar.describeTimes(dom), '출발 06:35 → 도착 07:45');
-
-  // 툴팁처럼 전부 보여줄 때(full)는 양쪽을 그대로 쓴다
-  const full = { type: 'flight', route: 'CDG/ICN', start: '13:25', end: '15:50', endOffset: 1 };
-  assert.strictEqual(calendar.describeTimes(full, true), '출발 13:25 → 도착 15:50 (익일)');
-});
-
 test('하루의 성격은 무거운 쪽을 따른다', () => {
   const flight = { category: 'flight' };
   const layover = { category: 'layover' };
@@ -259,12 +179,3 @@ test('한 해 요약은 다녀온 횟수와 날수를 센다', () => {
   assert.strictEqual(s.dayCounts.off, 1);
 });
 
-test('이틀에 걸쳐 적힌 도착편은 한 해 요약에서도 한 번만 센다', () => {
-  const arrival = { type: 'flight', code: 'KE0036', route: 'ATL/ICN', category: 'flight', endOffset: 1 };
-  const s = calendar.summarizeYear({
-    '2026-03-04': [{ type: 'duty', code: 'LO', category: 'layover' }, arrival],
-    '2026-03-05': [arrival]
-  }, 2026);
-  assert.strictEqual(s.flights, 1);
-  assert.deepStrictEqual(s.places, []);   // 들어오는 편은 "간 곳" 으로 세지 않는다
-});

@@ -33,43 +33,69 @@
   }
 
   /**
-   * 어느 쪽 시각을 보여줄지 고른다.
-   * 시차가 섞이면 헷갈리므로 한국 시각만 남긴다.
-   *   한국에서 출발 -> 출발 시각만 (현지 도착 시각은 감춘다)
-   *   한국에 도착   -> 한국 도착 시각만 (현지 출발 시각은 감춘다)
-   *   국내선이나 한국과 무관한 구간, 구간을 모르면 -> 둘 다
+   * 그날 이 듀티에 무슨 일이 있었는지. 크루넷이 시각 칸에 적어 준 그대로 읽는다.
+   *   'depart'  그날 출발했다        (시각 칸 "22:46 -")
+   *   'arrive'  그날 도착했다        (시각 칸 "- 05:07")
+   *   'enroute' 그날은 기내에 있었다 (시각 칸 "-")
+   */
+  function legRole(entry) {
+    if (!entry) return null;
+    if (entry.legRole) return entry.legRole;
+    if (entry.start) return 'depart';
+    if (entry.end) return 'arrive';
+    return entry.type === 'flight' ? 'enroute' : null;
+  }
+
+  /** 도착지가 한국인가. 구간을 알 때만 참·거짓, 모르면 null. */
+  function arrivesKorea(entry) {
+    if (!entry || !airports) return null;
+    var to = entry.to || (entry.route ? airports.splitRoute(entry.route).to : null);
+    if (!to) return null;
+    var country = airports.countryOf(to);
+    return country ? country === 'KR' : null;
+  }
+
+  function skipTime() { return false; }
+
+  /**
+   * 그날 떠나고 그날 닿은 편은 시각이 둘이다. 한국에서 나가는 편은 출발 시각이,
+   * 한국으로 들어오는 편은 한국 도착 시각이 궁금하다. 시차가 섞이면 헷갈리니
+   * 한쪽만 고른다. 한국과 무관한 구간이면 둘 다 보여준다.
    */
   function koreanSide(entry) {
-    if (!entry || !entry.route || !airports) return null;
-    var parts = airports.splitRoute(entry.route);
-    var fromKR = airports.countryOf(parts.from) === 'KR';
-    var toKR = airports.countryOf(parts.to) === 'KR';
+    if (!entry || !airports) return null;
+    var from = entry.from || (entry.route ? airports.splitRoute(entry.route).from : null);
+    var to = entry.to || (entry.route ? airports.splitRoute(entry.route).to : null);
+    if (!from || !to) return null;
+    var fromKR = airports.countryOf(from) === 'KR';
+    var toKR = airports.countryOf(to) === 'KR';
     if (fromKR && !toKR) return 'start';
     if (toKR && !fromKR) return 'end';
     return null;
   }
 
   /**
-   * 체류(LO)는 시각을 쓰지 않는다. 며칠에 걸쳐 이어지는 상태라 특정 시각이 뜻이 없다.
-   * full 을 주면(툴팁 등) 갖고 있는 값을 그대로 보여준다.
+   * 달력 칸에 넣을 짧은 시각 표기.
+   * 시각은 언제나 그 공항의 현지 시각이다. 한국 시각으로 돌리지 않는다.
+   *   '11:03 출발' · '05:07 한국 도착' · '21:30 도착' · 기내인 날은 빈 문자열
    */
-  function skipTime(entry, full) {
-    return !full && !!entry && entry.category === 'layover';
-  }
-
-  /** 달력 칸에 넣을 짧은 시각 표기: '09:45 출발', '17:50+1 도착', 국내선은 '06:35→07:45' */
   function formatTimeRange(entry, full) {
-    if (!entry || skipTime(entry, full)) return '';
-    var suffix = entry.endOffset ? '+' + entry.endOffset : '';
+    if (!entry) return '';
+    var role = legRole(entry);
     var side = full ? null : koreanSide(entry);
-
     if (side === 'start' && entry.start) return entry.start + ' 출발';
-    if (side === 'end' && entry.end) return entry.end + suffix + ' 한국 도착';
+    if (side === 'end' && entry.end) return entry.end + ' 한국 도착';
 
-    // \u200B(폭 없는 공백)은 칸이 좁을 때 도착 시각이 아랫줄로 넘어가게 해준다.
-    if (entry.start && entry.end) return entry.start + '\u2192\u200B' + entry.end + suffix;
-    if (entry.start) return entry.start + ' 출발';
-    if (entry.end) return entry.end + suffix + ' 도착';
+    if (role === 'depart' && entry.start) {
+      // 한국과 무관한 구간이 그날 떠나 그날 닿았으면 양쪽을 다 적는다.
+      // \u200B(폭 없는 공백)은 칸이 좁을 때 도착 시각이 아랫줄로 넘어가게 해준다.
+      if (entry.end) return entry.start + '\u2192\u200B' + entry.end;
+      return entry.start + ' 출발';
+    }
+    if (role === 'arrive' && entry.end) {
+      return entry.end + (arrivesKorea(entry) ? ' 한국 도착' : ' 도착');
+    }
+    if (full && entry.start) return entry.start + ' 출발';
     return '';
   }
 
@@ -93,28 +119,25 @@
     return (place.flag ? place.flag + ' ' : '') + place.city;
   }
 
-  /** 목록에 쓸 자세한 시각 표기. 비행이면 출발/도착, 그 밖에는 시작/종료로 읽는다. */
   /**
-   * 목록에 쓸 자세한 시각 표기. 비행이면 출발/도착, 그 밖에는 시작/종료로 읽는다.
-   * full 을 주면 한국 시각만 남기는 규칙을 건너뛰고 양쪽을 모두 보여준다.
+   * 날짜별 목록에 쓸 자세한 시각 표기. 원본이 적어 준 것만 쓴다.
+   * 현지 시각이므로 어느 공항 시각인지 함께 적는다.
    */
   function describeTimes(entry, full) {
-    if (!entry || (!entry.start && !entry.end)) return '';
-    if (skipTime(entry, full)) return '';
+    if (!entry) return '';
+    var role = legRole(entry);
     var flight = entry.type === 'flight' || entry.category === 'flight';
-    var startLabel = flight ? '출발' : '시작';
-    var endLabel = flight ? '도착' : '종료';
-    var nextDay = entry.endOffset ? ' (익일)' : '';
-    var side = full ? null : koreanSide(entry);
-
-    if (side === 'start' && entry.start) return startLabel + ' ' + entry.start;
-    if (side === 'end' && entry.end) return '한국 ' + endLabel + ' ' + entry.end + nextDay;
-
-    if (entry.start && entry.end) {
-      return startLabel + ' ' + entry.start + ' \u2192 ' + endLabel + ' ' + entry.end + nextDay;
+    var out = [];
+    if (entry.start) {
+      out.push((flight ? '출발' : '시작') + ' ' + entry.start +
+        (entry.from ? ' (' + entry.from + ' 현지)' : ''));
     }
-    if (entry.start) return startLabel + ' ' + entry.start;
-    return endLabel + ' ' + entry.end + nextDay;
+    if (entry.end) {
+      out.push((flight ? '도착' : '종료') + ' ' + entry.end +
+        (entry.to ? ' (' + entry.to + ' 현지)' : ''));
+    }
+    if (!out.length && role === 'enroute') return '기내';
+    return out.join(' \u2192 ');
   }
 
   /**
@@ -192,20 +215,6 @@
     return null;
   }
 
-  /** 구간을 모르는 항공편인지. 편명만 있고 어디 가는지 모르는 것들. */
-  function needsRoute(entry) {
-    return !!entry && entry.type === 'flight' && !entry.route;
-  }
-
-  /** 대역·홀짝 규칙으로 짐작한 구간에 붙이는 작은 표. */
-  function guessMark() {
-    var mark = document.createElement('span');
-    mark.className = 'cal-guess';
-    mark.textContent = '추정';
-    mark.title = '시간표에 없어 편명 규칙으로 짐작한 구간입니다. 실제 로스터를 따르세요.';
-    return mark;
-  }
-
   function nextDay(date) {
     var d = new Date(date + 'T00:00:00Z');
     if (isNaN(d)) return null;
@@ -214,29 +223,13 @@
   }
 
   /**
-   * 체류하는 날에 붙는 시각을 걸러낸다.
-   * 크루넷은 익일 도착하는 편을 출발일과 도착일 두 칸에 모두 적는다. 출발일에는 아직
-   * 한국에 오지 않았으므로(그날은 체류 중이다) 그 칸의 시각은 빼고 도착일에만 남긴다.
-   * 결과는 '날짜|편명' 을 키로 하는 표.
+   * 예전에는 익일 도착 편의 출발일 시각을 감췄다. 크루넷 원본이 날마다 그날
+   * 무슨 일이 있었는지 따로 적어 주므로 감출 것이 없다. 빈 표를 준다.
    */
-  function suppressedTimes(entriesByDate) {
-    var out = {};
-    Object.keys(entriesByDate || {}).forEach(function (date) {
-      var after = nextDay(date);
-      var later = (entriesByDate[after] || []);
-      entriesByDate[date].forEach(function (e) {
-        if (e.type !== 'flight' || !e.endOffset) return;
-        var repeats = later.some(function (x) { return x.code === e.code; });
-        if (repeats) out[date + '|' + e.code] = true;
-      });
-    });
-    return out;
+  function suppressedTimes() {
+    return {};
   }
 
-  /**
-   * 오늘(또는 준 날짜)로부터 가장 가까운 앞으로의 일정.
-   * 하루에 여러 건이면 비행을 앞세운다. 앱을 열자마자 "다음에 뭐였지" 를 없애려는 것.
-   */
   function upcoming(entriesByDate, fromIso) {
     var byDate = entriesByDate || {};
     var from = fromIso || todayIso();
@@ -292,8 +285,6 @@
     var selected = options.selectedDate;
     var onSelect = options.onSelect || function () {};
     var hideTimes = options.hideTimes || {};
-    // 구간을 모르는 편의 '노선 미등록' 표를 눌렀을 때. 없으면 칸 고르기로 떨어진다.
-    var onFixRoute = options.onFixRoute || null;
     // 코드가 안 잡힌 이 달의 날은 휴무로 본다. 크루넷도 빈 칸은 쉬는 날이다.
     var assumeOff = options.assumeOff !== false;
 
@@ -375,10 +366,25 @@
             describeTimes(e, true)].filter(Boolean).join(' · ');
 
           // 도시가 주인공이다. 비행하는 날은 그 편이 가는 곳, 체류하는 날은 머무는 곳.
+          // 기내에서 날을 넘기는 날은 도시 대신 '기내' 라고 적는다.
           var place = e.type === 'flight' ? (airports ? airports.tripPlace(e) : null)
-            : (e.category === 'layover' && !dayHasFlight ? staying : null);
+            : (e.category === 'layover'
+              ? (airports && e.route ? airports.tripPlace(e) : null) || (dayHasFlight ? null : staying)
+              : null);
+          var enroute = e.type === 'flight' && legRole(e) === 'enroute';
 
-          if (place) {
+          if (enroute) {
+            var air = document.createElement('span');
+            air.className = 'cal-flag';
+            air.textContent = '\u2708\uFE0F';
+            item.appendChild(air);
+            var inflight = document.createElement('span');
+            inflight.className = 'cal-city cat-flight enroute';
+            inflight.textContent = '기내';
+            item.appendChild(inflight);
+            item.title = e.code + ' 기내 — 날을 넘겨 나는 중입니다' +
+              (e.route ? ' (' + e.route + ')' : '');
+          } else if (place) {
             if (place.flag || e.type === 'flight') {
               var flag = document.createElement('span');
               flag.className = 'cal-flag';
@@ -389,7 +395,6 @@
             city.className = 'cal-city cat-' + (e.category || 'other');
             city.textContent = place.city;
             item.appendChild(city);
-            if (e.derived) item.appendChild(guessMark());
           } else {
             var title = document.createElement('span');
             title.className = 'cal-title cat-' + (e.category || 'other');
@@ -398,25 +403,6 @@
               ? '\u2708\uFE0F ' + e.code
               : (e.label || e.code);
             item.appendChild(title);
-
-            // 어디 가는 편인지 모르는 비행. 눌러서 넣어 달라고 표를 남긴다.
-            if (needsRoute(e)) {
-              var badge = document.createElement(onFixRoute ? 'button' : 'span');
-              badge.className = 'cal-badge';
-              badge.textContent = '노선 미등록';
-              if (onFixRoute) {
-                badge.type = 'button';
-                (function (entry) {
-                  badge.addEventListener('click', function (event) {
-                    event.stopPropagation();
-                    onFixRoute(entry, date);
-                  });
-                })(e);
-              }
-              item.appendChild(badge);
-              item.title = e.code + ' 의 구간을 모릅니다. 칸을 눌러 넣어 주세요.';
-              cell.classList.add('needs-route');
-            }
           }
 
           var timeText = hideTimes[date + '|' + e.code] ? '' : formatTimeRange(e);
@@ -427,9 +413,18 @@
             item.appendChild(time);
           }
 
+          // 손님으로 타고 가는 편(TVL)은 실제 승무가 아니므로 표를 남긴다
+          if (e.deadhead) {
+            var dh = document.createElement('span');
+            dh.className = 'cal-deadhead';
+            dh.textContent = '탑승 근무';
+            dh.title = 'TVL — 손님으로 타고 이동하는 편입니다. 비행 편수에 넣지 않습니다.';
+            item.appendChild(dh);
+          }
+
           // 큰 글씨 밑에는 작은 글씨로 한 줄. 도시 밑에는 편명(체류면 '체류'),
           // 휴무·대기처럼 이름이 제목인 경우에는 원래 코드를 적는다.
-          var subText = place
+          var subText = (place || enroute)
             ? (e.type === 'flight' ? e.code : (e.label || ''))
             : (e.type === 'flight' ? '' : (e.code !== e.label ? e.code : ''));
           if (subText) {
@@ -767,7 +762,10 @@
           seenHere[c] = true;
           dayCounts[c] = (dayCounts[c] || 0) + 1;
         }
-        if (e.type === 'flight' && e.code) flightCodes[e.code] = true;
+        // 날을 넘겨 나는 편은 한 편으로 센다. 손님으로 타고 가는 편은 세지 않는다.
+        if (e.type === 'flight' && e.code && !e.deadhead) {
+          flightCodes[e.segment || (e.code + '|' + e.date)] = true;
+        }
         var place = airports && airports.tripPlace ? airports.tripPlace(e) : null;
         if (place && !seenCity[place.city]) {
           seenCity[place.city] = true;
@@ -850,14 +848,15 @@
     search: search,
     formatTimeRange: formatTimeRange,
     describeTimes: describeTimes,
+    legRole: legRole,
     koreanSide: koreanSide,
+    arrivesKorea: arrivesKorea,
     departureFlag: departureFlag,
     skipTime: skipTime,
     routeLabel: routeLabel,
     placeLabel: placeLabel,
     chipText: chipText,
     dayCategory: dayCategory,
-    needsRoute: needsRoute,
     cellItems: cellItems,
     canAssumeOff: canAssumeOff,
     assertNoEntries: assertNoEntries,
