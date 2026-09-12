@@ -149,53 +149,30 @@
     return null;
   }
 
+  // 한 칸에 몇 개까지 보일지. 넘는 것은 '+N' 으로 접기만 하고 절대 지우지 않는다.
+  var CELL_LIMIT = 3;
+
   /**
-   * 달력 칸에 그릴 것만 골라 낸다.
-   *  - 아는 항공사가 아닌 편명 꼴(AS0016)은 비행이 아니므로 칸에 띄우지 않는다.
-   *    날짜를 누르면 원래 글자를 볼 수 있으니 데이터에서 지우지는 않는다.
-   *  - 같은 날 오가는 두 편(KE1807 GMP/PUS + KE1810 PUS/GMP)은 '부산 왕복' 하나로 묶는다.
+   * 달력 칸에 그릴 것만 골라 낸다. 지우는 것이 아니라 감추는 것이다.
+   * 아는 항공사가 아닌 편명 꼴(AS0016)은 근무가 아니므로 칸에 띄우지 않는다.
+   * 날짜를 누르면 원래 글자가 그대로 보인다.
    */
   function cellItems(list) {
-    var shown = (list || []).filter(function (e) { return !e.strange; });
-    return mergeRoundTrip(shown);
+    return (list || []).filter(function (e) { return !e.strange; });
   }
 
-  /** 한 날에 A→B, B→A 두 편만 있으면 왕복 하나로 묶는다. 아니면 그대로. */
-  function mergeRoundTrip(list) {
-    if (!airports) return list;
-    var flights = list.filter(function (e) { return e.type === 'flight' && e.route; });
-    if (flights.length !== 2) return list;
-    var a = airports.splitRoute(flights[0].route);
-    var b = airports.splitRoute(flights[1].route);
-    if (!a.from || !a.to || !b.from || !b.to) return list;
-    if (a.from !== b.to || a.to !== b.from) return list;
-
-    var pair = flights[0];
-    var round = {
-      type: 'flight',
-      category: 'flight',
-      code: flights[0].code,
-      route: pair.route,
-      label: flights.map(function (e) { return e.code; }).join(' · '),
-      // 오가는 시각을 하나로 잇는 것은 돌아오는 편이 나중일 때만. 아니면 시각을 비운다.
-      start: roundTimes(flights).start,
-      end: roundTimes(flights).end,
-      endOffset: flights[1].endOffset || 0,
-      derived: flights[0].derived || flights[1].derived || null,
-      roundTrip: flights.slice()
-    };
-    return list.map(function (e) { return e === flights[0] ? round : e; })
-      .filter(function (e) { return e !== flights[1]; });
-  }
-
-  /** 왕복으로 묶을 때 쓸 출발·도착 시각. 앞뒤가 맞지 않으면 둘 다 비운다. */
-  function roundTimes(flights) {
-    var start = flights[0].start || null;
-    var end = flights[1].end || null;
-    // 한쪽 시각만 아는 경우가 흔하다(돌아오는 편을 규칙으로만 짐작한 날). 아는 쪽은 남긴다.
-    if (!start || !end) return { start: start, end: end };
-    if (!flights[1].endOffset && end <= start) return { start: start, end: null };
-    return { start: start, end: end };
+  /**
+   * 그날 짚어 볼 것이 있는지. 휴무와 비행이 함께 있거나 휴무가 여럿이면
+   * 잘못 읽혔을 수 있다. 지우지 않고 '확인 필요' 표만 띄운다.
+   */
+  function dayNeedsCheck(list) {
+    var real = (list || []).filter(function (e) { return !e.strange; });
+    var offs = real.filter(function (e) { return (e.category || '') === 'off'; });
+    if (!offs.length) return null;
+    if (offs.length > 1) return '휴무 코드가 여럿입니다';
+    if (real.some(function (e) { return e.type === 'flight'; })) return '휴무와 비행이 같은 날에 있습니다';
+    if (real.some(function (e) { return (e.category || '') === 'layover'; })) return '휴무와 체류가 같은 날에 있습니다';
+    return null;
   }
 
   /** 구간을 모르는 항공편인지. 편명만 있고 어디 가는지 모르는 것들. */
@@ -340,7 +317,8 @@
         if (weekday === 6) cell.classList.add('sat');
         if (holiday) cell.classList.add('holiday');
         // 코드가 없어도 이 달의 날이면 칸을 그린다. 앞뒤 달의 흐린 날과 헷갈리지 않는다.
-        var assumed = !outside && !list.length && assumeOff;
+        // 코드가 하나라도 있는 날은 절대 휴무로 덮어쓰지 않는다. 정확히 0건일 때만.
+        var assumed = !outside && list.length === 0 && assumeOff;
         var dayKind = dayCategory(list) || (assumed ? 'off' : null);
         if (dayKind) cell.classList.add('day-' + dayKind);
         if (assumed) cell.classList.add('assumed');
@@ -372,7 +350,7 @@
         var dayHasFlight = shown.some(function (e) { return e.type === 'flight'; });
         var staying = places[date] || null;
 
-        shown.slice(0, 3).forEach(function (e) {
+        shown.slice(0, CELL_LIMIT).forEach(function (e) {
           var item = document.createElement('span');
           item.className = 'cal-item';
           item.title = [e.code, e.label || '', airports ? airports.describeRoute(e.route) : e.route,
@@ -391,7 +369,7 @@
             }
             var city = document.createElement('span');
             city.className = 'cal-city cat-' + (e.category || 'other');
-            city.textContent = place.city + (e.roundTrip ? ' 왕복' : '');
+            city.textContent = place.city;
             item.appendChild(city);
             if (e.derived) item.appendChild(guessMark());
           } else {
@@ -434,7 +412,7 @@
           // 큰 글씨 밑에는 작은 글씨로 한 줄. 도시 밑에는 편명(체류면 '체류'),
           // 휴무·대기처럼 이름이 제목인 경우에는 원래 코드를 적는다.
           var subText = place
-            ? (e.type === 'flight' ? (e.roundTrip ? e.label : e.code) : (e.label || ''))
+            ? (e.type === 'flight' ? e.code : (e.label || ''))
             : (e.type === 'flight' ? '' : (e.code !== e.label ? e.code : ''));
           if (subText) {
             var sub = document.createElement('span');
@@ -456,11 +434,34 @@
           guess.appendChild(guessTitle);
           chips.appendChild(guess);
         }
-        if (shown.length > 3) {
+        // 자리가 모자라면 접기만 한다. 날짜를 누르면 전부 보인다.
+        if (shown.length > CELL_LIMIT) {
           var more = document.createElement('span');
           more.className = 'cal-more';
-          more.textContent = '+' + (shown.length - 3);
+          more.textContent = '+' + (shown.length - CELL_LIMIT);
+          more.title = '이 날 근무 ' + shown.length + '건. 눌러서 전부 보기';
           chips.appendChild(more);
+        }
+
+        // 읽기는 했는데 칸에 아무것도 못 그린 날. 휴무로 덮지 않고 잘못됐다고 알린다.
+        if (list.length && !shown.length) {
+          var failed = document.createElement('span');
+          failed.className = 'cal-badge cal-failed';
+          failed.textContent = '파싱 실패';
+          failed.title = list.map(function (e) { return e.code; }).join(', ') +
+            ' — 읽기는 했으나 근무로 알아보지 못했습니다. 눌러서 원래 글자를 보세요.';
+          chips.appendChild(failed);
+          cell.classList.add('parse-failed');
+        }
+
+        var checkNote = dayNeedsCheck(list);
+        if (checkNote) {
+          var check = document.createElement('span');
+          check.className = 'cal-badge cal-check';
+          check.textContent = '확인 필요';
+          check.title = checkNote + ' — 지우지 않았으니 눌러서 확인하세요.';
+          chips.appendChild(check);
+          cell.classList.add('needs-check');
         }
         cell.appendChild(chips);
 
@@ -840,7 +841,8 @@
     dayCategory: dayCategory,
     needsRoute: needsRoute,
     cellItems: cellItems,
-    mergeRoundTrip: mergeRoundTrip,
+    dayNeedsCheck: dayNeedsCheck,
+    CELL_LIMIT: CELL_LIMIT,
     tripPlaces: tripPlaces,
     iso: iso,
     pad2: pad2,

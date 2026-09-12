@@ -361,6 +361,14 @@ body {
   white-space: nowrap;
 }
 .cal-cell.needs-route { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cat-unknown) 55%, transparent); }
+/* 읽기는 했는데 칸에 못 그린 날. 조용히 넘어가지 않고 눈에 띄게 둔다. */
+.cal-badge.cal-failed, .cal-badge.cal-check {
+  color: var(--cat-unknown);
+  background: color-mix(in srgb, var(--cat-unknown) 20%, transparent);
+}
+.cal-cell.parse-failed { box-shadow: inset 0 0 0 2px var(--cat-unknown); }
+.cal-cell.needs-check { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cat-unknown) 45%, transparent); }
+.cal-more { font-size: 10px; font-weight: 700; color: var(--muted); align-self: center; }
 /* 시간표에 없어 편명 규칙으로 짐작한 구간 */
 .cal-guess {
   align-self: center;
@@ -1276,3 +1284,28 @@ button.ghost.danger { color: var(--danger); }
 /* 노선 등록 창: 출발·도착을 나란히 */
 .route-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 @media (max-width: 380px) { .route-grid { grid-template-columns: 1fr; } }
+
+/* 파싱 검증 (개발용) */
+.verify-panel {
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--fill);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.verify-panel h2 { font-size: 15px; margin: 0; }
+.verify-panel h2 em { font-size: 12px; font-weight: 500; color: var(--muted); font-style: normal; }
+.verify-table { overflow-x: auto; }
+.verify-table table { border-collapse: collapse; width: 100%; font-size: 12px; }
+.verify-table th, .verify-table td {
+  text-align: left;
+  padding: 3px 6px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+.verify-table th { font-weight: 600; color: var(--muted); }
+.verify-table td:first-child { font-weight: 600; }
+.verify-table tr.bad td { background: color-mix(in srgb, var(--cat-unknown) 18%, transparent); }
+.verify-table tr.bad td:first-child { color: var(--cat-unknown); }

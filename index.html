@@ -318,11 +318,34 @@
         <span>편명으로 읽을 항공사 <em>(쉼표로 구분. 비우면 KE 만)</em></span>
         <input type="text" id="airlineList" autocomplete="off" spellcheck="false" placeholder="KE, OZ, 7C">
       </label>
+      <p class="actions">
+        <button type="button" id="verifyOpen" class="ghost small">파싱 검증 (개발용)</button>
+      </p>
       <p class="muted small-note">
         여기 없는 항공사 코드는 편명으로 읽지 않고 '알 수 없는 코드' 로 둡니다.
         잘못 읽힌 글자(AS0016 같은)가 비행으로 달력에 뜨는 것을 막아 줍니다.
       </p>
     </details>
+
+    <section id="verifyPanel" class="verify-panel" hidden>
+      <h2>파싱 검증 <em>(개발용)</em></h2>
+      <p class="muted small-note">
+        왼쪽에 크루넷 화면 그대로를 적고 검증을 누르면, 앱이 만든 일정과 날짜별로 견줍니다.
+        건수가 다른 날은 빨갛게 표시됩니다. 원본은 고치지 않고 본 대로만 셉니다.
+      </p>
+      <label class="field">
+        <span>원본 <em>(한 줄에 하루: 날짜 뒤에 코드들)</em></span>
+        <textarea id="verifySource" rows="6" spellcheck="false"
+          placeholder="2026-03-01&#9;KE1807 KE1810 KE1815 KE1820&#10;2026-03-02&#9;KE0497 LO&#10;2026-03-03&#9;LO"></textarea>
+      </label>
+      <div class="actions">
+        <button type="button" id="verifyRun" class="primary">검증</button>
+        <button type="button" id="verifyFromPaste" class="ghost small">읽은 글 가져오기</button>
+        <button type="button" id="verifyClose" class="ghost small">닫기</button>
+      </div>
+      <p id="verifyHead" class="status"></p>
+      <div id="verifyTable" class="verify-table"></div>
+    </section>
 
     <div class="data-tools">
       <button type="button" id="imageBtn" class="ghost small">이미지로 저장</button>
@@ -448,6 +471,7 @@
 <script src="src/holidays.js"></script>
 <script src="src/schedule.js"></script>
 <script src="src/resolve.js"></script>
+<script src="src/verify.js"></script>
 <script src="src/parser.js"></script>
 <script src="src/store.js"></script>
 <script src="src/calendar.js"></script>

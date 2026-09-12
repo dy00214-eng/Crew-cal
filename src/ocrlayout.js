@@ -45,6 +45,11 @@
     var trailing = /^([A-Z][A-Z0-9]+)[-.]+$/.exec(token);
     if (trailing) token = trailing[1];
 
+    // 편명 뒤에 판 테두리가 글자 한 자로 붙어 읽히는 일이 있다(KE1820F).
+    // 떼어 낸 쪽이 시간표에 있는 편이면 떼어 낸다.
+    var suffix = /^([A-Z]{2}\d{4})[A-Z]$/.exec(token);
+    if (suffix && schedule && schedule.lookup(suffix[1])) return suffix[1];
+
     // 앞에 글자가 한둘 붙어 읽힌 편명(IKEO703)은 뒤쪽만 떼어 본다
     if (token.length > 6 && /^[A-Z]/.test(token)) {
       var trimmed = token.slice(token.length - 6);
@@ -502,6 +507,39 @@
    * 달력 칸을 글줄로 옮긴다. 몇 년 몇 월인지 알면 날짜를 또렷이 적는다. 날짜만 적어
    * 두면 파서가 달이 넘어갔다고 잘못 볼 수 있어서다.
    */
+  /**
+   * 자정을 넘겨 한국에 닿는 편은 크루넷이 출발일과 도착일 두 칸에 똑같이 적는다.
+   * 그래서 도착일 칸에 한 자만 다르게 읽힌 편명이 나오면(KE0498 -> KE0408) 앞날의
+   * 편명이 맞다. 앞날 편이 실제로 자정을 넘겨 도착하고, 잘못 읽힌 쪽은 그렇지 않을
+   * 때만 손댄다. 그래야 진짜로 다른 편이 이튿날 뜬 경우를 건드리지 않는다.
+   */
+  function mendNextDayFlights(cells) {
+    if (!schedule) return cells;
+    var byDay = {};
+    cells.forEach(function (cell) { if (cell.day != null && !byDay[cell.day]) byDay[cell.day] = cell; });
+
+    Object.keys(byDay).forEach(function (key) {
+      var day = +key;
+      var prev = byDay[day - 1];
+      if (!prev) return;
+      var here = byDay[day];
+      var flights = here.tokens.filter(function (t) { return /^[A-Z]{2}\d{4}$/.test(t); });
+      if (flights.length !== 1) return;                 // 편이 하나뿐인 칸에서만
+
+      var mine = schedule.lookup(flights[0]);
+      if (mine && mine.endOffset) return;               // 이 편 자체가 이튿날 도착이면 그대로
+
+      prev.tokens.forEach(function (token) {
+        if (!/^[A-Z]{2}\d{4}$/.test(token) || token === flights[0]) return;
+        if (!oneEditApart(token, flights[0])) return;
+        var theirs = schedule.lookup(token);
+        if (!theirs || !theirs.endOffset) return;       // 앞날 편이 자정을 넘겨야 이틀에 걸친다
+        here.tokens = here.tokens.map(function (t) { return t === flights[0] ? token : t; });
+      });
+    });
+    return cells;
+  }
+
   function cellLines(cells, opts) {
     var seen = {};
     var out = [];
@@ -563,6 +601,7 @@
     var cells = fromCalendar(rowList);
     if (cells.length >= 3) {
       var trimmed = trimOtherMonths(cells);
+      mendNextDayFlights(trimmed.cells);
       return {
         text: cellLines(trimmed.cells, opts).join('\n'),
         shape: 'calendar',
@@ -585,6 +624,7 @@
   return {
     toText: toText,
     cellLines: cellLines,
+    mendNextDayFlights: mendNextDayFlights,
     fixCode: fixCode,
     snapToKnownCode: snapToKnownCode,
     columnsOf: columnsOf,

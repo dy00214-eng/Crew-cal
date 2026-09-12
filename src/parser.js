@@ -40,15 +40,6 @@
     rangeSep: /^[~]$/
   };
 
-  /** 겹쳐 들어온 근무를 뺀 까닭. 미리보기에서 사람에게 보여 준다. */
-  var DROP_REASONS = {
-    'off-merge': '같은 날 휴무가 겹쳐',
-    'layover-without-arrival': '앞에 해외 도착 비행이 없어',
-    'off-with-layover': '체류 중인 날이라',
-    'flight-with-off': '같은 날 휴무와 겹쳐',
-    'overflow': '한 칸에 너무 많이 들어와'
-  };
-
   function normalizeText(text) {
     var s = String(text == null ? '' : text);
     s = s.replace(/\r\n?/g, '\n');
@@ -582,17 +573,27 @@
       return parseInt(a.id.slice(1), 10) - parseInt(b.id.slice(1), 10);
     });
 
-    // 같은 날에 겹쳐 들어온 근무를 정리한다(휴무 계열 하나로, 휴무와 체류는 함께 두지 않는다).
+    // 같은 날에 겹쳐 들어온 근무를 살펴본다. 글자까지 똑같은 중복만 하나로 하고,
+    // 그 밖에 이상한 조합은 지우지 않고 '확인 필요' 로만 알린다.
     var dropped = [];
+    var conflicts = [];
     if (resolver) {
-      var cleaned = resolver.resolve(entries);
-      entries = cleaned.entries;
-      dropped = cleaned.dropped;
+      var checked = resolver.resolve(entries);
+      entries = checked.entries;
+      dropped = checked.dropped;
+      conflicts = checked.conflicts;
       dropped.forEach(function (item) {
         warnings.push({
           line: 0,
           text: item.date + ' ' + item.code,
-          message: item.date + ' 의 ' + item.code + ' 는 ' + DROP_REASONS[item.reason] + ' 빼두었습니다.'
+          message: item.date + ' 에 ' + item.code + ' 가 두 번 들어와 하나로 합쳤습니다.'
+        });
+      });
+      conflicts.forEach(function (item) {
+        warnings.push({
+          line: 0,
+          text: item.date + ' ' + item.codes.join(', '),
+          message: item.date + ' — ' + item.message + '. 지우지 않았으니 확인해 보세요.'
         });
       });
     }
@@ -601,6 +602,7 @@
       entries: entries,
       warnings: warnings,
       dropped: dropped,
+      conflicts: conflicts,
       ignoredLines: ignoredLines,
       skippedLines: skippedLines,
       stats: summarize(entries)

@@ -120,26 +120,49 @@ test('아는 항공사가 아닌 편명 꼴은 칸에 띄우지 않는다', () =
   assert.strictEqual(entries[1].code, 'AS0016');
 });
 
-test('같은 날 오가는 두 편은 왕복 하나로 묶는다', () => {
-  const go = store.enrich(store.decorate({ date: '2026-03-01', code: 'KE1807' }));
-  const back = store.enrich(store.decorate({ date: '2026-03-01', code: 'KE1810' }));
-  assert.strictEqual(go.route, 'GMP/PUS');
-  assert.strictEqual(back.route, 'PUS/GMP');
+test('하루 네 편도 모두 그린다 — 지우거나 휴무로 덮지 않는다', () => {
+  const list = ['KE1807', 'KE1810', 'KE1815', 'KE1820'].map(
+    (code) => store.enrich(store.decorate({ date: '2026-03-01', code })));
+  const cells = draw({ year: 2026, month: 3, entriesByDate: { '2026-03-01': list } });
+  const cell = cells['2026-03-01'];
+  const text = textOf(cell);
 
-  const merged = calendar.mergeRoundTrip([go, back]);
-  assert.strictEqual(merged.length, 1);
-  assert.deepStrictEqual(merged[0].roundTrip.map((e) => e.code), ['KE1807', 'KE1810']);
+  assert.ok(!text.includes('휴무'), '원본에 휴무가 없으면 휴무를 지어내지 않는다: ' + text);
+  assert.ok(!cell.classList.contains('assumed'));
+  assert.ok(text.includes('KE1807') && text.includes('KE1810'), text);
+  assert.ok(text.includes('+1'), '세 개까지 보이고 나머지는 접는다: ' + text);
+  assert.strictEqual(calendar.cellItems(list).length, 4, '데이터는 넷 그대로');
+  assert.ok(!text.includes('왕복'), '왕복 묶기는 걷어냈다: ' + text);
+});
 
-  const cells = draw({ year: 2026, month: 3, entriesByDate: { '2026-03-01': [go, back] } });
+test('코드가 있는 날은 절대 추정 휴무로 덮지 않는다', () => {
+  const list = [store.enrich(store.decorate({ date: '2026-03-08', code: 'KE0125' })),
+    store.enrich(store.decorate({ date: '2026-03-08', code: 'KE0126' }))];
+  const cells = draw({ year: 2026, month: 3, entriesByDate: { '2026-03-08': list }, assumeOff: true });
+  const text = textOf(cells['2026-03-08']);
+  assert.ok(!text.includes('휴무'), text);
+  assert.ok(text.includes('샤먼'), text);
+  assert.ok(!cells['2026-03-08'].classList.contains('assumed'));
+});
+
+test('읽었지만 못 그린 날은 휴무로 덮지 않고 파싱 실패라고 알린다', () => {
+  const list = [store.decorate({ date: '2026-03-09', code: 'AS0016' })];
+  const cells = draw({ year: 2026, month: 3, entriesByDate: { '2026-03-09': list }, assumeOff: true });
+  const cell = cells['2026-03-09'];
+  assert.ok(textOf(cell).includes('파싱 실패'), textOf(cell));
+  assert.ok(cell.classList.contains('parse-failed'));
+  assert.ok(!cell.classList.contains('assumed'), '조용히 휴무로 넘어가지 않는다');
+  assert.ok(!textOf(cell).includes('휴무'), textOf(cell));
+});
+
+test('휴무와 비행이 겹친 날은 확인 필요 표를 띄운다', () => {
+  const list = [store.decorate({ date: '2026-03-01', code: 'ADO' }),
+    store.enrich(store.decorate({ date: '2026-03-01', code: 'KE1807' }))];
+  const cells = draw({ year: 2026, month: 3, entriesByDate: { '2026-03-01': list } });
   const text = textOf(cells['2026-03-01']);
-  assert.ok(text.includes('부산 왕복'), text);
-  assert.ok(text.includes('KE1807 · KE1810'), text);
-  assert.ok(text.includes('추정'), '표에 없어 짐작한 구간임을 밝힌다: ' + text);
-  assert.ok(!text.includes('노선 미등록'), text);
-
-  // 오가는 짝이 아니면 묶지 않는다
-  const other = store.enrich(store.decorate({ date: '2026-03-01', code: 'KE1811' }));
-  assert.strictEqual(calendar.mergeRoundTrip([go, other]).length, 2);
+  assert.ok(text.includes('확인 필요'), text);
+  assert.ok(text.includes('KE1807') || text.includes('부산'), '비행은 그대로 보인다: ' + text);
+  assert.strictEqual(calendar.dayNeedsCheck(list), '휴무와 비행이 같은 날에 있습니다');
 });
 
 test('추정 휴무를 휴무 집계에 넣되 몇 날인지 밝힌다', () => {
@@ -154,25 +177,7 @@ test('추정 휴무를 휴무 집계에 넣되 몇 날인지 밝힌다', () => {
   assert.strictEqual(guessed.days, 1, '일정 있는 날은 그대로');
 });
 
-test('왕복으로 묶을 때 앞뒤가 맞지 않는 시각은 잇지 않는다', () => {
-  const mk = (code, route, start, end) =>
-    store.decorate({ date: '2026-03-29', code, route, start, end });
-
-  // 오전에 들어오고 오후에 나가는 편을 잇지 않는다 (13:25 → 08:15 은 말이 안 된다)
-  const odd = calendar.mergeRoundTrip([
-    mk('KE1121', 'GMP/CJU', '13:25', null), mk('KE1118', 'CJU/GMP', null, '08:15')
-  ]);
-  assert.strictEqual(odd[0].start, '13:25');
-  assert.strictEqual(odd[0].end, null);
-
-  const good = calendar.mergeRoundTrip([
-    mk('KE1807', 'GMP/PUS', '08:05', '09:10'), mk('KE1810', 'PUS/GMP', '10:30', '11:35')
-  ]);
-  assert.strictEqual(good[0].start, '08:05');
-  assert.strictEqual(good[0].end, '11:35');
-});
-
-test('국내선 왕복은 집이 아닌 쪽을 간 곳으로 본다', () => {
+test('국내선은 집이 아닌 쪽을 간 곳으로 본다', () => {
   const airports = require('../src/airports.js');
   assert.strictEqual(airports.outstation('GMP/PUS'), 'PUS');
   assert.strictEqual(airports.outstation('PUS/GMP'), 'PUS', '김포는 드나드는 집이다');

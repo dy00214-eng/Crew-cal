@@ -14,6 +14,7 @@
   var airports = CrewCal.airports;
   var holidays = CrewCal.holidays;
   var clock = CrewCal.clock;
+  var verify = CrewCal.verify;
 
   var $ = function (id) { return document.getElementById(id); };
 
@@ -1606,7 +1607,7 @@
   /* ---------------- 동료가 보내는 의견 ---------------- */
 
   // 화면 아래와 의견 보내기에 적히는 판 번호. sw.js 의 VERSION 과 함께 올린다.
-  var APP_VERSION = 'v23';
+  var APP_VERSION = 'v24';
 
   /**
    * 의견을 받을 메일 주소. 저장소가 공개라 통짜로 적어두면 스팸 크롤러가 긁어가므로
@@ -1868,6 +1869,77 @@
     });
   }
 
+  /* ---------------- 파싱 검증 (개발용) ----------------
+   * 3월 1일 국내선 네 편이 소리 없이 사라진 일이 있었다. 고칠 때마다 여기로 먼저
+   * 확인한다. 주소 끝에 #verify 를 붙이거나 보기 설정에서 연다.
+   */
+
+  function openVerify() {
+    $('verifyPanel').hidden = false;
+    if (!$('verifySource').value.trim()) fillVerifyFromPaste();
+    $('verifyPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function fillVerifyFromPaste() {
+    $('verifySource').value = $('pasteInput').value;
+  }
+
+  function runVerify() {
+    var base = baseYearMonth();
+    var text = $('verifySource').value;
+    var source = verify.readSource(text, base);
+    var parsed = verify.readEntries(parser.parse(text, base).entries);
+    var stored = verify.readByDate(store.getAll());
+    var prefix = base.year + '-' + pad2(base.month);
+    var result = verify.compare(source, parsed, stored, { prefix: prefix });
+
+    var head = $('verifyHead');
+    head.textContent = verify.headline(result);
+    head.className = 'status ' + (result.ok ? 'ok' : 'error');
+    renderVerifyTable(result);
+  }
+
+  function renderVerifyTable(result) {
+    var box = $('verifyTable');
+    box.innerHTML = '';
+    var table = document.createElement('table');
+    var head = document.createElement('tr');
+    ['날짜', '원본', '파싱', '저장됨'].forEach(function (label) {
+      var th = document.createElement('th');
+      th.textContent = label;
+      head.appendChild(th);
+    });
+    table.appendChild(head);
+
+    result.rows.forEach(function (row) {
+      var tr = document.createElement('tr');
+      if (!row.ok) tr.className = 'bad';
+      [String(row.day) + '일',
+        row.source.join(' ') || '—',
+        row.parsed.join(' ') || '—',
+        row.stored == null ? '—' : (row.stored.join(' ') || '—')
+      ].forEach(function (text, i) {
+        var td = document.createElement('td');
+        td.textContent = text;
+        if (i === 0 && !row.ok) {
+          td.title = (row.missing.length ? '없어짐: ' + row.missing.join(', ') : '') +
+            (row.extra.length ? ' 군더더기: ' + row.extra.join(', ') : '');
+        }
+        tr.appendChild(td);
+      });
+      table.appendChild(tr);
+    });
+    box.appendChild(table);
+  }
+
+  function initVerify() {
+    $('verifyOpen').addEventListener('click', openVerify);
+    $('verifyClose').addEventListener('click', function () { $('verifyPanel').hidden = true; });
+    $('verifyRun').addEventListener('click', runVerify);
+    $('verifyFromPaste').addEventListener('click', fillVerifyFromPaste);
+    if (/(^|#|&)verify\b/.test(location.hash) || /[?&]verify=1/.test(location.search)) openVerify();
+  }
+
   /* ---------------- 처음 온 사람 · 공유 · 오프라인 ---------------- */
 
   var WELCOME_KEY = 'crew-cal.welcome.v1';
@@ -2021,6 +2093,7 @@
     initViewToggle();
     initAssumeOff();
     initAirlines();
+    initVerify();
     initRouteSheet();
     initTabs();
     initSingleForm();

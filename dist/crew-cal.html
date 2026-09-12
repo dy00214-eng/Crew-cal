@@ -365,6 +365,14 @@ body {
   white-space: nowrap;
 }
 .cal-cell.needs-route { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cat-unknown) 55%, transparent); }
+/* 읽기는 했는데 칸에 못 그린 날. 조용히 넘어가지 않고 눈에 띄게 둔다. */
+.cal-badge.cal-failed, .cal-badge.cal-check {
+  color: var(--cat-unknown);
+  background: color-mix(in srgb, var(--cat-unknown) 20%, transparent);
+}
+.cal-cell.parse-failed { box-shadow: inset 0 0 0 2px var(--cat-unknown); }
+.cal-cell.needs-check { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cat-unknown) 45%, transparent); }
+.cal-more { font-size: 10px; font-weight: 700; color: var(--muted); align-self: center; }
 /* 시간표에 없어 편명 규칙으로 짐작한 구간 */
 .cal-guess {
   align-self: center;
@@ -1280,6 +1288,31 @@ button.ghost.danger { color: var(--danger); }
 /* 노선 등록 창: 출발·도착을 나란히 */
 .route-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 @media (max-width: 380px) { .route-grid { grid-template-columns: 1fr; } }
+
+/* 파싱 검증 (개발용) */
+.verify-panel {
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--fill);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.verify-panel h2 { font-size: 15px; margin: 0; }
+.verify-panel h2 em { font-size: 12px; font-weight: 500; color: var(--muted); font-style: normal; }
+.verify-table { overflow-x: auto; }
+.verify-table table { border-collapse: collapse; width: 100%; font-size: 12px; }
+.verify-table th, .verify-table td {
+  text-align: left;
+  padding: 3px 6px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+.verify-table th { font-weight: 600; color: var(--muted); }
+.verify-table td:first-child { font-weight: 600; }
+.verify-table tr.bad td { background: color-mix(in srgb, var(--cat-unknown) 18%, transparent); }
+.verify-table tr.bad td:first-child { color: var(--cat-unknown); }
 </style>
 <header class="app-header">
   <h1>Crew-cal</h1>
@@ -1582,11 +1615,34 @@ button.ghost.danger { color: var(--danger); }
         <span>편명으로 읽을 항공사 <em>(쉼표로 구분. 비우면 KE 만)</em></span>
         <input type="text" id="airlineList" autocomplete="off" spellcheck="false" placeholder="KE, OZ, 7C">
       </label>
+      <p class="actions">
+        <button type="button" id="verifyOpen" class="ghost small">파싱 검증 (개발용)</button>
+      </p>
       <p class="muted small-note">
         여기 없는 항공사 코드는 편명으로 읽지 않고 '알 수 없는 코드' 로 둡니다.
         잘못 읽힌 글자(AS0016 같은)가 비행으로 달력에 뜨는 것을 막아 줍니다.
       </p>
     </details>
+
+    <section id="verifyPanel" class="verify-panel" hidden>
+      <h2>파싱 검증 <em>(개발용)</em></h2>
+      <p class="muted small-note">
+        왼쪽에 크루넷 화면 그대로를 적고 검증을 누르면, 앱이 만든 일정과 날짜별로 견줍니다.
+        건수가 다른 날은 빨갛게 표시됩니다. 원본은 고치지 않고 본 대로만 셉니다.
+      </p>
+      <label class="field">
+        <span>원본 <em>(한 줄에 하루: 날짜 뒤에 코드들)</em></span>
+        <textarea id="verifySource" rows="6" spellcheck="false"
+          placeholder="2026-03-01&#9;KE1807 KE1810 KE1815 KE1820&#10;2026-03-02&#9;KE0497 LO&#10;2026-03-03&#9;LO"></textarea>
+      </label>
+      <div class="actions">
+        <button type="button" id="verifyRun" class="primary">검증</button>
+        <button type="button" id="verifyFromPaste" class="ghost small">읽은 글 가져오기</button>
+        <button type="button" id="verifyClose" class="ghost small">닫기</button>
+      </div>
+      <p id="verifyHead" class="status"></p>
+      <div id="verifyTable" class="verify-table"></div>
+    </section>
 
     <div class="data-tools">
       <button type="button" id="imageBtn" class="ghost small">이미지로 저장</button>
@@ -3182,12 +3238,15 @@ button.ghost.danger { color: var(--danger); }
 </script>
 <script>
 /**
- * 하루에 겹쳐 들어온 근무를 정리한다.
+ * 하루에 겹쳐 들어온 근무를 살펴본다.
  *
- * 크루넷 캡처를 읽다 보면 한 칸에서 같은 근무를 두 번 집거나(ADO 와 ATDO),
- * 서로 같이 있을 수 없는 근무가 함께 들어온다(휴무와 체류). 그대로 두면
- * 달력 한 칸에 휴무·체류·휴무가 나란히 서서 어느 것이 맞는지 알 수 없다.
- * 지어내지 않고 고를 수 있는 것만 고른다.
+ * 예전에는 여기서 겹친 것을 지웠다. 그러다 3월 1일 국내선 네 편(KE1807·1810·
+ * 1815·1820)이 통째로 사라지고 없던 휴무만 남는 일이 있었다. 읽어 들인 근무를
+ * 지우면 무엇이 틀렸는지조차 알 수 없게 된다.
+ *
+ * 그래서 이 모듈은 아무것도 지우지 않는다. 딱 하나, 글자 그대로 같은
+ * (날짜, 코드) 가 두 번 들어온 것만 하나로 합친다. 그 밖에 이상한 조합은
+ * '확인 필요' 로 알리기만 하고 판단은 사람에게 맡긴다.
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
@@ -3199,19 +3258,16 @@ button.ghost.danger { color: var(--danger); }
 })(typeof self !== 'undefined' ? self : this, function (codes, airports, schedule) {
   'use strict';
 
-  /** 휴무 계열끼리 겹치면 더 구체적인 쪽을 남긴다. 앞에 있을수록 세다. */
+  /** 휴무 계열끼리 겹쳤을 때 어느 것을 대표로 볼지. 앞에 있을수록 구체적이다. */
   var OFF_RANK = ['ATDO', 'ADO', 'GDO', 'CDO', 'PDO', 'DO', 'OFF', 'X'];
 
-  /** 한 칸에 여럿이 남았을 때 어느 것을 먼저 보여줄지. 앞에 있을수록 세다. */
-  var KEEP_RANK = ['flight', 'layover', 'standby', 'training', 'vacation', 'off', 'other', 'unknown'];
-
-  /**
-   * 그 자체로는 하루를 설명하지 못하는 덧말. 크루넷이 비행 칸 위에 겹쳐 찍는 표시라
-   * 자리가 모자라면 이것부터 뺀다. 비행이나 체류를 밀어내면 안 된다.
-   */
-  var FILLER = { TVL: true, BRF: true, BLK: true };
-
-  var MAX_PER_DAY = 2;
+  /** 겹침을 알릴 때 쓰는 말. */
+  var CONFLICT_TEXT = {
+    'off-duplicate': '같은 날 휴무가 여러 개입니다',
+    'off-with-layover': '휴무와 체류가 같은 날에 있습니다',
+    'off-with-flight': '휴무와 비행이 같은 날에 있습니다',
+    'domestic-layover': '국내선 뒤에 체류가 붙어 있습니다'
+  };
 
   function categoryOf(entry) {
     if (!entry) return 'unknown';
@@ -3224,27 +3280,10 @@ button.ghost.danger { color: var(--danger); }
     return String((entry && entry.code) || '').toUpperCase();
   }
 
-  function isOff(entry) {
-    return categoryOf(entry) === 'off';
-  }
-
-  function isLayover(entry) {
-    return categoryOf(entry) === 'layover';
-  }
-
+  function isOff(entry) { return categoryOf(entry) === 'off'; }
+  function isLayover(entry) { return categoryOf(entry) === 'layover'; }
   function isFlight(entry) {
-    return categoryOf(entry) === 'flight' || (entry && entry.type === 'flight');
-  }
-
-  function rankIn(list, value) {
-    var i = list.indexOf(value);
-    return i === -1 ? list.length : i;
-  }
-
-  /** 자리가 모자랄 때 남길 차례. 작을수록 먼저 남는다. */
-  function keepRank(entry) {
-    if (FILLER[codeOf(entry)]) return KEEP_RANK.length + 1;
-    return rankIn(KEEP_RANK, categoryOf(entry));
+    return !!entry && !entry.strange && (categoryOf(entry) === 'flight' || entry.type === 'flight');
   }
 
   function warn(message) {
@@ -3260,11 +3299,21 @@ button.ghost.danger { color: var(--danger); }
     return d.toISOString().slice(0, 10);
   }
 
-  /** 국내선인지. 편명 대역으로 보고, 구간을 알면 그것으로 확인한다. */
+  /** 그 편의 구간. 아직 안 붙어 있으면 시간표에서 찾아본다. 모르면 null. */
+  function routeOf(entry) {
+    if (!isFlight(entry)) return null;
+    if (entry.route) return entry.route;
+    if (!schedule) return null;
+    var hit = schedule.lookup(entry.code);
+    return (hit && hit.route) || null;
+  }
+
+  /** 국내선인지. 구간을 알면 그것으로, 모르면 편명 대역으로 본다. */
   function isDomesticFlight(entry) {
     if (!isFlight(entry)) return false;
-    if (entry.route && airports) {
-      var parts = airports.splitRoute(entry.route);
+    var route = routeOf(entry);
+    if (route && airports) {
+      var parts = airports.splitRoute(route);
       if (parts.from && parts.to) {
         return airports.countryOf(parts.from) === 'KR' && airports.countryOf(parts.to) === 'KR';
       }
@@ -3274,40 +3323,13 @@ button.ghost.danger { color: var(--danger); }
 
   /** 도착지가 한국 밖인 비행이면 참. 구간을 모르면 판단하지 않는다(null). */
   function arrivesOverseas(entry) {
-    if (!isFlight(entry)) return null;
-    if (!entry.route || !airports) return null;
-    var parts = airports.splitRoute(entry.route);
+    var route = routeOf(entry);
+    if (!route || !airports) return null;
+    var parts = airports.splitRoute(route);
     if (!parts || !parts.to) return null;
     var country = airports.countryOf(parts.to);
     if (!country) return null;
     return country !== 'KR';
-  }
-
-  /**
-   * 이 날짜 직전에 해외에 내려놓은 비행이 있었는지.
-   * 체류는 며칠씩 이어지므로 체류만 있는 날은 건너뛰고 더 거슬러 올라간다.
-   * 비행을 만나면 거기서 판가름하고, 구간을 모르는 비행이면 판단을 미룬다(null).
-   */
-  function arrivedOverseasBefore(byDate, date, limit) {
-    var back = limit == null ? 7 : limit;
-    var cursor = prevDay(date);
-    for (var i = 0; i < back && cursor; i++) {
-      var list = byDate[cursor] || [];
-      var flights = list.filter(isFlight);
-      if (flights.length) {
-        var unknown = false;
-        for (var j = flights.length - 1; j >= 0; j--) {
-          var verdict = arrivesOverseas(flights[j]);
-          if (verdict === true) return true;
-          if (verdict === null) unknown = true;
-        }
-        return unknown ? null : false;
-      }
-      // 체류만 이어지는 날은 그 앞의 비행을 마저 찾는다
-      if (list.length && list.every(isLayover)) { cursor = prevDay(cursor); continue; }
-      return false;
-    }
-    return false;
   }
 
   /**
@@ -3327,17 +3349,86 @@ button.ghost.danger { color: var(--danger); }
     return null;
   }
 
-  /** 같은 (날짜, 코드) 가 두 번 들어오면 앞의 것만 남긴다. */
+  /** 이 날짜 직전에 해외에 내려놓은 비행이 있었는지. 모르면 null. */
+  function arrivedOverseasBefore(byDate, date, limit) {
+    var back = limit == null ? 7 : limit;
+    var cursor = prevDay(date);
+    for (var i = 0; i < back && cursor; i++) {
+      var list = byDate[cursor] || [];
+      var flights = list.filter(isFlight);
+      if (flights.length) {
+        var unknown = false;
+        for (var j = flights.length - 1; j >= 0; j--) {
+          var verdict = arrivesOverseas(flights[j]);
+          if (verdict === true) return true;
+          if (verdict === null) unknown = true;
+        }
+        return unknown ? null : false;
+      }
+      if (list.length && list.every(isLayover)) { cursor = prevDay(cursor); continue; }
+      return false;
+    }
+    return false;
+  }
+
+  /** 휴무 계열 가운데 대표로 삼을 것. 화면에서 하나만 보일 때 쓴다. */
+  function primaryOff(list) {
+    var offs = (list || []).filter(isOff);
+    if (!offs.length) return null;
+    return offs.slice().sort(function (a, b) {
+      return OFF_RANK.indexOf(codeOf(a)) - OFF_RANK.indexOf(codeOf(b));
+    })[0];
+  }
+
+  /**
+   * 하루치를 살펴 이상한 조합을 찾는다. 아무것도 지우지 않는다.
+   * byDate 를 주면 앞뒤 날까지 살펴본다.
+   */
+  function conflictsOf(list, date, byDate) {
+    var out = [];
+    var offs = (list || []).filter(isOff);
+    var layovers = (list || []).filter(isLayover);
+    var flights = (list || []).filter(isFlight);
+
+    function note(kind, entries) {
+      out.push({
+        date: date || null,
+        kind: kind,
+        codes: entries.map(codeOf),
+        message: CONFLICT_TEXT[kind] + ': ' + entries.map(codeOf).join(', ')
+      });
+    }
+
+    if (offs.length > 1) note('off-duplicate', offs);
+    if (offs.length && layovers.length) note('off-with-layover', offs.concat(layovers));
+    if (offs.length && flights.length) note('off-with-flight', offs.concat(flights));
+
+    // 국내선은 체류가 드물다. 부산에서 자는 일정이 실제로 있으니 알리기만 한다.
+    if (layovers.length && byDate && date) {
+      var last = lastFlightBefore(byDate, date);
+      if (last && isDomesticFlight(last)) {
+        note('domestic-layover', [last].concat(layovers));
+      }
+    }
+    return out;
+  }
+
+  /** 글자 그대로 같은 (날짜, 코드) 가 두 번 들어오면 앞의 것만 남긴다. */
   function dedupe(entries) {
     var seen = {};
     var out = [];
+    var dropped = [];
     (entries || []).forEach(function (entry) {
       if (!entry || !entry.date) return;
       var key = entry.date + '|' + codeOf(entry);
-      if (seen[key]) return;
+      if (seen[key]) {
+        dropped.push({ date: entry.date, code: codeOf(entry), reason: 'duplicate', entry: entry });
+        return;
+      }
       seen[key] = true;
       out.push(entry);
     });
+    dedupe.lastDropped = dropped;
     return out;
   }
 
@@ -3350,101 +3441,30 @@ button.ghost.danger { color: var(--danger); }
   }
 
   /**
-   * 하루치를 정리한다. byDate 는 앞뒤 날을 살펴보기 위한 것이고,
-   * 남길 것과 버릴 것을 갈라 돌려준다.
-   */
-  function resolveDay(list, date, byDate, dropped) {
-    var keep = list.slice();
-    var drop = function (entry, why) {
-      dropped.push({ date: date, code: codeOf(entry), reason: why, entry: entry });
-    };
-
-    // 1) 휴무 계열은 하루에 하나. ATDO > ADO > DO
-    var offs = keep.filter(isOff);
-    if (offs.length > 1) {
-      var best = offs.slice().sort(function (a, b) {
-        return rankIn(OFF_RANK, codeOf(a)) - rankIn(OFF_RANK, codeOf(b));
-      })[0];
-      keep = keep.filter(function (e) {
-        if (!isOff(e) || e === best) return true;
-        drop(e, 'off-merge');
-        return false;
-      });
-    }
-
-    // 2) 휴무와 체류는 같은 날 함께 있을 수 없다.
-    //    직전에 해외에 내린 비행이 있으면 체류가 맞고, 없으면 휴무가 맞다.
-    var hasOff = keep.some(isOff);
-    var hasLayover = keep.some(isLayover);
-    if (hasOff && hasLayover) {
-      var overseas = arrivedOverseasBefore(byDate, date);
-      var dropLayover = overseas === false;   // 판단이 안 서면(null) 체류를 남긴다
-      keep = keep.filter(function (e) {
-        if (dropLayover ? !isLayover(e) : !isOff(e)) return true;
-        drop(e, dropLayover ? 'layover-without-arrival' : 'off-with-layover');
-        return false;
-      });
-    }
-
-    // 3) 휴무와 비행은 같은 날 함께 있을 수 없다. 휴무를 남기고 비행을 뺀다.
-    //    잘못 읽어 비행이 하나 끼어든 것이므로, 무엇을 뺐는지 반드시 알린다.
-    var offs2 = keep.filter(isOff);
-    var flights2 = keep.filter(isFlight);
-    if (offs2.length && flights2.length) {
-      warn(date + ' 에 휴무(' + offs2.map(codeOf).join(', ') + ')와 비행(' +
-        flights2.map(codeOf).join(', ') + ')이 함께 들어왔습니다. 휴무를 남기고 비행을 뺐습니다.');
-      keep = keep.filter(function (e) {
-        if (!isFlight(e)) return true;
-        drop(e, 'flight-with-off');
-        return false;
-      });
-    }
-
-    // 4) 국내선은 체류가 없다. 국내선 뒤에 체류가 붙었으면 잘못 읽은 것일 수 있다.
-    //    다만 부산에서 하룻밤 자는 일정이 실제로 있어, 알리기만 하고 빼지는 않는다.
-    if (keep.some(isLayover)) {
-      var lastFlight = lastFlightBefore(byDate, date);
-      if (lastFlight && isDomesticFlight(lastFlight)) {
-        warn(date + ' 의 체류(LO) 앞이 국내선(' + codeOf(lastFlight) + ' ' +
-          (lastFlight.route || '구간 모름') + ')입니다. 잘못 읽은 것인지 확인해 보세요.');
-      }
-    }
-
-    // 5) 한 칸에 두 개까지. 넘치는 것은 조용히 버리지 않고 알린다.
-    if (keep.length > MAX_PER_DAY) {
-      var ordered = keep.map(function (e, i) { return { e: e, i: i }; }).sort(function (a, b) {
-        var d = keepRank(a.e) - keepRank(b.e);
-        return d !== 0 ? d : a.i - b.i;
-      });
-      var cut = ordered.slice(MAX_PER_DAY).map(function (x) { return x.e; });
-      cut.forEach(function (e) { drop(e, 'overflow'); });
-      warn(date + ' 에 근무가 ' + keep.length + '개 들어왔습니다. ' +
-        keep.map(codeOf).join(', ') + ' 중 ' + cut.map(codeOf).join(', ') + ' 를 빼고 그렸습니다.');
-      keep = keep.filter(function (e) { return cut.indexOf(e) === -1; });
-    }
-
-    return keep;
-  }
-
-  /**
-   * 일정 목록을 정리해 돌려준다. 원본은 건드리지 않는다.
-   * { entries, dropped } 를 준다. dropped 에는 어떤 날의 무엇을 왜 뺐는지 남는다.
+   * 일정 목록을 훑는다. 지우는 것은 글자까지 똑같은 중복뿐이다.
+   * { entries, dropped, conflicts } 를 준다.
    */
   function resolve(entries) {
     var list = dedupe(entries);
+    var dropped = dedupe.lastDropped || [];
     var byDate = groupByDate(list);
-    var dropped = [];
-    var out = [];
+    var conflicts = [];
+
     Object.keys(byDate).sort().forEach(function (date) {
-      byDate[date] = resolveDay(byDate[date], date, byDate, dropped);
+      conflictsOf(byDate[date], date, byDate).forEach(function (item) {
+        conflicts.push(item);
+        warn(date + ' ' + item.message + ' — 지우지 않고 그대로 두었습니다. 확인해 보세요.');
+      });
     });
-    list.forEach(function (entry) {
-      if ((byDate[entry.date] || []).indexOf(entry) !== -1) out.push(entry);
+
+    dropped.forEach(function (item) {
+      warn(item.date + ' 에 ' + item.code + ' 가 두 번 들어와 하나로 합쳤습니다.');
     });
-    return { entries: out, dropped: dropped };
+
+    return { entries: list, dropped: dropped, conflicts: conflicts };
   }
 
-  /** 날짜별 표({'2026-04-12': [...]})를 그대로 정리해 돌려준다. */
+  /** 날짜별 표를 그대로 훑어 돌려준다. */
   function resolveByDate(entriesByDate) {
     var flat = [];
     Object.keys(entriesByDate || {}).sort().forEach(function (date) {
@@ -3463,21 +3483,179 @@ button.ghost.danger { color: var(--danger); }
     done.entries.forEach(function (entry) {
       (out[entry.date] = out[entry.date] || []).push(entry);
     });
-    return { entriesByDate: out, dropped: done.dropped };
+    return { entriesByDate: out, dropped: done.dropped, conflicts: done.conflicts };
   }
 
   return {
     resolve: resolve,
     resolveByDate: resolveByDate,
-    resolveDay: resolveDay,
     dedupe: dedupe,
+    conflictsOf: conflictsOf,
+    primaryOff: primaryOff,
+    isOff: isOff,
+    isLayover: isLayover,
+    isFlight: isFlight,
+    isDomesticFlight: isDomesticFlight,
     arrivesOverseas: arrivesOverseas,
     arrivedOverseasBefore: arrivedOverseasBefore,
-    OFF_RANK: OFF_RANK,
-    keepRank: keepRank,
-    isDomesticFlight: isDomesticFlight,
     lastFlightBefore: lastFlightBefore,
-    MAX_PER_DAY: MAX_PER_DAY
+    routeOf: routeOf,
+    OFF_RANK: OFF_RANK,
+    CONFLICT_TEXT: CONFLICT_TEXT
+  };
+});
+</script>
+<script>
+/**
+ * 파싱 검증 도구 (개발용).
+ *
+ * 크루넷 원본 글과 앱이 실제로 만든 일정을 날짜별로 나란히 놓고, 건수가 다른
+ * 날을 짚어 준다. 3월 1일 국내선 네 편이 소리 없이 사라진 일이 있어, 고칠
+ * 때마다 먼저 여기로 확인한다.
+ *
+ * 왼쪽(원본)은 일부러 아주 단순하게 읽는다. 고치지도 버리지도 않고 코드처럼
+ * 생긴 것을 그대로 센다. 파서와 같은 길을 쓰면 무엇이 새는지 알 수 없다.
+ */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) {
+    module.exports = factory();
+  } else {
+    root.CrewCal = root.CrewCal || {};
+    root.CrewCal.verify = factory();
+  }
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  var DATE = /^(\d{4})-(\d{1,2})-(\d{1,2})$/;
+  var DAY = /^(\d{1,2})일?$/;
+  // 코드처럼 생긴 것: 근무 코드(ATDO) 또는 편명(KE1807). 시각·구간은 세지 않는다.
+  var DUTY = /^[A-Z]{1,6}$/;
+  var FLIGHT = /^[A-Z]{2}-?\d{1,4}[A-Z]?$/;
+  var ROUTE = /^[A-Z]{3}(?:[/\-][A-Z]{3})+$/;
+
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+
+  function looksLikeCode(token) {
+    if (ROUTE.test(token)) return false;
+    return FLIGHT.test(token) || DUTY.test(token);
+  }
+
+  /**
+   * 원본 글을 날짜 -> 코드 목록으로 읽는다. 고치지 않고 본 대로 센다.
+   * '2026-03-01\tKE1807 KE1810' 도 '1 KE1807 KE1810' 도 받는다.
+   */
+  function readSource(text, opts) {
+    var options = opts || {};
+    var out = {};
+    String(text == null ? '' : text).split(/\r?\n/).forEach(function (line) {
+      var raw = line.trim();
+      if (!raw) return;
+      var tokens = raw.split(/[\s,|]+/).filter(Boolean);
+      if (!tokens.length) return;
+
+      var head = tokens[0];
+      var date = null;
+      var m = head.match(DATE);
+      if (m) date = m[1] + '-' + pad2(+m[2]) + '-' + pad2(+m[3]);
+      else if (DAY.test(head) && options.year && options.month) {
+        date = options.year + '-' + pad2(options.month) + '-' + pad2(+head.replace('일', ''));
+      }
+      if (!date) return;
+
+      var codes = [];
+      tokens.slice(1).forEach(function (token) {
+        var up = token.toUpperCase();
+        if (looksLikeCode(up)) codes.push(up);
+      });
+      out[date] = (out[date] || []).concat(codes);
+    });
+    return out;
+  }
+
+  /** 일정 목록을 날짜 -> 코드 목록으로. */
+  function readEntries(entries) {
+    var out = {};
+    (entries || []).forEach(function (e) {
+      if (!e || !e.date) return;
+      (out[e.date] = out[e.date] || []).push(String(e.code || '').toUpperCase());
+    });
+    return out;
+  }
+
+  /** 날짜별 표를 날짜 -> 코드 목록으로. */
+  function readByDate(byDate) {
+    var out = {};
+    Object.keys(byDate || {}).forEach(function (date) {
+      out[date] = (byDate[date] || []).map(function (e) { return String(e.code || '').toUpperCase(); });
+    });
+    return out;
+  }
+
+  function count(map) {
+    return Object.keys(map).reduce(function (n, date) { return n + map[date].length; }, 0);
+  }
+
+  /**
+   * 원본과 파싱 결과(그리고 저장된 것)를 날짜별로 견준다.
+   * 건수가 다른 날이 하나라도 있으면 ok 가 거짓이다.
+   */
+  function compare(source, parsed, stored, opts) {
+    var options = opts || {};
+    var dates = {};
+    [source, parsed, stored || {}].forEach(function (map) {
+      Object.keys(map || {}).forEach(function (date) {
+        if (options.prefix && date.indexOf(options.prefix) !== 0) return;
+        dates[date] = true;
+      });
+    });
+
+    var rows = Object.keys(dates).sort().map(function (date) {
+      var a = (source[date] || []).slice();
+      var b = (parsed[date] || []).slice();
+      var c = stored ? (stored[date] || []).slice() : null;
+      var missing = a.filter(function (code) {
+        var at = b.indexOf(code);
+        if (at === -1) return true;
+        b.splice(at, 1);
+        return false;
+      });
+      return {
+        date: date,
+        day: +date.slice(8),
+        source: (source[date] || []).slice(),
+        parsed: (parsed[date] || []).slice(),
+        stored: c,
+        missing: missing,
+        extra: b,
+        ok: (source[date] || []).length === (parsed[date] || []).length && !missing.length
+      };
+    });
+
+    var bad = rows.filter(function (row) { return !row.ok; });
+    return {
+      rows: rows,
+      mismatches: bad.length,
+      ok: bad.length === 0,
+      sourceCount: count(source),
+      parsedCount: count(parsed),
+      storedCount: stored ? count(stored) : null
+    };
+  }
+
+  /** 상단에 한 줄로. '원본 44건 → 파싱 44건 · 불일치 0일' */
+  function headline(result) {
+    return '원본 ' + result.sourceCount + '건 → 파싱 ' + result.parsedCount + '건' +
+      (result.storedCount == null ? '' : ' (저장 ' + result.storedCount + '건)') +
+      ' · 불일치 ' + result.mismatches + '일' + (result.ok ? ' · 이상 없음' : '');
+  }
+
+  return {
+    readSource: readSource,
+    readEntries: readEntries,
+    readByDate: readByDate,
+    compare: compare,
+    headline: headline,
+    looksLikeCode: looksLikeCode
   };
 });
 </script>
@@ -3522,15 +3700,6 @@ button.ghost.danger { color: var(--danger); }
     dayOffset: /^\+(\d)$/,
     dutyLike: /^[A-Z]{1,6}$/,
     rangeSep: /^[~]$/
-  };
-
-  /** 겹쳐 들어온 근무를 뺀 까닭. 미리보기에서 사람에게 보여 준다. */
-  var DROP_REASONS = {
-    'off-merge': '같은 날 휴무가 겹쳐',
-    'layover-without-arrival': '앞에 해외 도착 비행이 없어',
-    'off-with-layover': '체류 중인 날이라',
-    'flight-with-off': '같은 날 휴무와 겹쳐',
-    'overflow': '한 칸에 너무 많이 들어와'
   };
 
   function normalizeText(text) {
@@ -4066,17 +4235,27 @@ button.ghost.danger { color: var(--danger); }
       return parseInt(a.id.slice(1), 10) - parseInt(b.id.slice(1), 10);
     });
 
-    // 같은 날에 겹쳐 들어온 근무를 정리한다(휴무 계열 하나로, 휴무와 체류는 함께 두지 않는다).
+    // 같은 날에 겹쳐 들어온 근무를 살펴본다. 글자까지 똑같은 중복만 하나로 하고,
+    // 그 밖에 이상한 조합은 지우지 않고 '확인 필요' 로만 알린다.
     var dropped = [];
+    var conflicts = [];
     if (resolver) {
-      var cleaned = resolver.resolve(entries);
-      entries = cleaned.entries;
-      dropped = cleaned.dropped;
+      var checked = resolver.resolve(entries);
+      entries = checked.entries;
+      dropped = checked.dropped;
+      conflicts = checked.conflicts;
       dropped.forEach(function (item) {
         warnings.push({
           line: 0,
           text: item.date + ' ' + item.code,
-          message: item.date + ' 의 ' + item.code + ' 는 ' + DROP_REASONS[item.reason] + ' 빼두었습니다.'
+          message: item.date + ' 에 ' + item.code + ' 가 두 번 들어와 하나로 합쳤습니다.'
+        });
+      });
+      conflicts.forEach(function (item) {
+        warnings.push({
+          line: 0,
+          text: item.date + ' ' + item.codes.join(', '),
+          message: item.date + ' — ' + item.message + '. 지우지 않았으니 확인해 보세요.'
         });
       });
     }
@@ -4085,6 +4264,7 @@ button.ghost.danger { color: var(--danger); }
       entries: entries,
       warnings: warnings,
       dropped: dropped,
+      conflicts: conflicts,
       ignoredLines: ignoredLines,
       skippedLines: skippedLines,
       stats: summarize(entries)
@@ -4563,8 +4743,8 @@ button.ghost.danger { color: var(--danger); }
   }
 
   /**
-   * 반영한 날짜만 다시 추린다. 같은 날에 휴무가 둘이거나 휴무와 체류가 함께 남지
-   * 않도록. 앞뒤 날을 봐야 하므로 저장된 전체를 넘겨 판단하게 한다.
+   * 반영한 날짜를 다시 훑는다. 지우는 것은 글자까지 똑같은 중복뿐이고, 그 밖에
+   * 이상한 조합은 표시만 남는다. 읽어 들인 근무를 저장소에서 없애지 않는다.
    */
   function resolveDates(data, targets) {
     if (!resolver || !targets.length) return [];
@@ -4788,53 +4968,30 @@ button.ghost.danger { color: var(--danger); }
     return null;
   }
 
+  // 한 칸에 몇 개까지 보일지. 넘는 것은 '+N' 으로 접기만 하고 절대 지우지 않는다.
+  var CELL_LIMIT = 3;
+
   /**
-   * 달력 칸에 그릴 것만 골라 낸다.
-   *  - 아는 항공사가 아닌 편명 꼴(AS0016)은 비행이 아니므로 칸에 띄우지 않는다.
-   *    날짜를 누르면 원래 글자를 볼 수 있으니 데이터에서 지우지는 않는다.
-   *  - 같은 날 오가는 두 편(KE1807 GMP/PUS + KE1810 PUS/GMP)은 '부산 왕복' 하나로 묶는다.
+   * 달력 칸에 그릴 것만 골라 낸다. 지우는 것이 아니라 감추는 것이다.
+   * 아는 항공사가 아닌 편명 꼴(AS0016)은 근무가 아니므로 칸에 띄우지 않는다.
+   * 날짜를 누르면 원래 글자가 그대로 보인다.
    */
   function cellItems(list) {
-    var shown = (list || []).filter(function (e) { return !e.strange; });
-    return mergeRoundTrip(shown);
+    return (list || []).filter(function (e) { return !e.strange; });
   }
 
-  /** 한 날에 A→B, B→A 두 편만 있으면 왕복 하나로 묶는다. 아니면 그대로. */
-  function mergeRoundTrip(list) {
-    if (!airports) return list;
-    var flights = list.filter(function (e) { return e.type === 'flight' && e.route; });
-    if (flights.length !== 2) return list;
-    var a = airports.splitRoute(flights[0].route);
-    var b = airports.splitRoute(flights[1].route);
-    if (!a.from || !a.to || !b.from || !b.to) return list;
-    if (a.from !== b.to || a.to !== b.from) return list;
-
-    var pair = flights[0];
-    var round = {
-      type: 'flight',
-      category: 'flight',
-      code: flights[0].code,
-      route: pair.route,
-      label: flights.map(function (e) { return e.code; }).join(' · '),
-      // 오가는 시각을 하나로 잇는 것은 돌아오는 편이 나중일 때만. 아니면 시각을 비운다.
-      start: roundTimes(flights).start,
-      end: roundTimes(flights).end,
-      endOffset: flights[1].endOffset || 0,
-      derived: flights[0].derived || flights[1].derived || null,
-      roundTrip: flights.slice()
-    };
-    return list.map(function (e) { return e === flights[0] ? round : e; })
-      .filter(function (e) { return e !== flights[1]; });
-  }
-
-  /** 왕복으로 묶을 때 쓸 출발·도착 시각. 앞뒤가 맞지 않으면 둘 다 비운다. */
-  function roundTimes(flights) {
-    var start = flights[0].start || null;
-    var end = flights[1].end || null;
-    // 한쪽 시각만 아는 경우가 흔하다(돌아오는 편을 규칙으로만 짐작한 날). 아는 쪽은 남긴다.
-    if (!start || !end) return { start: start, end: end };
-    if (!flights[1].endOffset && end <= start) return { start: start, end: null };
-    return { start: start, end: end };
+  /**
+   * 그날 짚어 볼 것이 있는지. 휴무와 비행이 함께 있거나 휴무가 여럿이면
+   * 잘못 읽혔을 수 있다. 지우지 않고 '확인 필요' 표만 띄운다.
+   */
+  function dayNeedsCheck(list) {
+    var real = (list || []).filter(function (e) { return !e.strange; });
+    var offs = real.filter(function (e) { return (e.category || '') === 'off'; });
+    if (!offs.length) return null;
+    if (offs.length > 1) return '휴무 코드가 여럿입니다';
+    if (real.some(function (e) { return e.type === 'flight'; })) return '휴무와 비행이 같은 날에 있습니다';
+    if (real.some(function (e) { return (e.category || '') === 'layover'; })) return '휴무와 체류가 같은 날에 있습니다';
+    return null;
   }
 
   /** 구간을 모르는 항공편인지. 편명만 있고 어디 가는지 모르는 것들. */
@@ -4979,7 +5136,8 @@ button.ghost.danger { color: var(--danger); }
         if (weekday === 6) cell.classList.add('sat');
         if (holiday) cell.classList.add('holiday');
         // 코드가 없어도 이 달의 날이면 칸을 그린다. 앞뒤 달의 흐린 날과 헷갈리지 않는다.
-        var assumed = !outside && !list.length && assumeOff;
+        // 코드가 하나라도 있는 날은 절대 휴무로 덮어쓰지 않는다. 정확히 0건일 때만.
+        var assumed = !outside && list.length === 0 && assumeOff;
         var dayKind = dayCategory(list) || (assumed ? 'off' : null);
         if (dayKind) cell.classList.add('day-' + dayKind);
         if (assumed) cell.classList.add('assumed');
@@ -5011,7 +5169,7 @@ button.ghost.danger { color: var(--danger); }
         var dayHasFlight = shown.some(function (e) { return e.type === 'flight'; });
         var staying = places[date] || null;
 
-        shown.slice(0, 3).forEach(function (e) {
+        shown.slice(0, CELL_LIMIT).forEach(function (e) {
           var item = document.createElement('span');
           item.className = 'cal-item';
           item.title = [e.code, e.label || '', airports ? airports.describeRoute(e.route) : e.route,
@@ -5030,7 +5188,7 @@ button.ghost.danger { color: var(--danger); }
             }
             var city = document.createElement('span');
             city.className = 'cal-city cat-' + (e.category || 'other');
-            city.textContent = place.city + (e.roundTrip ? ' 왕복' : '');
+            city.textContent = place.city;
             item.appendChild(city);
             if (e.derived) item.appendChild(guessMark());
           } else {
@@ -5073,7 +5231,7 @@ button.ghost.danger { color: var(--danger); }
           // 큰 글씨 밑에는 작은 글씨로 한 줄. 도시 밑에는 편명(체류면 '체류'),
           // 휴무·대기처럼 이름이 제목인 경우에는 원래 코드를 적는다.
           var subText = place
-            ? (e.type === 'flight' ? (e.roundTrip ? e.label : e.code) : (e.label || ''))
+            ? (e.type === 'flight' ? e.code : (e.label || ''))
             : (e.type === 'flight' ? '' : (e.code !== e.label ? e.code : ''));
           if (subText) {
             var sub = document.createElement('span');
@@ -5095,11 +5253,34 @@ button.ghost.danger { color: var(--danger); }
           guess.appendChild(guessTitle);
           chips.appendChild(guess);
         }
-        if (shown.length > 3) {
+        // 자리가 모자라면 접기만 한다. 날짜를 누르면 전부 보인다.
+        if (shown.length > CELL_LIMIT) {
           var more = document.createElement('span');
           more.className = 'cal-more';
-          more.textContent = '+' + (shown.length - 3);
+          more.textContent = '+' + (shown.length - CELL_LIMIT);
+          more.title = '이 날 근무 ' + shown.length + '건. 눌러서 전부 보기';
           chips.appendChild(more);
+        }
+
+        // 읽기는 했는데 칸에 아무것도 못 그린 날. 휴무로 덮지 않고 잘못됐다고 알린다.
+        if (list.length && !shown.length) {
+          var failed = document.createElement('span');
+          failed.className = 'cal-badge cal-failed';
+          failed.textContent = '파싱 실패';
+          failed.title = list.map(function (e) { return e.code; }).join(', ') +
+            ' — 읽기는 했으나 근무로 알아보지 못했습니다. 눌러서 원래 글자를 보세요.';
+          chips.appendChild(failed);
+          cell.classList.add('parse-failed');
+        }
+
+        var checkNote = dayNeedsCheck(list);
+        if (checkNote) {
+          var check = document.createElement('span');
+          check.className = 'cal-badge cal-check';
+          check.textContent = '확인 필요';
+          check.title = checkNote + ' — 지우지 않았으니 눌러서 확인하세요.';
+          chips.appendChild(check);
+          cell.classList.add('needs-check');
         }
         cell.appendChild(chips);
 
@@ -5479,7 +5660,8 @@ button.ghost.danger { color: var(--danger); }
     dayCategory: dayCategory,
     needsRoute: needsRoute,
     cellItems: cellItems,
-    mergeRoundTrip: mergeRoundTrip,
+    dayNeedsCheck: dayNeedsCheck,
+    CELL_LIMIT: CELL_LIMIT,
     tripPlaces: tripPlaces,
     iso: iso,
     pad2: pad2,
@@ -6072,6 +6254,11 @@ button.ghost.danger { color: var(--danger); }
     var trailing = /^([A-Z][A-Z0-9]+)[-.]+$/.exec(token);
     if (trailing) token = trailing[1];
 
+    // 편명 뒤에 판 테두리가 글자 한 자로 붙어 읽히는 일이 있다(KE1820F).
+    // 떼어 낸 쪽이 시간표에 있는 편이면 떼어 낸다.
+    var suffix = /^([A-Z]{2}\d{4})[A-Z]$/.exec(token);
+    if (suffix && schedule && schedule.lookup(suffix[1])) return suffix[1];
+
     // 앞에 글자가 한둘 붙어 읽힌 편명(IKEO703)은 뒤쪽만 떼어 본다
     if (token.length > 6 && /^[A-Z]/.test(token)) {
       var trimmed = token.slice(token.length - 6);
@@ -6529,6 +6716,39 @@ button.ghost.danger { color: var(--danger); }
    * 달력 칸을 글줄로 옮긴다. 몇 년 몇 월인지 알면 날짜를 또렷이 적는다. 날짜만 적어
    * 두면 파서가 달이 넘어갔다고 잘못 볼 수 있어서다.
    */
+  /**
+   * 자정을 넘겨 한국에 닿는 편은 크루넷이 출발일과 도착일 두 칸에 똑같이 적는다.
+   * 그래서 도착일 칸에 한 자만 다르게 읽힌 편명이 나오면(KE0498 -> KE0408) 앞날의
+   * 편명이 맞다. 앞날 편이 실제로 자정을 넘겨 도착하고, 잘못 읽힌 쪽은 그렇지 않을
+   * 때만 손댄다. 그래야 진짜로 다른 편이 이튿날 뜬 경우를 건드리지 않는다.
+   */
+  function mendNextDayFlights(cells) {
+    if (!schedule) return cells;
+    var byDay = {};
+    cells.forEach(function (cell) { if (cell.day != null && !byDay[cell.day]) byDay[cell.day] = cell; });
+
+    Object.keys(byDay).forEach(function (key) {
+      var day = +key;
+      var prev = byDay[day - 1];
+      if (!prev) return;
+      var here = byDay[day];
+      var flights = here.tokens.filter(function (t) { return /^[A-Z]{2}\d{4}$/.test(t); });
+      if (flights.length !== 1) return;                 // 편이 하나뿐인 칸에서만
+
+      var mine = schedule.lookup(flights[0]);
+      if (mine && mine.endOffset) return;               // 이 편 자체가 이튿날 도착이면 그대로
+
+      prev.tokens.forEach(function (token) {
+        if (!/^[A-Z]{2}\d{4}$/.test(token) || token === flights[0]) return;
+        if (!oneEditApart(token, flights[0])) return;
+        var theirs = schedule.lookup(token);
+        if (!theirs || !theirs.endOffset) return;       // 앞날 편이 자정을 넘겨야 이틀에 걸친다
+        here.tokens = here.tokens.map(function (t) { return t === flights[0] ? token : t; });
+      });
+    });
+    return cells;
+  }
+
   function cellLines(cells, opts) {
     var seen = {};
     var out = [];
@@ -6590,6 +6810,7 @@ button.ghost.danger { color: var(--danger); }
     var cells = fromCalendar(rowList);
     if (cells.length >= 3) {
       var trimmed = trimOtherMonths(cells);
+      mendNextDayFlights(trimmed.cells);
       return {
         text: cellLines(trimmed.cells, opts).join('\n'),
         shape: 'calendar',
@@ -6612,6 +6833,7 @@ button.ghost.danger { color: var(--danger); }
   return {
     toText: toText,
     cellLines: cellLines,
+    mendNextDayFlights: mendNextDayFlights,
     fixCode: fixCode,
     snapToKnownCode: snapToKnownCode,
     columnsOf: columnsOf,
@@ -8005,6 +8227,7 @@ button.ghost.danger { color: var(--danger); }
   var airports = CrewCal.airports;
   var holidays = CrewCal.holidays;
   var clock = CrewCal.clock;
+  var verify = CrewCal.verify;
 
   var $ = function (id) { return document.getElementById(id); };
 
@@ -9597,7 +9820,7 @@ button.ghost.danger { color: var(--danger); }
   /* ---------------- 동료가 보내는 의견 ---------------- */
 
   // 화면 아래와 의견 보내기에 적히는 판 번호. sw.js 의 VERSION 과 함께 올린다.
-  var APP_VERSION = 'v23';
+  var APP_VERSION = 'v24';
 
   /**
    * 의견을 받을 메일 주소. 저장소가 공개라 통짜로 적어두면 스팸 크롤러가 긁어가므로
@@ -9859,6 +10082,77 @@ button.ghost.danger { color: var(--danger); }
     });
   }
 
+  /* ---------------- 파싱 검증 (개발용) ----------------
+   * 3월 1일 국내선 네 편이 소리 없이 사라진 일이 있었다. 고칠 때마다 여기로 먼저
+   * 확인한다. 주소 끝에 #verify 를 붙이거나 보기 설정에서 연다.
+   */
+
+  function openVerify() {
+    $('verifyPanel').hidden = false;
+    if (!$('verifySource').value.trim()) fillVerifyFromPaste();
+    $('verifyPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function fillVerifyFromPaste() {
+    $('verifySource').value = $('pasteInput').value;
+  }
+
+  function runVerify() {
+    var base = baseYearMonth();
+    var text = $('verifySource').value;
+    var source = verify.readSource(text, base);
+    var parsed = verify.readEntries(parser.parse(text, base).entries);
+    var stored = verify.readByDate(store.getAll());
+    var prefix = base.year + '-' + pad2(base.month);
+    var result = verify.compare(source, parsed, stored, { prefix: prefix });
+
+    var head = $('verifyHead');
+    head.textContent = verify.headline(result);
+    head.className = 'status ' + (result.ok ? 'ok' : 'error');
+    renderVerifyTable(result);
+  }
+
+  function renderVerifyTable(result) {
+    var box = $('verifyTable');
+    box.innerHTML = '';
+    var table = document.createElement('table');
+    var head = document.createElement('tr');
+    ['날짜', '원본', '파싱', '저장됨'].forEach(function (label) {
+      var th = document.createElement('th');
+      th.textContent = label;
+      head.appendChild(th);
+    });
+    table.appendChild(head);
+
+    result.rows.forEach(function (row) {
+      var tr = document.createElement('tr');
+      if (!row.ok) tr.className = 'bad';
+      [String(row.day) + '일',
+        row.source.join(' ') || '—',
+        row.parsed.join(' ') || '—',
+        row.stored == null ? '—' : (row.stored.join(' ') || '—')
+      ].forEach(function (text, i) {
+        var td = document.createElement('td');
+        td.textContent = text;
+        if (i === 0 && !row.ok) {
+          td.title = (row.missing.length ? '없어짐: ' + row.missing.join(', ') : '') +
+            (row.extra.length ? ' 군더더기: ' + row.extra.join(', ') : '');
+        }
+        tr.appendChild(td);
+      });
+      table.appendChild(tr);
+    });
+    box.appendChild(table);
+  }
+
+  function initVerify() {
+    $('verifyOpen').addEventListener('click', openVerify);
+    $('verifyClose').addEventListener('click', function () { $('verifyPanel').hidden = true; });
+    $('verifyRun').addEventListener('click', runVerify);
+    $('verifyFromPaste').addEventListener('click', fillVerifyFromPaste);
+    if (/(^|#|&)verify\b/.test(location.hash) || /[?&]verify=1/.test(location.search)) openVerify();
+  }
+
   /* ---------------- 처음 온 사람 · 공유 · 오프라인 ---------------- */
 
   var WELCOME_KEY = 'crew-cal.welcome.v1';
@@ -10012,6 +10306,7 @@ button.ghost.danger { color: var(--danger); }
     initViewToggle();
     initAssumeOff();
     initAirlines();
+    initVerify();
     initRouteSheet();
     initTabs();
     initSingleForm();

@@ -1,10 +1,13 @@
 /**
- * 하루에 겹쳐 들어온 근무를 정리한다.
+ * 하루에 겹쳐 들어온 근무를 살펴본다.
  *
- * 크루넷 캡처를 읽다 보면 한 칸에서 같은 근무를 두 번 집거나(ADO 와 ATDO),
- * 서로 같이 있을 수 없는 근무가 함께 들어온다(휴무와 체류). 그대로 두면
- * 달력 한 칸에 휴무·체류·휴무가 나란히 서서 어느 것이 맞는지 알 수 없다.
- * 지어내지 않고 고를 수 있는 것만 고른다.
+ * 예전에는 여기서 겹친 것을 지웠다. 그러다 3월 1일 국내선 네 편(KE1807·1810·
+ * 1815·1820)이 통째로 사라지고 없던 휴무만 남는 일이 있었다. 읽어 들인 근무를
+ * 지우면 무엇이 틀렸는지조차 알 수 없게 된다.
+ *
+ * 그래서 이 모듈은 아무것도 지우지 않는다. 딱 하나, 글자 그대로 같은
+ * (날짜, 코드) 가 두 번 들어온 것만 하나로 합친다. 그 밖에 이상한 조합은
+ * '확인 필요' 로 알리기만 하고 판단은 사람에게 맡긴다.
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
@@ -16,19 +19,16 @@
 })(typeof self !== 'undefined' ? self : this, function (codes, airports, schedule) {
   'use strict';
 
-  /** 휴무 계열끼리 겹치면 더 구체적인 쪽을 남긴다. 앞에 있을수록 세다. */
+  /** 휴무 계열끼리 겹쳤을 때 어느 것을 대표로 볼지. 앞에 있을수록 구체적이다. */
   var OFF_RANK = ['ATDO', 'ADO', 'GDO', 'CDO', 'PDO', 'DO', 'OFF', 'X'];
 
-  /** 한 칸에 여럿이 남았을 때 어느 것을 먼저 보여줄지. 앞에 있을수록 세다. */
-  var KEEP_RANK = ['flight', 'layover', 'standby', 'training', 'vacation', 'off', 'other', 'unknown'];
-
-  /**
-   * 그 자체로는 하루를 설명하지 못하는 덧말. 크루넷이 비행 칸 위에 겹쳐 찍는 표시라
-   * 자리가 모자라면 이것부터 뺀다. 비행이나 체류를 밀어내면 안 된다.
-   */
-  var FILLER = { TVL: true, BRF: true, BLK: true };
-
-  var MAX_PER_DAY = 2;
+  /** 겹침을 알릴 때 쓰는 말. */
+  var CONFLICT_TEXT = {
+    'off-duplicate': '같은 날 휴무가 여러 개입니다',
+    'off-with-layover': '휴무와 체류가 같은 날에 있습니다',
+    'off-with-flight': '휴무와 비행이 같은 날에 있습니다',
+    'domestic-layover': '국내선 뒤에 체류가 붙어 있습니다'
+  };
 
   function categoryOf(entry) {
     if (!entry) return 'unknown';
@@ -41,27 +41,10 @@
     return String((entry && entry.code) || '').toUpperCase();
   }
 
-  function isOff(entry) {
-    return categoryOf(entry) === 'off';
-  }
-
-  function isLayover(entry) {
-    return categoryOf(entry) === 'layover';
-  }
-
+  function isOff(entry) { return categoryOf(entry) === 'off'; }
+  function isLayover(entry) { return categoryOf(entry) === 'layover'; }
   function isFlight(entry) {
-    return categoryOf(entry) === 'flight' || (entry && entry.type === 'flight');
-  }
-
-  function rankIn(list, value) {
-    var i = list.indexOf(value);
-    return i === -1 ? list.length : i;
-  }
-
-  /** 자리가 모자랄 때 남길 차례. 작을수록 먼저 남는다. */
-  function keepRank(entry) {
-    if (FILLER[codeOf(entry)]) return KEEP_RANK.length + 1;
-    return rankIn(KEEP_RANK, categoryOf(entry));
+    return !!entry && !entry.strange && (categoryOf(entry) === 'flight' || entry.type === 'flight');
   }
 
   function warn(message) {
@@ -77,11 +60,21 @@
     return d.toISOString().slice(0, 10);
   }
 
-  /** 국내선인지. 편명 대역으로 보고, 구간을 알면 그것으로 확인한다. */
+  /** 그 편의 구간. 아직 안 붙어 있으면 시간표에서 찾아본다. 모르면 null. */
+  function routeOf(entry) {
+    if (!isFlight(entry)) return null;
+    if (entry.route) return entry.route;
+    if (!schedule) return null;
+    var hit = schedule.lookup(entry.code);
+    return (hit && hit.route) || null;
+  }
+
+  /** 국내선인지. 구간을 알면 그것으로, 모르면 편명 대역으로 본다. */
   function isDomesticFlight(entry) {
     if (!isFlight(entry)) return false;
-    if (entry.route && airports) {
-      var parts = airports.splitRoute(entry.route);
+    var route = routeOf(entry);
+    if (route && airports) {
+      var parts = airports.splitRoute(route);
       if (parts.from && parts.to) {
         return airports.countryOf(parts.from) === 'KR' && airports.countryOf(parts.to) === 'KR';
       }
@@ -91,40 +84,13 @@
 
   /** 도착지가 한국 밖인 비행이면 참. 구간을 모르면 판단하지 않는다(null). */
   function arrivesOverseas(entry) {
-    if (!isFlight(entry)) return null;
-    if (!entry.route || !airports) return null;
-    var parts = airports.splitRoute(entry.route);
+    var route = routeOf(entry);
+    if (!route || !airports) return null;
+    var parts = airports.splitRoute(route);
     if (!parts || !parts.to) return null;
     var country = airports.countryOf(parts.to);
     if (!country) return null;
     return country !== 'KR';
-  }
-
-  /**
-   * 이 날짜 직전에 해외에 내려놓은 비행이 있었는지.
-   * 체류는 며칠씩 이어지므로 체류만 있는 날은 건너뛰고 더 거슬러 올라간다.
-   * 비행을 만나면 거기서 판가름하고, 구간을 모르는 비행이면 판단을 미룬다(null).
-   */
-  function arrivedOverseasBefore(byDate, date, limit) {
-    var back = limit == null ? 7 : limit;
-    var cursor = prevDay(date);
-    for (var i = 0; i < back && cursor; i++) {
-      var list = byDate[cursor] || [];
-      var flights = list.filter(isFlight);
-      if (flights.length) {
-        var unknown = false;
-        for (var j = flights.length - 1; j >= 0; j--) {
-          var verdict = arrivesOverseas(flights[j]);
-          if (verdict === true) return true;
-          if (verdict === null) unknown = true;
-        }
-        return unknown ? null : false;
-      }
-      // 체류만 이어지는 날은 그 앞의 비행을 마저 찾는다
-      if (list.length && list.every(isLayover)) { cursor = prevDay(cursor); continue; }
-      return false;
-    }
-    return false;
   }
 
   /**
@@ -144,17 +110,86 @@
     return null;
   }
 
-  /** 같은 (날짜, 코드) 가 두 번 들어오면 앞의 것만 남긴다. */
+  /** 이 날짜 직전에 해외에 내려놓은 비행이 있었는지. 모르면 null. */
+  function arrivedOverseasBefore(byDate, date, limit) {
+    var back = limit == null ? 7 : limit;
+    var cursor = prevDay(date);
+    for (var i = 0; i < back && cursor; i++) {
+      var list = byDate[cursor] || [];
+      var flights = list.filter(isFlight);
+      if (flights.length) {
+        var unknown = false;
+        for (var j = flights.length - 1; j >= 0; j--) {
+          var verdict = arrivesOverseas(flights[j]);
+          if (verdict === true) return true;
+          if (verdict === null) unknown = true;
+        }
+        return unknown ? null : false;
+      }
+      if (list.length && list.every(isLayover)) { cursor = prevDay(cursor); continue; }
+      return false;
+    }
+    return false;
+  }
+
+  /** 휴무 계열 가운데 대표로 삼을 것. 화면에서 하나만 보일 때 쓴다. */
+  function primaryOff(list) {
+    var offs = (list || []).filter(isOff);
+    if (!offs.length) return null;
+    return offs.slice().sort(function (a, b) {
+      return OFF_RANK.indexOf(codeOf(a)) - OFF_RANK.indexOf(codeOf(b));
+    })[0];
+  }
+
+  /**
+   * 하루치를 살펴 이상한 조합을 찾는다. 아무것도 지우지 않는다.
+   * byDate 를 주면 앞뒤 날까지 살펴본다.
+   */
+  function conflictsOf(list, date, byDate) {
+    var out = [];
+    var offs = (list || []).filter(isOff);
+    var layovers = (list || []).filter(isLayover);
+    var flights = (list || []).filter(isFlight);
+
+    function note(kind, entries) {
+      out.push({
+        date: date || null,
+        kind: kind,
+        codes: entries.map(codeOf),
+        message: CONFLICT_TEXT[kind] + ': ' + entries.map(codeOf).join(', ')
+      });
+    }
+
+    if (offs.length > 1) note('off-duplicate', offs);
+    if (offs.length && layovers.length) note('off-with-layover', offs.concat(layovers));
+    if (offs.length && flights.length) note('off-with-flight', offs.concat(flights));
+
+    // 국내선은 체류가 드물다. 부산에서 자는 일정이 실제로 있으니 알리기만 한다.
+    if (layovers.length && byDate && date) {
+      var last = lastFlightBefore(byDate, date);
+      if (last && isDomesticFlight(last)) {
+        note('domestic-layover', [last].concat(layovers));
+      }
+    }
+    return out;
+  }
+
+  /** 글자 그대로 같은 (날짜, 코드) 가 두 번 들어오면 앞의 것만 남긴다. */
   function dedupe(entries) {
     var seen = {};
     var out = [];
+    var dropped = [];
     (entries || []).forEach(function (entry) {
       if (!entry || !entry.date) return;
       var key = entry.date + '|' + codeOf(entry);
-      if (seen[key]) return;
+      if (seen[key]) {
+        dropped.push({ date: entry.date, code: codeOf(entry), reason: 'duplicate', entry: entry });
+        return;
+      }
       seen[key] = true;
       out.push(entry);
     });
+    dedupe.lastDropped = dropped;
     return out;
   }
 
@@ -167,101 +202,30 @@
   }
 
   /**
-   * 하루치를 정리한다. byDate 는 앞뒤 날을 살펴보기 위한 것이고,
-   * 남길 것과 버릴 것을 갈라 돌려준다.
-   */
-  function resolveDay(list, date, byDate, dropped) {
-    var keep = list.slice();
-    var drop = function (entry, why) {
-      dropped.push({ date: date, code: codeOf(entry), reason: why, entry: entry });
-    };
-
-    // 1) 휴무 계열은 하루에 하나. ATDO > ADO > DO
-    var offs = keep.filter(isOff);
-    if (offs.length > 1) {
-      var best = offs.slice().sort(function (a, b) {
-        return rankIn(OFF_RANK, codeOf(a)) - rankIn(OFF_RANK, codeOf(b));
-      })[0];
-      keep = keep.filter(function (e) {
-        if (!isOff(e) || e === best) return true;
-        drop(e, 'off-merge');
-        return false;
-      });
-    }
-
-    // 2) 휴무와 체류는 같은 날 함께 있을 수 없다.
-    //    직전에 해외에 내린 비행이 있으면 체류가 맞고, 없으면 휴무가 맞다.
-    var hasOff = keep.some(isOff);
-    var hasLayover = keep.some(isLayover);
-    if (hasOff && hasLayover) {
-      var overseas = arrivedOverseasBefore(byDate, date);
-      var dropLayover = overseas === false;   // 판단이 안 서면(null) 체류를 남긴다
-      keep = keep.filter(function (e) {
-        if (dropLayover ? !isLayover(e) : !isOff(e)) return true;
-        drop(e, dropLayover ? 'layover-without-arrival' : 'off-with-layover');
-        return false;
-      });
-    }
-
-    // 3) 휴무와 비행은 같은 날 함께 있을 수 없다. 휴무를 남기고 비행을 뺀다.
-    //    잘못 읽어 비행이 하나 끼어든 것이므로, 무엇을 뺐는지 반드시 알린다.
-    var offs2 = keep.filter(isOff);
-    var flights2 = keep.filter(isFlight);
-    if (offs2.length && flights2.length) {
-      warn(date + ' 에 휴무(' + offs2.map(codeOf).join(', ') + ')와 비행(' +
-        flights2.map(codeOf).join(', ') + ')이 함께 들어왔습니다. 휴무를 남기고 비행을 뺐습니다.');
-      keep = keep.filter(function (e) {
-        if (!isFlight(e)) return true;
-        drop(e, 'flight-with-off');
-        return false;
-      });
-    }
-
-    // 4) 국내선은 체류가 없다. 국내선 뒤에 체류가 붙었으면 잘못 읽은 것일 수 있다.
-    //    다만 부산에서 하룻밤 자는 일정이 실제로 있어, 알리기만 하고 빼지는 않는다.
-    if (keep.some(isLayover)) {
-      var lastFlight = lastFlightBefore(byDate, date);
-      if (lastFlight && isDomesticFlight(lastFlight)) {
-        warn(date + ' 의 체류(LO) 앞이 국내선(' + codeOf(lastFlight) + ' ' +
-          (lastFlight.route || '구간 모름') + ')입니다. 잘못 읽은 것인지 확인해 보세요.');
-      }
-    }
-
-    // 5) 한 칸에 두 개까지. 넘치는 것은 조용히 버리지 않고 알린다.
-    if (keep.length > MAX_PER_DAY) {
-      var ordered = keep.map(function (e, i) { return { e: e, i: i }; }).sort(function (a, b) {
-        var d = keepRank(a.e) - keepRank(b.e);
-        return d !== 0 ? d : a.i - b.i;
-      });
-      var cut = ordered.slice(MAX_PER_DAY).map(function (x) { return x.e; });
-      cut.forEach(function (e) { drop(e, 'overflow'); });
-      warn(date + ' 에 근무가 ' + keep.length + '개 들어왔습니다. ' +
-        keep.map(codeOf).join(', ') + ' 중 ' + cut.map(codeOf).join(', ') + ' 를 빼고 그렸습니다.');
-      keep = keep.filter(function (e) { return cut.indexOf(e) === -1; });
-    }
-
-    return keep;
-  }
-
-  /**
-   * 일정 목록을 정리해 돌려준다. 원본은 건드리지 않는다.
-   * { entries, dropped } 를 준다. dropped 에는 어떤 날의 무엇을 왜 뺐는지 남는다.
+   * 일정 목록을 훑는다. 지우는 것은 글자까지 똑같은 중복뿐이다.
+   * { entries, dropped, conflicts } 를 준다.
    */
   function resolve(entries) {
     var list = dedupe(entries);
+    var dropped = dedupe.lastDropped || [];
     var byDate = groupByDate(list);
-    var dropped = [];
-    var out = [];
+    var conflicts = [];
+
     Object.keys(byDate).sort().forEach(function (date) {
-      byDate[date] = resolveDay(byDate[date], date, byDate, dropped);
+      conflictsOf(byDate[date], date, byDate).forEach(function (item) {
+        conflicts.push(item);
+        warn(date + ' ' + item.message + ' — 지우지 않고 그대로 두었습니다. 확인해 보세요.');
+      });
     });
-    list.forEach(function (entry) {
-      if ((byDate[entry.date] || []).indexOf(entry) !== -1) out.push(entry);
+
+    dropped.forEach(function (item) {
+      warn(item.date + ' 에 ' + item.code + ' 가 두 번 들어와 하나로 합쳤습니다.');
     });
-    return { entries: out, dropped: dropped };
+
+    return { entries: list, dropped: dropped, conflicts: conflicts };
   }
 
-  /** 날짜별 표({'2026-04-12': [...]})를 그대로 정리해 돌려준다. */
+  /** 날짜별 표를 그대로 훑어 돌려준다. */
   function resolveByDate(entriesByDate) {
     var flat = [];
     Object.keys(entriesByDate || {}).sort().forEach(function (date) {
@@ -280,20 +244,24 @@
     done.entries.forEach(function (entry) {
       (out[entry.date] = out[entry.date] || []).push(entry);
     });
-    return { entriesByDate: out, dropped: done.dropped };
+    return { entriesByDate: out, dropped: done.dropped, conflicts: done.conflicts };
   }
 
   return {
     resolve: resolve,
     resolveByDate: resolveByDate,
-    resolveDay: resolveDay,
     dedupe: dedupe,
+    conflictsOf: conflictsOf,
+    primaryOff: primaryOff,
+    isOff: isOff,
+    isLayover: isLayover,
+    isFlight: isFlight,
+    isDomesticFlight: isDomesticFlight,
     arrivesOverseas: arrivesOverseas,
     arrivedOverseasBefore: arrivedOverseasBefore,
-    OFF_RANK: OFF_RANK,
-    keepRank: keepRank,
-    isDomesticFlight: isDomesticFlight,
     lastFlightBefore: lastFlightBefore,
-    MAX_PER_DAY: MAX_PER_DAY
+    routeOf: routeOf,
+    OFF_RANK: OFF_RANK,
+    CONFLICT_TEXT: CONFLICT_TEXT
   };
 });

@@ -81,9 +81,9 @@ test('한 줄에 코드가 여러 개면 모두 반영한다', () => {
 
 test('탭·다중 공백·쉼표 구분을 모두 처리한다', () => {
   const r = parse('2026-09-06\t\tKE0035 ,  LO   |  STBY');
-  // 셋 다 읽어 들이지만 한 칸에는 둘까지만 남긴다. 뺀 것은 따로 알려 준다.
-  assert.deepStrictEqual(codesOn(r, '2026-09-06'), ['KE0035', 'LO']);
-  assert.deepStrictEqual(r.dropped.map((d) => d.code), ['STBY']);
+  // 셋 다 읽어 들이고 하나도 버리지 않는다
+  assert.deepStrictEqual(codesOn(r, '2026-09-06'), ['KE0035', 'LO', 'STBY']);
+  assert.deepStrictEqual(r.dropped, []);
 });
 
 test('구간과 출발·도착 시각을 항공편에 붙인다', () => {
