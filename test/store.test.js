@@ -3,7 +3,9 @@ const assert = require('node:assert');
 const store = require('../src/store.js');
 const parser = require('../src/parser.js');
 
-test.beforeEach(() => { store.clearAll(); store.forgetTimes(); });
+// 기본 시간표는 따로 시험한다. 기억·저장 시험에서는 꺼 두어야 무엇이 어디서
+// 왔는지 헷갈리지 않는다.
+test.beforeEach(() => { store.clearAll(); store.forgetTimes(); store.setUseTable(false); });
 
 test('개별 입력으로 추가하고 날짜별로 읽는다', () => {
   store.addEntry({ date: '2026-09-06', code: 'ke0035', route: 'ICN/JFK' });
@@ -300,4 +302,46 @@ test('하루 왕복은 출발·도착을 모두 채운다', () => {
   const e = store.getByDate('2026-02-07')[0];
   assert.strictEqual(e.start, '11:03');
   assert.strictEqual(e.end, '12:41');
+});
+
+/* ---------------- 기본 시간표 ---------------- */
+
+test('원본에도 기억에도 없으면 기본 시간표에서 한국 쪽 시각을 가져온다', () => {
+  store.setUseTable(true);
+  store.applyEntries([{ date: '2026-01-09', code: 'KE0005' }], 'append');
+  const e = store.getByDate('2026-01-09')[0];
+  assert.strictEqual(e.start, '21:00', '인천 출발 시각');
+  assert.strictEqual(e.timeSource, 'table', '시간표에서 왔다고 표시한다');
+});
+
+test('시간표는 원본과 기억보다 뒤다', () => {
+  store.setUseTable(true);
+  // 원본이 있으면 원본
+  store.applyEntries([{ date: '2026-01-09', code: 'KE0005', start: '21:03' }], 'append');
+  assert.strictEqual(store.getByDate('2026-01-09')[0].start, '21:03');
+  // 그 원본을 기억했으니 다음 달에는 기억이 시간표를 이긴다
+  store.applyEntries([{ date: '2026-02-09', code: 'KE0005' }], 'append');
+  const feb = store.getByDate('2026-02-09')[0];
+  assert.strictEqual(feb.start, '21:03', '기억이 시간표보다 먼저');
+  assert.strictEqual(feb.timeSource, 'memory');
+});
+
+test('시간표에서 온 값은 기억으로 배우지 않는다', () => {
+  store.setUseTable(true);
+  store.applyEntries([{ date: '2026-01-09', code: 'KE0005' }], 'append');
+  assert.strictEqual(store.timeBook().length, 0, '시간표 값은 기억에 담지 않는다');
+});
+
+test('시간표를 꺼 두면 쓰지 않는다', () => {
+  store.setUseTable(false);
+  store.applyEntries([{ date: '2026-01-09', code: 'KE0005' }], 'append');
+  assert.strictEqual(store.getByDate('2026-01-09')[0].start, null);
+});
+
+test('시간표에도 익일 도착이 그대로 담겨 있다', () => {
+  store.setUseTable(true);
+  const row = store.fromTable('KE0006');
+  assert.strictEqual(row.end, '04:40');
+  assert.strictEqual(row.endOffset, 1);
+  assert.strictEqual(store.fromTable('KE9999'), null, '표에 없으면 없다고 한다');
 });

@@ -375,3 +375,16 @@ test('구간이 없는 체류도 그날 비행이 닿은 도시로 묶인다', (
   assert.ok(text.includes('방콕'), text);
   assert.ok(/체류 LO/.test(text), "'체류 LO' 한 줄로 적는다: " + text);
 });
+
+test('시각이 붙어도 체류 표기가 사라지지 않는다', () => {
+  // 시각이 채워지면서 '체류 LO' 가 통째로 없어지던 일이 있었다.
+  const list = [
+    store.decorate({ date: '2026-01-04', code: 'KE0658', route: 'BKK/ICN', end: '05:05', legRole: 'arrive' }),
+    store.decorate({ date: '2026-01-04', code: 'LO' })
+  ];
+  const cells = draw({ year: 2026, month: 1, entriesByDate: { '2026-01-04': list } });
+  const text = textOf(cells['2026-01-04']);
+  assert.ok(text.includes('05:05'), '시각은 나온다: ' + text);
+  assert.ok(/체류 LO/.test(text), "'체류 LO' 도 남는다: " + text);
+  assert.strictEqual(text.split('체류').length - 1, 1, '체류는 한 번만: ' + text);
+});

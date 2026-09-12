@@ -138,8 +138,8 @@
       kind: kind,
       time: shown,
       shift: shift,
-      // 원본에 없어 예전에 받아 둔 값으로 채운 시각. 원본과 섞이지 않게 표를 단다.
-      remembered: source === 'memory',
+      // 원본에 없어 채워 넣은 시각. 어디서 왔는지 표를 달아 원본과 섞이지 않게 한다.
+      remembered: source === 'memory' ? '기억' : source === 'table' ? '시간표' : null,
       text: (at ? at : '') + kind + ' ' + shown,
       minutes: hm ? (+hm[1]) * 60 + (+hm[2]) + shift * 1440 : 0
     };
@@ -660,17 +660,24 @@
               time.classList.add('remembered');
               var mark = document.createElement('span');
               mark.className = 'cal-remember';
-              mark.textContent = '기억';
-              mark.title = '원본에 시각이 없어, 예전에 받아 둔 이 편의 시각을 채웠습니다.';
-              what.appendChild(mark);
+              mark.textContent = point.remembered;
+              mark.title = point.remembered === '기억'
+                ? '원본에 시각이 없어, 예전에 받아 둔 이 편의 시각을 채웠습니다.'
+                : '원본에 시각이 없어 기본 시간표에서 채웠습니다. 요일·계절에 따라 다를 수 있으니 실제 로스터를 따르세요.';
+              clock.appendChild(mark);
             }
-            time.title = point.text + (point.remembered ? ' (기억해 둔 시각)' : '');
+            time.title = point.text + (point.remembered ? ' (' + point.remembered + ')' : '');
             item.appendChild(time);
           });
-        } else if (place && (group.enroute || group.layover)) {
-          // 도시가 제목일 때만 덧붙인다. 구간을 몰라 제목이 이미 '체류' 인 칸에
-          // 또 적으면 '체류 체류 LO' 처럼 두 번 찍힌다.
-          // 원래 코드는 같은 줄에 붙여 '체류 LO' 한 줄로 만든다.
+        }
+
+        /*
+         * 체류·기내 한 줄. 시각이 있든 없든 그날 체류가 있었다는 사실은 남긴다.
+         * 시각이 붙으면서 '체류 LO' 가 통째로 사라지던 일이 있었다.
+         * 다만 도시가 제목일 때만 덧붙인다 — 구간을 몰라 제목이 이미 '체류' 인
+         * 칸에 또 적으면 '체류 체류 LO' 처럼 두 번 찍힌다.
+         */
+        if (place && (group.enroute || group.layover)) {
           var dutyCodes = [];
           group.entries.forEach(function (e) {
             if (e.type === 'flight') return;

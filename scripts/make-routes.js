@@ -13,6 +13,7 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const ROUTES = path.join(ROOT, 'data', 'ke-routes.json');
 const AIRPORTS = path.join(ROOT, 'data', 'airports.json');
+const TIMES = path.join(ROOT, 'data', 'ke-times.json');
 const OUT = path.join(ROOT, 'src', 'routedata.js');
 
 function read(file) {
@@ -30,6 +31,8 @@ function build() {
     const row = seed.airports[iata];
     airports[iata] = { city: row.city, country: row.country, flag: row.flag, tz: row.tz || null };
   });
+  // 편명별 한국 쪽 시각. 원본에 시각이 없는 글(달력 화면)을 넣었을 때만 쓴다.
+  const times = read(TIMES);
   const body = `/**
  * 노선 시드와 공항 자료. data/ke-routes.json 과 data/airports.json 에서 옮겨 적은 것이다.
  * 손으로 고치지 말 것 — scripts/make-routes.js 가 다시 쓴다.
@@ -48,16 +51,22 @@ function build() {
 
   var AIRPORTS = ${JSON.stringify(airports, null, 2).replace(/\n/g, '\n  ')};
 
-  return { SEED: SEED, AIRPORTS: AIRPORTS };
+  var TIMES = ${JSON.stringify(times, null, 2).replace(/\n/g, '\n  ')};
+
+  return { SEED: SEED, AIRPORTS: AIRPORTS, TIMES: TIMES };
 });
 `;
   fs.writeFileSync(OUT, body);
-  return { routes: Object.keys(seed.routes || {}).length, airports: Object.keys(airports).length };
+  return {
+    routes: Object.keys(seed.routes || {}).length,
+    airports: Object.keys(airports).length,
+    times: Object.keys(times.times || {}).length
+  };
 }
 
 if (require.main === module) {
   const n = build();
-  console.log(`src/routedata.js: 시드 노선 ${n.routes}편 · 공항 ${n.airports}곳`);
+  console.log(`src/routedata.js: 시드 노선 ${n.routes}편 · 공항 ${n.airports}곳 · 시간표 ${n.times}편`);
 }
 
 module.exports = { build, ROUTES, AIRPORTS, OUT };

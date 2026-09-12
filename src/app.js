@@ -56,6 +56,7 @@
   var VIEW_KEY = 'crew-cal.view.v1';
   var ASSUME_OFF_KEY = 'crew-cal.assume-off.v1';
   var LOCAL_TIME_KEY = 'crew-cal.local-times.v1';
+  var TIME_TABLE_KEY = 'crew-cal.use-timetable.v1';
 
   var AIRLINES_KEY = 'crew-cal.airlines.v1';
 
@@ -1245,6 +1246,25 @@
     });
   }
 
+  /* 기본 시간표를 쓸지. 원본만 보고 싶은 사람은 끌 수 있다. */
+  function initTimeTable() {
+    var on = true;
+    try { on = localStorage.getItem(TIME_TABLE_KEY) !== '0'; } catch (e) { /* 못 읽으면 켠 채로 */ }
+    store.setUseTable(on);
+    var box = $('useTimeTable');
+    if (!box) return;
+    box.checked = on;
+    box.addEventListener('change', function () {
+      store.setUseTable(box.checked);
+      try { localStorage.setItem(TIME_TABLE_KEY, box.checked ? '1' : '0'); } catch (e) { /* 무시 */ }
+      var filled = box.checked ? store.fillTimesFromMemory() : 0;
+      refresh();
+      toast(box.checked
+        ? (filled ? '시간표에서 ' + filled + '건을 채웠습니다.' : '시간표를 씁니다.')
+        : '시간표를 쓰지 않습니다. 이미 채워진 값은 그대로입니다.');
+    });
+  }
+
   function initTimeBook() {
     // 이 기능이 생기기 전에 넣어 둔 일정에도 시각이 들어 있다. 한 번 거둬들인다.
     try { store.learnFromStored(); } catch (e) { /* 기억은 있으면 좋은 것일 뿐 */ }
@@ -2190,7 +2210,7 @@
   /* ---------------- 동료가 보내는 의견 ---------------- */
 
   // 화면 아래와 의견 보내기에 적히는 판 번호. sw.js 의 VERSION 과 함께 올린다.
-  var APP_VERSION = 'v39';
+  var APP_VERSION = 'v40';
 
   /**
    * 의견을 받을 메일 주소. 저장소가 공개라 통짜로 적어두면 스팸 크롤러가 긁어가므로
@@ -2749,6 +2769,7 @@
     initViewToggle();
     initAssumeOff();
     initLocalTimes();
+    initTimeTable();
     initTimeBook();
     initAirlines();
     initRouteLookup();

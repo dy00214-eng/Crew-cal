@@ -1796,11 +1796,15 @@ td.auto-filled {
   margin-left: 3px;
   padding: 0 3px;
   border-radius: 3px;
-  font-size: 8px;
+  font-size: 7.5px;
   font-weight: 800;
-  line-height: 1.5;
+  line-height: 1.6;
+  letter-spacing: -0.3px;
+  white-space: nowrap;
   color: var(--cat-standby);
   background: color-mix(in srgb, var(--cat-standby) 20%, transparent);
-  vertical-align: text-top;
+  vertical-align: 1px;
 }
+/* 시각 줄은 숫자와 표가 한 줄에 같이 들어가야 한다 */
+.cal-clock { white-space: nowrap; }
 .cal-time.remembered .cal-clock { color: var(--muted); }

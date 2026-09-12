@@ -3,12 +3,12 @@
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
-    module.exports = factory(require('./codes.js'), require('./resolve.js'));
+    module.exports = factory(require('./codes.js'), require('./resolve.js'), require('./routedata.js'));
   } else {
     root.CrewCal = root.CrewCal || {};
-    root.CrewCal.store = factory(root.CrewCal.codes, root.CrewCal.resolve);
+    root.CrewCal.store = factory(root.CrewCal.codes, root.CrewCal.resolve, root.CrewCal.routedata);
   }
-})(typeof self !== 'undefined' ? self : this, function (codes, resolver) {
+})(typeof self !== 'undefined' ? self : this, function (codes, resolver, routedata) {
   'use strict';
 
   var KEY = 'crew-cal.schedule.v1';
@@ -326,6 +326,7 @@
     // 기억해 둔 값을 다시 배우면 틀린 값이 굳어 버린다. 짐작한 값도 배우지 않는다.
     var from = entry.timeSource || null;
     return from === null || from === 'user' || from === 'kept';
+    // 'memory' 와 'table' 은 배우지 않는다 — 짐작이 굳어 버린다.
   }
 
   /** 편명 하나의 시각을 기억한다. 직접 넣은 값이 언제나 우선이다. */
@@ -346,9 +347,31 @@
     return data[code];
   }
 
+  /*
+   * 기본 시간표. 인천·김포·김해·제주 시간표에서 모은 편명별 한국 쪽 시각이다.
+   * 달력 화면처럼 시각이 없는 글을 넣었을 때 마지막으로 기대는 곳.
+   * 요일·계절에 따라 바뀌므로 채운 자리에는 '시간표' 표를 달아 둔다.
+   */
+  var useTable = true;
+
+  function setUseTable(on) { useTable = !!on; }
+
+  function fromTable(code) {
+    if (!useTable || !routedata || !routedata.TIMES) return null;
+    var row = (routedata.TIMES.times || {})[String(code).toUpperCase()];
+    if (!row) return null;
+    return {
+      start: row.start || null,
+      end: row.end || null,
+      endOffset: row.endOffset || 0,
+      source: 'table'
+    };
+  }
+
+  /** 원본에서 받아 둔 값이 먼저, 없으면 기본 시간표. */
   function recallTimes(code) {
     if (!code) return null;
-    return loadTimes()[String(code).toUpperCase()] || null;
+    return loadTimes()[String(code).toUpperCase()] || fromTable(code);
   }
 
   /**
@@ -376,7 +399,7 @@
       filled = true;
     }
     if (filled) {
-      entry.timeSource = 'memory';
+      entry.timeSource = known.source === 'table' ? 'table' : 'memory';
       if (!entry.legRole && leg) entry.legRole = leg;
     }
     return entry;
@@ -620,6 +643,8 @@
     legRolesOf: legRolesOf,
     fillTimesFromMemory: fillTimesFromMemory,
     timeBook: timeBook,
+    fromTable: fromTable,
+    setUseTable: setUseTable,
     learnFromStored: learnFromStored,
     forgetTime: forgetTime,
     forgetTimes: forgetTimes,
