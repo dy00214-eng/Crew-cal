@@ -1510,7 +1510,8 @@
 
   /* ---------------- 동료가 보내는 의견 ---------------- */
 
-  var APP_VERSION = '2026-09-06';
+  // 화면 아래와 의견 보내기에 적히는 판 번호. sw.js 의 VERSION 과 함께 올린다.
+  var APP_VERSION = 'v12';
 
   /**
    * 의견을 받을 메일 주소. 저장소가 공개라 통짜로 적어두면 스팸 크롤러가 긁어가므로
@@ -1765,8 +1766,54 @@
   function initOffline() {
     if (!isWebBuild() || !('serviceWorker' in navigator)) return;
     window.addEventListener('load', function () {
-      navigator.serviceWorker.register('sw.js').catch(function () { /* 안 되면 그냥 온라인으로 */ });
+      navigator.serviceWorker.register('sw.js').then(function (registration) {
+        watchForUpdate(registration);
+        // 열어 둔 채로 며칠이 지나는 일이 있어, 한 시간에 한 번 새 버전을 확인한다
+        setInterval(function () { registration.update().catch(function () {}); }, 3600 * 1000);
+        registration.update().catch(function () {});
+      }).catch(function () { /* 안 되면 그냥 온라인으로 */ });
     });
+  }
+
+  /**
+   * 새 버전을 알려준다.
+   *
+   * 담아둔 파일을 먼저 보여주는 방식이라, 새 버전을 올려도 다음에 열 때까지 옛 화면이
+   * 그대로다. 바뀐 걸 모른 채 "왜 안 되지" 하게 되므로, 새 것이 준비되면 띠를 띄워
+   * 새로고침을 권한다. 지금 하던 일이 날아가지 않도록 누를 때만 새로고침한다.
+   */
+  function watchForUpdate(registration) {
+    function offer(worker) {
+      if (!worker) return;
+      if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+        showUpdateBar();
+        return;
+      }
+      worker.addEventListener('statechange', function () {
+        if (worker.state === 'installed' && navigator.serviceWorker.controller) showUpdateBar();
+      });
+    }
+
+    offer(registration.waiting);
+    registration.addEventListener('updatefound', function () { offer(registration.installing); });
+  }
+
+  function showUpdateBar() {
+    var bar = $('updateBar');
+    if (!bar || !bar.hidden) return;
+    bar.hidden = false;
+  }
+
+  function initUpdateBar() {
+    var bar = $('updateBar');
+    if (!bar) return;
+    $('updateReload').addEventListener('click', function () {
+      bar.hidden = true;
+      location.reload();
+    });
+    $('updateLater').addEventListener('click', function () { bar.hidden = true; });
+    var stamp = $('appVersion');
+    if (stamp) stamp.textContent = APP_VERSION;
   }
 
   function init() {
@@ -1796,6 +1843,7 @@
     initShare();
     initMapLink();
     initOffline();
+    initUpdateBar();
     refresh();
   }
 

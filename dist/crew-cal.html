@@ -1196,6 +1196,38 @@ button.ghost.danger { color: var(--danger); }
   .legend { gap: 9px; font-size: 11px; }
   .tab { font-size: 13px; padding: 7px 4px; }
 }
+
+/* 새 버전 알림 띠. 담아둔 옛 화면을 그대로 보고 있으면 알려준다. */
+.update-bar {
+  position: fixed;
+  left: 50%;
+  bottom: max(14px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 60;
+  width: min(560px, calc(100vw - 24px));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+  font-size: 14px;
+  color: var(--text);
+}
+
+.update-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.update-bar button.primary.small { padding: 8px 14px; font-size: 14px; border-radius: 10px; }
+
+.app-version { color: var(--faint); font-size: 12px; }
 </style>
 <header class="app-header">
   <h1>Crew-cal</h1>
@@ -1507,6 +1539,8 @@ button.ghost.danger { color: var(--danger); }
     <button type="button" id="helpBtn" class="linky">사용법 다시 보기</button>
     <span aria-hidden="true"> · </span>
     <button type="button" id="feedbackBtn" class="linky">의견 보내기</button>
+    <span aria-hidden="true"> · </span>
+    <span class="app-version" id="appVersion"></span>
   </p>
 </footer>
 
@@ -1543,6 +1577,14 @@ button.ghost.danger { color: var(--danger); }
     </div>
     <p id="feedbackStatus" class="status" role="status"></p>
   </div>
+</div>
+
+<div id="updateBar" class="update-bar" role="status" hidden>
+  <span>새 버전이 준비됐습니다. 새로고침하면 바로 쓸 수 있어요.</span>
+  <span class="update-actions">
+    <button type="button" id="updateReload" class="primary small">새로고침</button>
+    <button type="button" id="updateLater" class="ghost small">나중에</button>
+  </span>
 </div>
 
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
@@ -7733,7 +7775,8 @@ button.ghost.danger { color: var(--danger); }
 
   /* ---------------- 동료가 보내는 의견 ---------------- */
 
-  var APP_VERSION = '2026-09-06';
+  // 화면 아래와 의견 보내기에 적히는 판 번호. sw.js 의 VERSION 과 함께 올린다.
+  var APP_VERSION = 'v12';
 
   /**
    * 의견을 받을 메일 주소. 저장소가 공개라 통짜로 적어두면 스팸 크롤러가 긁어가므로
@@ -7988,8 +8031,54 @@ button.ghost.danger { color: var(--danger); }
   function initOffline() {
     if (!isWebBuild() || !('serviceWorker' in navigator)) return;
     window.addEventListener('load', function () {
-      navigator.serviceWorker.register('sw.js').catch(function () { /* 안 되면 그냥 온라인으로 */ });
+      navigator.serviceWorker.register('sw.js').then(function (registration) {
+        watchForUpdate(registration);
+        // 열어 둔 채로 며칠이 지나는 일이 있어, 한 시간에 한 번 새 버전을 확인한다
+        setInterval(function () { registration.update().catch(function () {}); }, 3600 * 1000);
+        registration.update().catch(function () {});
+      }).catch(function () { /* 안 되면 그냥 온라인으로 */ });
     });
+  }
+
+  /**
+   * 새 버전을 알려준다.
+   *
+   * 담아둔 파일을 먼저 보여주는 방식이라, 새 버전을 올려도 다음에 열 때까지 옛 화면이
+   * 그대로다. 바뀐 걸 모른 채 "왜 안 되지" 하게 되므로, 새 것이 준비되면 띠를 띄워
+   * 새로고침을 권한다. 지금 하던 일이 날아가지 않도록 누를 때만 새로고침한다.
+   */
+  function watchForUpdate(registration) {
+    function offer(worker) {
+      if (!worker) return;
+      if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+        showUpdateBar();
+        return;
+      }
+      worker.addEventListener('statechange', function () {
+        if (worker.state === 'installed' && navigator.serviceWorker.controller) showUpdateBar();
+      });
+    }
+
+    offer(registration.waiting);
+    registration.addEventListener('updatefound', function () { offer(registration.installing); });
+  }
+
+  function showUpdateBar() {
+    var bar = $('updateBar');
+    if (!bar || !bar.hidden) return;
+    bar.hidden = false;
+  }
+
+  function initUpdateBar() {
+    var bar = $('updateBar');
+    if (!bar) return;
+    $('updateReload').addEventListener('click', function () {
+      bar.hidden = true;
+      location.reload();
+    });
+    $('updateLater').addEventListener('click', function () { bar.hidden = true; });
+    var stamp = $('appVersion');
+    if (stamp) stamp.textContent = APP_VERSION;
   }
 
   function init() {
@@ -8019,6 +8108,7 @@ button.ghost.danger { color: var(--danger); }
     initShare();
     initMapLink();
     initOffline();
+    initUpdateBar();
     refresh();
   }
 

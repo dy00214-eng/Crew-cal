@@ -1192,3 +1192,35 @@ button.ghost.danger { color: var(--danger); }
   .legend { gap: 9px; font-size: 11px; }
   .tab { font-size: 13px; padding: 7px 4px; }
 }
+
+/* 새 버전 알림 띠. 담아둔 옛 화면을 그대로 보고 있으면 알려준다. */
+.update-bar {
+  position: fixed;
+  left: 50%;
+  bottom: max(14px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 60;
+  width: min(560px, calc(100vw - 24px));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+  font-size: 14px;
+  color: var(--text);
+}
+
+.update-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.update-bar button.primary.small { padding: 8px 14px; font-size: 14px; border-radius: 10px; }
+
+.app-version { color: var(--faint); font-size: 12px; }

@@ -327,6 +327,8 @@
     <button type="button" id="helpBtn" class="linky">사용법 다시 보기</button>
     <span aria-hidden="true"> · </span>
     <button type="button" id="feedbackBtn" class="linky">의견 보내기</button>
+    <span aria-hidden="true"> · </span>
+    <span class="app-version" id="appVersion"></span>
   </p>
 </footer>
 
@@ -363,6 +365,14 @@
     </div>
     <p id="feedbackStatus" class="status" role="status"></p>
   </div>
+</div>
+
+<div id="updateBar" class="update-bar" role="status" hidden>
+  <span>새 버전이 준비됐습니다. 새로고침하면 바로 쓸 수 있어요.</span>
+  <span class="update-actions">
+    <button type="button" id="updateReload" class="primary small">새로고침</button>
+    <button type="button" id="updateLater" class="ghost small">나중에</button>
+  </span>
 </div>
 
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
