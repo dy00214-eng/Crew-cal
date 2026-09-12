@@ -10860,6 +10860,65 @@ td.auto-filled {
     };
   }
 
+  /**
+   * 달력 칸 하나에 적힌 글을 근무 목록으로. 못 알아본 토큰은 버리지 않고 돌려준다.
+   * 칸(격자)에서도 세로로 읽은 글에서도 같은 규칙으로 읽어야 결과가 어긋나지 않는다.
+   */
+  function readCellItems(text) {
+    var out = [];
+    var lost = [];
+    var tokens = tokenize(preprocessLine(text));
+    for (var i = 0; i < tokens.length; i++) {
+      var upper = repairFlightCode(tokens[i].toUpperCase());
+      var fl = upper.match(RE.flight);
+      if (fl && !codes.lookup(upper)) {
+        out.push(codes.isAirline(fl[1])
+          ? makeFlightItem(fl[1], fl[2], fl[3])
+          : makeStrangeItem(upper));
+        continue;
+      }
+      if (RE.airline.test(upper) && codes.isAirline(upper) && !codes.lookup(upper) &&
+          i + 1 < tokens.length && RE.digits.test(tokens[i + 1])) {
+        out.push(makeFlightItem(upper, tokens[i + 1]));
+        i++;
+        continue;
+      }
+      var slashed = splitSlashCodes(upper);
+      if (slashed) {
+        slashed.forEach(function (p) { out.push(makeDutyItem(p)); });
+        continue;
+      }
+      if (codes.lookup(upper)) { out.push(makeDutyItem(upper)); continue; }
+      // 달력 칸에 딸려 오는 순수한 숫자(칸 번호 등)는 조용히 넘긴다
+      if (codes.IGNORED_TOKENS[upper] || /^\d+$/.test(upper)) continue;
+      if (RE.dutyLike.test(upper) && upper.length >= 2) { out.push(makeDutyItem(upper)); continue; }
+      lost.push(tokens[i]);
+    }
+    return { items: out, lost: lost };
+  }
+
+  /*
+   * 편명은 항공사 두 글자 + 숫자다. 그 자리에 O·I·S 같은 글자가 와 있으면
+   * 숫자를 잘못 옮겨 적은 것이다(KEO457 -> KE0457). 규칙이 딱 떨어지므로
+   * 비슷한 편명을 찾아 바꾸는 것이 아니라 글자만 제자리 숫자로 돌린다.
+   */
+  var AS_DIGIT = { O: '0', Q: '0', D: '0', I: '1', L: '1', J: '1', S: '5', B: '8', Z: '2', G: '6', T: '7' };
+
+  function repairFlightCode(token) {
+    var m = /^([A-Z]{2})([A-Z0-9]{3,4})$/.exec(token);
+    if (!m || !codes.isAirline(m[1])) return token;
+    var tail = m[2];
+    if (/^\d+$/.test(tail)) return token;
+    var fixed = '';
+    for (var i = 0; i < tail.length; i++) {
+      var ch = tail.charAt(i);
+      if (/\d/.test(ch)) { fixed += ch; continue; }
+      if (!AS_DIGIT[ch]) return token;     // 돌릴 수 없는 글자가 있으면 손대지 않는다
+      fixed += AS_DIGIT[ch];
+    }
+    return m[1] + fixed;
+  }
+
   /* ======================================================================
    * 월별 달력 화면을 복사해 붙여넣은 글
    *
@@ -10976,38 +11035,7 @@ td.auto-filled {
       return isoDate(cursor.year, cursor.month, day);
     }
 
-    function itemsOf(text) {
-      var out = [];
-      var lost = [];
-      var tokens = tokenize(preprocessLine(text));
-      for (var i = 0; i < tokens.length; i++) {
-        var upper = tokens[i].toUpperCase();
-        var fl = upper.match(RE.flight);
-        if (fl && !codes.lookup(upper)) {
-          out.push(codes.isAirline(fl[1])
-            ? makeFlightItem(fl[1], fl[2], fl[3])
-            : makeStrangeItem(upper));
-          continue;
-        }
-        if (RE.airline.test(upper) && codes.isAirline(upper) && !codes.lookup(upper) &&
-            i + 1 < tokens.length && RE.digits.test(tokens[i + 1])) {
-          out.push(makeFlightItem(upper, tokens[i + 1]));
-          i++;
-          continue;
-        }
-        var slashed = splitSlashCodes(upper);
-        if (slashed) {
-          slashed.forEach(function (p) { out.push(makeDutyItem(p)); });
-          continue;
-        }
-        if (codes.lookup(upper)) { out.push(makeDutyItem(upper)); continue; }
-        // 달력 칸에 딸려 오는 순수한 숫자(칸 번호 등)는 조용히 넘긴다
-        if (codes.IGNORED_TOKENS[upper] || /^\d+$/.test(upper)) continue;
-        if (RE.dutyLike.test(upper) && upper.length >= 2) { out.push(makeDutyItem(upper)); continue; }
-        lost.push(tokens[i]);
-      }
-      return { items: out, lost: lost };
-    }
+    function itemsOf(text) { return readCellItems(text); }
 
     normalizeText(text).split('\n').forEach(function (rawLine, lineIndex) {
       var trimmed = rawLine.trim();
@@ -11110,12 +11138,246 @@ td.auto-filled {
     };
   }
 
+  /* ======================================================================
+   * 달력을 세로(열)로 긁어 붙여넣은 글
+   *
+   * 휴대폰에서 달력을 드래그해 복사하면 칸 순서가 아니라 열 순서로 딸려 온다.
+   * 일요일 칸을 위에서 아래까지 다 읽고, 그다음 월요일 칸을 처음부터 — 이런 식이다.
+   *
+   *     S / 28 / 4 / LO / KE0658 / 11 / KE0006 / 18 / … / M / 29 / 5 / …
+   *
+   * 그래서 날짜 숫자가 28 4 11 18 25 29 5 12 … 로 올랐다 떨어졌다 한다.
+   * 줄 단위 파서는 숫자가 떨어질 때마다 달이 넘어간 줄 알고 2월·3월·4월을
+   * 만들어 냈다(일요일 칸만 1월에 남았다).
+   * 한 열 안에서는 날짜가 반드시 7씩 뛴다는 것을 알아보면 제대로 읽을 수 있다.
+   * ====================================================================== */
+
+  var WEEK_HEAD = /^(?:[SMTWF]|[일월화수목금토])$/;
+
+  /** 붙여넣은 글이 세로로 긁은 달력인가. 날짜 숫자가 7씩 뛰면 그렇다. */
+  function looksLikeColumns(text) {
+    var days = [];
+    normalizeText(text).split('\n').forEach(function (line) {
+      var t = line.trim();
+      if (!/^\d{1,2}$/.test(t)) return;
+      var day = +t;
+      if (day >= 1 && day <= 31) days.push(day);
+    });
+    if (days.length < 8) return false;
+    var step7 = 0;
+    var step1 = 0;
+    for (var i = 1; i < days.length; i++) {
+      var gap = days[i] - days[i - 1];
+      if (gap === 7) step7++;
+      else if (gap === 1) step1++;
+    }
+    // 한 주씩 뛰는 계단이 여섯 번 넘게 나오고, 하루씩 늘어나는 보통 차례보다
+    // 뚜렷하게 많을 때만. 평범한 날짜 목록을 이쪽으로 끌어오면 안 된다.
+    return step7 >= 6 && step7 > step1 * 2;
+  }
+
+  /**
+   * 세로로 긁은 달력을 읽는다. 날짜는 글에 적힌 숫자 그대로 쓰고,
+   * 달은 기준 달 하나로 둔다. 숫자가 떨어진다고 달을 넘기지 않는다.
+   */
+  function parseColumns(text, options) {
+    options = options || {};
+    var baseYear = options.year || new Date().getFullYear();
+    var baseMonth = options.month || (new Date().getMonth() + 1);
+
+    var slots = [];
+    var skippedLines = [];
+    var current = null;
+
+    normalizeText(text).split('\n').forEach(function (rawLine, lineIndex) {
+      var trimmed = rawLine.trim();
+      if (!trimmed) return;
+
+      // '2026.01' · '2026년 1월' 머리글로 기준 달을 맞춘다
+      var header = /^(\d{4})\s*[년\-./]\s*(\d{1,2})\s*월?/.exec(trimmed);
+      if (header && +header[2] >= 1 && +header[2] <= 12 && !/\d{1,2}\s*[일]/.test(trimmed)) {
+        baseYear = +header[1];
+        baseMonth = +header[2];
+        return;
+      }
+      // 요일 머리글(S M T W F · 일 월 화 …)은 열이 바뀌는 자리다
+      if (WEEK_HEAD.test(trimmed)) { current = null; return; }
+      if (isNoiseLine(trimmed) || trimmed === '오늘' || /^[<>‹›\s]+$/.test(trimmed)) return;
+
+      // 그대로 적힌 날짜 줄은 그 날짜를 쓴다
+      var full = /^(\d{4})[-./](\d{1,2})[-./](\d{1,2})$/.exec(trimmed);
+      if (full) {
+        current = { date: isoDate(+full[1], +full[2], +full[3]), day: +full[3], fixed: true, items: [], line: lineIndex + 1 };
+        slots.push(current);
+        return;
+      }
+
+      if (/^\d{1,2}$/.test(trimmed)) {
+        var day = +trimmed;
+        if (day >= 1 && day <= 31) {
+          current = { day: day, fixed: false, items: [], line: lineIndex + 1 };
+          slots.push(current);
+          return;
+        }
+      }
+
+      var read = readCellItems(trimmed);
+      if (!current) {
+        skippedLines.push({ line: lineIndex + 1, text: trimmed, reason: '날짜 없음' });
+        return;
+      }
+      if (!read.items.length) {
+        skippedLines.push({ line: lineIndex + 1, text: trimmed, reason: '코드 인식 불가' });
+        return;
+      }
+      read.items.forEach(function (item) { current.items.push(item); });
+      if (read.lost.length) {
+        skippedLines.push({ line: lineIndex + 1, text: read.lost.join(' '), reason: '코드 인식 불가' });
+      }
+    });
+
+    // 한 열은 날짜가 7씩 뛰는 묶음이다. 열이 바뀌는 자리에서 끊는다.
+    var runs = [];
+    slots.forEach(function (slot) {
+      var run = runs[runs.length - 1];
+      if (run && !slot.fixed && !run.fixed &&
+          slot.day === run.slots[run.slots.length - 1].day + 7) {
+        run.slots.push(slot);
+        return;
+      }
+      runs.push({ fixed: !!slot.fixed, slots: [slot] });
+    });
+
+    /*
+     * 달 배정. 한 열의 맨 위에 지난달 끝자락이, 맨 아래에 다음 달 첫머리가 온다.
+     * 그 자리에서만 달을 옮기고 나머지는 모두 기준 달이다.
+     */
+    var prevTail = null;     // 지난달 날짜가 시작되는 값(예: 28)
+    var nextHead = null;     // 다음 달 날짜가 끝나는 값(예: 7)
+    runs.forEach(function (run) {
+      var list = run.slots;
+      if (list.length < 2) return;
+      if (list[1].day < list[0].day) {
+        prevTail = prevTail === null ? list[0].day : Math.min(prevTail, list[0].day);
+      }
+      if (list[list.length - 1].day < list[list.length - 2].day) {
+        nextHead = nextHead === null ? list[list.length - 1].day
+          : Math.max(nextHead, list[list.length - 1].day);
+      }
+    });
+
+    // 같은 숫자가 다른 열에서 이 달 날짜로 또 나오면, 홀로 선 큰 숫자는 지난달 것이다.
+    var inMonthDays = {};
+    runs.forEach(function (run) {
+      run.slots.forEach(function (slot, i) {
+        if (run.slots.length < 2) return;
+        var first = i === 0 && run.slots[1].day < slot.day;
+        var last = i === run.slots.length - 1 && run.slots[i - 1].day > slot.day;
+        if (!first && !last) inMonthDays[slot.day] = true;
+      });
+    });
+
+    function shift(months) {
+      var m = baseMonth + months, y = baseYear;
+      while (m > 12) { m -= 12; y++; }
+      while (m < 1) { m += 12; y--; }
+      return { year: y, month: m };
+    }
+
+    var entries = [];
+    var seq = 0;
+    runs.forEach(function (run) {
+      var list = run.slots;
+      list.forEach(function (slot, i) {
+        var where = null;
+        if (slot.fixed) {
+          where = { date: slot.date };
+        } else if (list.length >= 2 && i === 0 && list[1].day < slot.day) {
+          where = shift(-1);
+        } else if (list.length >= 2 && i === list.length - 1 && list[i - 1].day > slot.day) {
+          where = shift(1);
+        } else if (list.length === 1 && prevTail !== null &&
+            slot.day >= prevTail && inMonthDays[slot.day]) {
+          // 홀로 선 큰 숫자. 같은 숫자가 이 달 날짜로 따로 나오므로 지난달 것이다.
+          where = shift(-1);
+        } else if (list.length === 1 && nextHead !== null &&
+            slot.day <= nextHead && inMonthDays[slot.day]) {
+          where = shift(1);
+        } else {
+          where = { year: baseYear, month: baseMonth };
+        }
+        var date = where.date ||
+          (isValidDate(where.year, where.month, slot.day) ? isoDate(where.year, where.month, slot.day) : null);
+        if (!date) {
+          if (slot.items.length) {
+            skippedLines.push({
+              line: slot.line,
+              text: slot.items.map(function (x) { return x.code; }).join(' '),
+              reason: '날짜 없음'
+            });
+          }
+          return;
+        }
+        slot.items.forEach(function (item) {
+          entries.push({
+            id: 'c' + (++seq),
+            date: date,
+            code: item.code,
+            type: item.type,
+            category: item.category,
+            label: item.label,
+            known: item.known,
+            route: item.route || null,
+            start: null,
+            end: null,
+            endOffset: 0,
+            strange: !!item.strange,
+            source: item.code
+          });
+        });
+      });
+    });
+
+    entries.sort(function (a, b) {
+      if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+      return parseInt(a.id.slice(1), 10) - parseInt(b.id.slice(1), 10);
+    });
+
+    var warnings = [];
+    var split = splitOutOfMonth(entries, baseYear, baseMonth);
+    // 달력 격자의 앞뒤 달 날짜는 원래 딸려 오는 것이라 알리기만 한다.
+    if (split.outside.length) warnings.push(outOfMonthNote(split.outside, split.prefix));
+
+    var dropped = [];
+    var conflicts = [];
+    if (resolver) {
+      var checked = resolver.resolve(entries);
+      entries = checked.entries;
+      dropped = checked.dropped;
+      conflicts = checked.conflicts;
+    }
+
+    return {
+      entries: entries,
+      warnings: warnings,
+      dropped: dropped,
+      conflicts: conflicts,
+      ignoredLines: [],
+      skippedLines: skippedLines,
+      outOfMonth: split.outside,
+      shape: 'columns',
+      stats: summarize(entries)
+    };
+  }
+
   function parse(text, options) {
     // 크루넷 홈 목록은 전용 읽기로 보낸다. 날짜 블록(달/일/요일)과 구간이 있어
     // 줄 단위로 훑는 이 파서보다 훨씬 또렷하게 읽힌다.
     if (crewnet && crewnet.looksLikeCrewnet(text)) return fromCrewnet(text, options);
     // 월별 달력 화면은 열 자리가 곧 날짜다. 줄 단위로 훑으면 한 주가 한 날에 얹힌다.
     if (looksLikeGrid(text)) return parseGrid(text, options);
+    // 세로로 긁어 온 달력은 날짜가 7씩 뛴다. 숫자가 떨어진다고 달을 넘기면 안 된다.
+    if (looksLikeColumns(text)) return parseColumns(text, options);
     return parseLines(text, options);
   }
 
@@ -11505,6 +11767,9 @@ td.auto-filled {
     parseLines: parseLines,
     parseGrid: parseGrid,
     looksLikeGrid: looksLikeGrid,
+    parseColumns: parseColumns,
+    looksLikeColumns: looksLikeColumns,
+    repairFlightCode: repairFlightCode,
     readDayRow: readDayRow,
     cellsOf: cellsOf,
     fromCrewnet: fromCrewnet,
@@ -18027,7 +18292,7 @@ td.auto-filled {
   /* ---------------- 동료가 보내는 의견 ---------------- */
 
   // 화면 아래와 의견 보내기에 적히는 판 번호. sw.js 의 VERSION 과 함께 올린다.
-  var APP_VERSION = 'v37';
+  var APP_VERSION = 'v38';
 
   /**
    * 의견을 받을 메일 주소. 저장소가 공개라 통짜로 적어두면 스팸 크롤러가 긁어가므로

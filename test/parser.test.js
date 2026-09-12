@@ -494,3 +494,72 @@ test('기준 달 밖의 날짜가 적혀 있으면 알리되 지우지는 않는
   assert.strictEqual(r.outOfMonth.length, 1);
   assert.ok(r.warnings.some((w) => /기준 달/.test(w.message)), JSON.stringify(r.warnings));
 });
+
+/* ---------------- 세로(열)로 긁어 붙여넣은 달력 ---------------- */
+
+// 휴대폰에서 달력을 드래그하면 칸 순서가 아니라 열 순서로 딸려 온다.
+// 일요일 칸을 위에서 아래까지 다 읽고, 그다음 월요일 칸을 처음부터.
+const COLUMNS = [
+  '2026.01 <>',
+  'S', '28', '4', 'LO', 'KE0658', '11', 'KE0006', '18', 'KE2179', 'KE2180', '25', 'KE0082',
+  'M', '29', '5', 'KE0658', '12', 'KE0006', '19', 'KEO457', 'LO', '26', 'ATDO',
+  'T', '30',
+  'W', '31',
+  'T', '1', 'ATDO', '6', 'ATDO', '13', 'ATDO', '20', 'LO', 'KEO458', '27', 'ATDO',
+  '7', 'KE0727', 'KE0728', '14', 'ATDO', '21', 'ATDO', '28', 'ADO',
+  '8', 'ADO', '15', 'KE2011', 'LO', '22', 'KE0085', 'LO', '29', 'KE0601', 'TVL',
+  'F', '2', 'ATDO', '9', 'KE0005', 'LO', '16', 'LO', '23', 'LO', '30', 'KE0602', '오늘',
+  'S', '3', 'KE0657', 'LO', '10', 'LO', 'KE0006', '17', 'KE2012', '24', 'LO', 'KE0082',
+  '31', 'KE0401'
+].join('\n');
+
+test('세로로 긁은 달력은 숫자가 떨어져도 달을 넘기지 않는다', () => {
+  assert.ok(parser.looksLikeColumns(COLUMNS));
+  const r = parser.parse(COLUMNS, { year: 2026, month: 1 });
+  assert.strictEqual(r.shape, 'columns');
+  // 예전에는 일요일 열만 1월에 남고 나머지가 2~6월로 흩어졌다
+  const outside = r.entries.filter((e) => e.date.slice(0, 7) !== '2026-01');
+  assert.strictEqual(outside.length, 0, JSON.stringify(outside.map((e) => e.date + ':' + e.code)));
+  assert.strictEqual(r.skippedLines.length, 0, JSON.stringify(r.skippedLines));
+});
+
+test('세로로 긁은 달력을 원본과 하나하나 맞춰 읽는다', () => {
+  const r = parser.parse(COLUMNS, { year: 2026, month: 1 });
+  const want = {
+    1: ['ATDO'], 2: ['ATDO'], 3: ['KE0657', 'LO'], 4: ['LO', 'KE0658'], 5: ['KE0658'],
+    6: ['ATDO'], 7: ['KE0727', 'KE0728'], 8: ['ADO'], 9: ['KE0005', 'LO'],
+    10: ['LO', 'KE0006'], 11: ['KE0006'], 12: ['KE0006'], 13: ['ATDO'], 14: ['ATDO'],
+    15: ['KE2011', 'LO'], 16: ['LO'], 17: ['KE2012'], 18: ['KE2179', 'KE2180'],
+    19: ['KE0457', 'LO'], 20: ['LO', 'KE0458'], 21: ['ATDO'], 22: ['KE0085', 'LO'],
+    23: ['LO'], 24: ['LO', 'KE0082'], 25: ['KE0082'], 26: ['ATDO'], 27: ['ATDO'],
+    28: ['ADO'], 29: ['KE0601', 'TVL'], 30: ['KE0602'], 31: ['KE0401']
+  };
+  Object.keys(want).forEach((day) => {
+    const date = '2026-01-' + (day < 10 ? '0' + day : day);
+    assert.deepStrictEqual(codesOn(r, date), want[day], date);
+  });
+  assert.strictEqual(r.entries.length, 43);
+});
+
+test('세로 달력에서 열 맨 위의 지난달 날짜는 1월로 끌어오지 않는다', () => {
+  const r = parser.parse(COLUMNS, { year: 2026, month: 1 });
+  // 12월 28·29·30·31 칸은 비어 있었으니 1월에 아무것도 만들지 않는다
+  assert.deepStrictEqual(codesOn(r, '2025-12-28'), []);
+  assert.deepStrictEqual(codesOn(r, '2025-12-31'), []);
+});
+
+test('평범한 날짜 목록을 세로 달력으로 오해하지 않는다', () => {
+  const plain = ['2026-01-01 ATDO', '2026-01-02 ATDO', '2026-01-03 KE0657'].join('\n');
+  assert.strictEqual(parser.looksLikeColumns(plain), false);
+  const week = Array.from({ length: 20 }, (_, i) => String(i + 1) + '\nATDO').join('\n');
+  assert.strictEqual(parser.looksLikeColumns(week), false, '하루씩 늘어나는 목록은 아니다');
+});
+
+test('편명 자리의 글자는 제자리 숫자로 돌린다 — 비슷한 편명을 찾아 바꾸지 않는다', () => {
+  assert.strictEqual(parser.repairFlightCode('KEO457'), 'KE0457');
+  assert.strictEqual(parser.repairFlightCode('KEOO35'), 'KE0035');
+  assert.strictEqual(parser.repairFlightCode('KE0457'), 'KE0457', '이미 숫자면 그대로');
+  assert.strictEqual(parser.repairFlightCode('XX1234'), 'XX1234', '모르는 항공사는 손대지 않는다');
+  assert.strictEqual(parser.repairFlightCode('ATDO'), 'ATDO', '근무 코드는 손대지 않는다');
+  assert.strictEqual(parser.repairFlightCode('LO'), 'LO');
+});
