@@ -13,2896 +13,3440 @@
   'use strict';
 
   var SEED = {
-    "note": "대한항공 편명 -> 노선 시드. 크루넷 원본에 구간이 있으면 원본이 이긴다. 짝 편명(홀수 한국 출발 / 짝수 한국 도착)은 반대쪽을 뒤집어 채웠다.",
-    "updatedAt": "2026-09-12",
+    "meta": {
+      "schema": 1,
+      "carrier": "KE",
+      "source": "나무위키 '대한항공/노선망' (2026-09 기준 노선망)",
+      "generated": "2026-09-12",
+      "numbering": "홀수=한국발(하행) / 짝수=한국행(상행). 1997 하계 이후 KE 편명 체계",
+      "caution": "노선은 시즌마다 바뀝니다. 크루넷 원본에 공항 코드가 있으면 원본을 우선하세요.",
+      "bands": {
+        "8000": "대체편성·부정기편",
+        "9000": "전세기",
+        "0001-0999": "국제선 정기편 (000번대 미주, 100 중국, 400 대양주/동남아, 600 동남아, 700 일본, 800 중국, 900 유럽)",
+        "1000-1999": "국내선",
+        "2000-2999": "김포·부산·제주 착발 국제선 및 일부 인천 착발 (2100번대 일본)",
+        "3000,5000-7000": "공동운항(코드셰어)"
+      }
+    },
+    "airports": {
+      "ICN": {
+        "city": "인천",
+        "country": "KR",
+        "flag": "🇰🇷",
+        "tz": "Asia/Seoul"
+      },
+      "GMP": {
+        "city": "김포",
+        "country": "KR",
+        "flag": "🇰🇷",
+        "tz": "Asia/Seoul"
+      },
+      "PUS": {
+        "city": "부산",
+        "country": "KR",
+        "flag": "🇰🇷",
+        "tz": "Asia/Seoul"
+      },
+      "CJU": {
+        "city": "제주",
+        "country": "KR",
+        "flag": "🇰🇷",
+        "tz": "Asia/Seoul"
+      },
+      "USN": {
+        "city": "울산",
+        "country": "KR",
+        "flag": "🇰🇷",
+        "tz": "Asia/Seoul"
+      },
+      "TAE": {
+        "city": "대구",
+        "country": "KR",
+        "flag": "🇰🇷",
+        "tz": "Asia/Seoul"
+      },
+      "KWJ": {
+        "city": "광주",
+        "country": "KR",
+        "flag": "🇰🇷",
+        "tz": "Asia/Seoul"
+      },
+      "RSU": {
+        "city": "여수",
+        "country": "KR",
+        "flag": "🇰🇷",
+        "tz": "Asia/Seoul"
+      },
+      "HIN": {
+        "city": "사천",
+        "country": "KR",
+        "flag": "🇰🇷",
+        "tz": "Asia/Seoul"
+      },
+      "CJJ": {
+        "city": "청주",
+        "country": "KR",
+        "flag": "🇰🇷",
+        "tz": "Asia/Seoul"
+      },
+      "NRT": {
+        "city": "도쿄(나리타)",
+        "country": "JP",
+        "flag": "🇯🇵",
+        "tz": "Asia/Tokyo"
+      },
+      "HND": {
+        "city": "도쿄(하네다)",
+        "country": "JP",
+        "flag": "🇯🇵",
+        "tz": "Asia/Tokyo"
+      },
+      "KIX": {
+        "city": "오사카",
+        "country": "JP",
+        "flag": "🇯🇵",
+        "tz": "Asia/Tokyo"
+      },
+      "UKB": {
+        "city": "고베",
+        "country": "JP",
+        "flag": "🇯🇵",
+        "tz": "Asia/Tokyo"
+      },
+      "NGO": {
+        "city": "나고야",
+        "country": "JP",
+        "flag": "🇯🇵",
+        "tz": "Asia/Tokyo"
+      },
+      "CTS": {
+        "city": "삿포로",
+        "country": "JP",
+        "flag": "🇯🇵",
+        "tz": "Asia/Tokyo"
+      },
+      "FUK": {
+        "city": "후쿠오카",
+        "country": "JP",
+        "flag": "🇯🇵",
+        "tz": "Asia/Tokyo"
+      },
+      "OKA": {
+        "city": "오키나와",
+        "country": "JP",
+        "flag": "🇯🇵",
+        "tz": "Asia/Tokyo"
+      },
+      "KOJ": {
+        "city": "가고시마",
+        "country": "JP",
+        "flag": "🇯🇵",
+        "tz": "Asia/Tokyo"
+      },
+      "KMJ": {
+        "city": "구마모토",
+        "country": "JP",
+        "flag": "🇯🇵",
+        "tz": "Asia/Tokyo"
+      },
+      "NGS": {
+        "city": "나가사키",
+        "country": "JP",
+        "flag": "🇯🇵",
+        "tz": "Asia/Tokyo"
+      },
+      "KMQ": {
+        "city": "코마츠",
+        "country": "JP",
+        "flag": "🇯🇵",
+        "tz": "Asia/Tokyo"
+      },
+      "KIJ": {
+        "city": "니가타",
+        "country": "JP",
+        "flag": "🇯🇵",
+        "tz": "Asia/Tokyo"
+      },
+      "AOJ": {
+        "city": "아오모리",
+        "country": "JP",
+        "flag": "🇯🇵",
+        "tz": "Asia/Tokyo"
+      },
+      "OKJ": {
+        "city": "오카야마",
+        "country": "JP",
+        "flag": "🇯🇵",
+        "tz": "Asia/Tokyo"
+      },
+      "OIT": {
+        "city": "오이타",
+        "country": "JP",
+        "flag": "🇯🇵",
+        "tz": "Asia/Tokyo"
+      },
+      "HIJ": {
+        "city": "히로시마",
+        "country": "JP",
+        "flag": "🇯🇵",
+        "tz": "Asia/Tokyo"
+      },
+      "PEK": {
+        "city": "베이징",
+        "country": "CN",
+        "flag": "🇨🇳",
+        "tz": "Asia/Shanghai"
+      },
+      "PVG": {
+        "city": "상하이(푸둥)",
+        "country": "CN",
+        "flag": "🇨🇳",
+        "tz": "Asia/Shanghai"
+      },
+      "SHA": {
+        "city": "상하이(훙차오)",
+        "country": "CN",
+        "flag": "🇨🇳",
+        "tz": "Asia/Shanghai"
+      },
+      "CAN": {
+        "city": "광저우",
+        "country": "CN",
+        "flag": "🇨🇳",
+        "tz": "Asia/Shanghai"
+      },
+      "NKG": {
+        "city": "난징",
+        "country": "CN",
+        "flag": "🇨🇳",
+        "tz": "Asia/Shanghai"
+      },
+      "DLC": {
+        "city": "다롄",
+        "country": "CN",
+        "flag": "🇨🇳",
+        "tz": "Asia/Shanghai"
+      },
+      "XMN": {
+        "city": "샤먼",
+        "country": "CN",
+        "flag": "🇨🇳",
+        "tz": "Asia/Shanghai"
+      },
+      "SHE": {
+        "city": "선양",
+        "country": "CN",
+        "flag": "🇨🇳",
+        "tz": "Asia/Shanghai"
+      },
+      "SZX": {
+        "city": "선전",
+        "country": "CN",
+        "flag": "🇨🇳",
+        "tz": "Asia/Shanghai"
+      },
+      "XIY": {
+        "city": "시안",
+        "country": "CN",
+        "flag": "🇨🇳",
+        "tz": "Asia/Shanghai"
+      },
+      "YNJ": {
+        "city": "옌지",
+        "country": "CN",
+        "flag": "🇨🇳",
+        "tz": "Asia/Shanghai"
+      },
+      "WUH": {
+        "city": "우한",
+        "country": "CN",
+        "flag": "🇨🇳",
+        "tz": "Asia/Shanghai"
+      },
+      "DYG": {
+        "city": "장자제",
+        "country": "CN",
+        "flag": "🇨🇳",
+        "tz": "Asia/Shanghai"
+      },
+      "CGO": {
+        "city": "정저우",
+        "country": "CN",
+        "flag": "🇨🇳",
+        "tz": "Asia/Shanghai"
+      },
+      "CSX": {
+        "city": "창사",
+        "country": "CN",
+        "flag": "🇨🇳",
+        "tz": "Asia/Shanghai"
+      },
+      "TAO": {
+        "city": "칭다오",
+        "country": "CN",
+        "flag": "🇨🇳",
+        "tz": "Asia/Shanghai"
+      },
+      "KMG": {
+        "city": "쿤밍",
+        "country": "CN",
+        "flag": "🇨🇳",
+        "tz": "Asia/Shanghai"
+      },
+      "TSN": {
+        "city": "톈진",
+        "country": "CN",
+        "flag": "🇨🇳",
+        "tz": "Asia/Shanghai"
+      },
+      "FOC": {
+        "city": "푸저우",
+        "country": "CN",
+        "flag": "🇨🇳",
+        "tz": "Asia/Shanghai"
+      },
+      "HGH": {
+        "city": "항저우",
+        "country": "CN",
+        "flag": "🇨🇳",
+        "tz": "Asia/Shanghai"
+      },
+      "HFE": {
+        "city": "허페이",
+        "country": "CN",
+        "flag": "🇨🇳",
+        "tz": "Asia/Shanghai"
+      },
+      "HKG": {
+        "city": "홍콩",
+        "country": "HK",
+        "flag": "🇭🇰",
+        "tz": "Asia/Hong_Kong"
+      },
+      "MFM": {
+        "city": "마카오",
+        "country": "MO",
+        "flag": "🇲🇴",
+        "tz": "Asia/Macau"
+      },
+      "TPE": {
+        "city": "타이베이",
+        "country": "TW",
+        "flag": "🇹🇼",
+        "tz": "Asia/Taipei"
+      },
+      "BKK": {
+        "city": "방콕",
+        "country": "TH",
+        "flag": "🇹🇭",
+        "tz": "Asia/Bangkok"
+      },
+      "CNX": {
+        "city": "치앙마이",
+        "country": "TH",
+        "flag": "🇹🇭",
+        "tz": "Asia/Bangkok"
+      },
+      "HKT": {
+        "city": "푸껫",
+        "country": "TH",
+        "flag": "🇹🇭",
+        "tz": "Asia/Bangkok"
+      },
+      "MNL": {
+        "city": "마닐라",
+        "country": "PH",
+        "flag": "🇵🇭",
+        "tz": "Asia/Manila"
+      },
+      "CEB": {
+        "city": "세부",
+        "country": "PH",
+        "flag": "🇵🇭",
+        "tz": "Asia/Manila"
+      },
+      "SIN": {
+        "city": "싱가포르",
+        "country": "SG",
+        "flag": "🇸🇬",
+        "tz": "Asia/Singapore"
+      },
+      "KUL": {
+        "city": "쿠알라룸푸르",
+        "country": "MY",
+        "flag": "🇲🇾",
+        "tz": "Asia/Kuala_Lumpur"
+      },
+      "CGK": {
+        "city": "자카르타",
+        "country": "ID",
+        "flag": "🇮🇩",
+        "tz": "Asia/Jakarta"
+      },
+      "DPS": {
+        "city": "발리",
+        "country": "ID",
+        "flag": "🇮🇩",
+        "tz": "Asia/Makassar"
+      },
+      "HAN": {
+        "city": "하노이",
+        "country": "VN",
+        "flag": "🇻🇳",
+        "tz": "Asia/Ho_Chi_Minh"
+      },
+      "SGN": {
+        "city": "호찌민",
+        "country": "VN",
+        "flag": "🇻🇳",
+        "tz": "Asia/Ho_Chi_Minh"
+      },
+      "DAD": {
+        "city": "다낭",
+        "country": "VN",
+        "flag": "🇻🇳",
+        "tz": "Asia/Ho_Chi_Minh"
+      },
+      "CXR": {
+        "city": "나트랑",
+        "country": "VN",
+        "flag": "🇻🇳",
+        "tz": "Asia/Ho_Chi_Minh"
+      },
+      "PQC": {
+        "city": "푸꾸옥",
+        "country": "VN",
+        "flag": "🇻🇳",
+        "tz": "Asia/Ho_Chi_Minh"
+      },
+      "PNH": {
+        "city": "프놈펜",
+        "country": "KH",
+        "flag": "🇰🇭",
+        "tz": "Asia/Phnom_Penh"
+      },
+      "RGN": {
+        "city": "양곤",
+        "country": "MM",
+        "flag": "🇲🇲",
+        "tz": "Asia/Yangon"
+      },
+      "DEL": {
+        "city": "델리",
+        "country": "IN",
+        "flag": "🇮🇳",
+        "tz": "Asia/Kolkata"
+      },
+      "KTM": {
+        "city": "카트만두",
+        "country": "NP",
+        "flag": "🇳🇵",
+        "tz": "Asia/Kathmandu"
+      },
+      "JFK": {
+        "city": "뉴욕",
+        "country": "US",
+        "flag": "🇺🇸",
+        "tz": "America/New_York"
+      },
+      "IAD": {
+        "city": "워싱턴",
+        "country": "US",
+        "flag": "🇺🇸",
+        "tz": "America/New_York"
+      },
+      "BOS": {
+        "city": "보스턴",
+        "country": "US",
+        "flag": "🇺🇸",
+        "tz": "America/New_York"
+      },
+      "ATL": {
+        "city": "애틀랜타",
+        "country": "US",
+        "flag": "🇺🇸",
+        "tz": "America/New_York"
+      },
+      "ORD": {
+        "city": "시카고",
+        "country": "US",
+        "flag": "🇺🇸",
+        "tz": "America/Chicago"
+      },
+      "DFW": {
+        "city": "댈러스",
+        "country": "US",
+        "flag": "🇺🇸",
+        "tz": "America/Chicago"
+      },
+      "LAX": {
+        "city": "로스앤젤레스",
+        "country": "US",
+        "flag": "🇺🇸",
+        "tz": "America/Los_Angeles"
+      },
+      "SFO": {
+        "city": "샌프란시스코",
+        "country": "US",
+        "flag": "🇺🇸",
+        "tz": "America/Los_Angeles"
+      },
+      "SEA": {
+        "city": "시애틀",
+        "country": "US",
+        "flag": "🇺🇸",
+        "tz": "America/Los_Angeles"
+      },
+      "LAS": {
+        "city": "라스베이거스",
+        "country": "US",
+        "flag": "🇺🇸",
+        "tz": "America/Los_Angeles"
+      },
+      "HNL": {
+        "city": "호놀룰루",
+        "country": "US",
+        "flag": "🇺🇸",
+        "tz": "Pacific/Honolulu"
+      },
+      "GUM": {
+        "city": "괌",
+        "country": "US",
+        "flag": "🇺🇸",
+        "tz": "Pacific/Guam"
+      },
+      "YVR": {
+        "city": "밴쿠버",
+        "country": "CA",
+        "flag": "🇨🇦",
+        "tz": "America/Vancouver"
+      },
+      "YYZ": {
+        "city": "토론토",
+        "country": "CA",
+        "flag": "🇨🇦",
+        "tz": "America/Toronto"
+      },
+      "CDG": {
+        "city": "파리",
+        "country": "FR",
+        "flag": "🇫🇷",
+        "tz": "Europe/Paris"
+      },
+      "LHR": {
+        "city": "런던",
+        "country": "GB",
+        "flag": "🇬🇧",
+        "tz": "Europe/London"
+      },
+      "MAD": {
+        "city": "마드리드",
+        "country": "ES",
+        "flag": "🇪🇸",
+        "tz": "Europe/Madrid"
+      },
+      "LIS": {
+        "city": "리스본",
+        "country": "PT",
+        "flag": "🇵🇹",
+        "tz": "Europe/Lisbon"
+      },
+      "AMS": {
+        "city": "암스테르담",
+        "country": "NL",
+        "flag": "🇳🇱",
+        "tz": "Europe/Amsterdam"
+      },
+      "FRA": {
+        "city": "프랑크푸르트",
+        "country": "DE",
+        "flag": "🇩🇪",
+        "tz": "Europe/Berlin"
+      },
+      "VIE": {
+        "city": "비엔나",
+        "country": "AT",
+        "flag": "🇦🇹",
+        "tz": "Europe/Vienna"
+      },
+      "ZRH": {
+        "city": "취리히",
+        "country": "CH",
+        "flag": "🇨🇭",
+        "tz": "Europe/Zurich"
+      },
+      "PRG": {
+        "city": "프라하",
+        "country": "CZ",
+        "flag": "🇨🇿",
+        "tz": "Europe/Prague"
+      },
+      "BUD": {
+        "city": "부다페스트",
+        "country": "HU",
+        "flag": "🇭🇺",
+        "tz": "Europe/Budapest"
+      },
+      "MXP": {
+        "city": "밀라노",
+        "country": "IT",
+        "flag": "🇮🇹",
+        "tz": "Europe/Rome"
+      },
+      "FCO": {
+        "city": "로마",
+        "country": "IT",
+        "flag": "🇮🇹",
+        "tz": "Europe/Rome"
+      },
+      "IST": {
+        "city": "이스탄불",
+        "country": "TR",
+        "flag": "🇹🇷",
+        "tz": "Europe/Istanbul"
+      },
+      "UBN": {
+        "city": "울란바타르",
+        "country": "MN",
+        "flag": "🇲🇳",
+        "tz": "Asia/Ulaanbaatar"
+      },
+      "DXB": {
+        "city": "두바이",
+        "country": "AE",
+        "flag": "🇦🇪",
+        "tz": "Asia/Dubai"
+      },
+      "SYD": {
+        "city": "시드니",
+        "country": "AU",
+        "flag": "🇦🇺",
+        "tz": "Australia/Sydney"
+      },
+      "BNE": {
+        "city": "브리즈번",
+        "country": "AU",
+        "flag": "🇦🇺",
+        "tz": "Australia/Brisbane"
+      },
+      "MEL": {
+        "city": "멜버른",
+        "country": "AU",
+        "flag": "🇦🇺",
+        "tz": "Australia/Melbourne"
+      },
+      "AKL": {
+        "city": "오클랜드",
+        "country": "NZ",
+        "flag": "🇳🇿",
+        "tz": "Pacific/Auckland"
+      },
+      "KKJ": {
+        "city": "기타큐슈",
+        "country": "JP",
+        "flag": "🇯🇵",
+        "tz": "Asia/Tokyo"
+      },
+      "SHI": {
+        "city": "미야코지마",
+        "country": "JP",
+        "flag": "🇯🇵",
+        "tz": "Asia/Tokyo"
+      },
+      "YNT": {
+        "city": "옌타이",
+        "country": "CN",
+        "flag": "🇨🇳",
+        "tz": "Asia/Shanghai"
+      },
+      "WEH": {
+        "city": "웨이하이",
+        "country": "CN",
+        "flag": "🇨🇳",
+        "tz": "Asia/Shanghai"
+      },
+      "KHH": {
+        "city": "가오슝",
+        "country": "TW",
+        "flag": "🇹🇼",
+        "tz": "Asia/Taipei"
+      },
+      "CRK": {
+        "city": "앙헬레스(클라크)",
+        "country": "PH",
+        "flag": "🇵🇭",
+        "tz": "Asia/Manila"
+      },
+      "BKI": {
+        "city": "코타키나발루",
+        "country": "MY",
+        "flag": "🇲🇾",
+        "tz": "Asia/Kuala_Lumpur"
+      },
+      "CMB": {
+        "city": "콜롬보",
+        "country": "LK",
+        "flag": "🇱🇰",
+        "tz": "Asia/Colombo"
+      },
+      "DTW": {
+        "city": "디트로이트",
+        "country": "US",
+        "flag": "🇺🇸",
+        "tz": "America/Detroit"
+      },
+      "MSP": {
+        "city": "미니애폴리스",
+        "country": "US",
+        "flag": "🇺🇸",
+        "tz": "America/Chicago"
+      },
+      "SLC": {
+        "city": "솔트레이크시티",
+        "country": "US",
+        "flag": "🇺🇸",
+        "tz": "America/Denver"
+      },
+      "YYC": {
+        "city": "캘거리",
+        "country": "CA",
+        "flag": "🇨🇦",
+        "tz": "America/Edmonton"
+      },
+      "BCN": {
+        "city": "바르셀로나",
+        "country": "ES",
+        "flag": "🇪🇸",
+        "tz": "Europe/Madrid"
+      },
+      "TAS": {
+        "city": "타슈켄트",
+        "country": "UZ",
+        "flag": "🇺🇿",
+        "tz": "Asia/Tashkent"
+      }
+    },
+    "operators": {
+      "LJ": "진에어",
+      "MU": "중국동방항공",
+      "FM": "상하이항공",
+      "MF": "샤먼항공",
+      "CI": "중화항공",
+      "JL": "일본항공",
+      "MH": "말레이시아항공",
+      "UL": "스리랑카항공",
+      "GA": "가루다인도네시아",
+      "VN": "베트남항공",
+      "DL": "델타항공",
+      "AA": "아메리칸항공",
+      "WS": "웨스트젯",
+      "VS": "버진애틀랜틱",
+      "AF": "에어프랑스",
+      "KL": "KLM",
+      "OZ": "아시아나항공",
+      "HY": "우즈베키스탄항공",
+      "OM": "미아트몽골항공",
+      "EK": "에미레이트항공"
+    },
+    "dutyCodes": {
+      "LO": {
+        "label": "체류",
+        "type": "layover"
+      },
+      "DO": {
+        "label": "휴무",
+        "type": "off"
+      },
+      "ADO": {
+        "label": "휴무",
+        "type": "off"
+      },
+      "ATDO": {
+        "label": "휴무",
+        "type": "off"
+      },
+      "SA": {
+        "label": "공항 대기",
+        "type": "standby"
+      },
+      "RF": {
+        "label": "자택 대기",
+        "type": "standby"
+      },
+      "TVL": {
+        "label": "탑승 근무",
+        "type": "deadhead"
+      },
+      "TRN": {
+        "label": "훈련",
+        "type": "training"
+      },
+      "VAC": {
+        "label": "휴가",
+        "type": "vacation"
+      }
+    },
     "domesticRanges": [
       {
         "from": 1000,
-        "to": 1299,
+        "to": 1399,
         "a": "GMP",
-        "b": "CJU"
+        "b": "CJU",
+        "note": "김포-제주"
       },
       {
         "from": 1400,
-        "to": 1429,
+        "to": 1419,
         "a": "ICN",
-        "b": "PUS"
+        "b": "PUS",
+        "note": "인천-부산 (환승 내항편)"
       },
       {
         "from": 1430,
         "to": 1439,
         "a": "ICN",
-        "b": "TAE"
+        "b": "TAE",
+        "note": "인천-대구 (환승 내항편)"
       },
       {
         "from": 1500,
-        "to": 1562,
-        "a": "PUS",
-        "b": "CJU"
+        "to": 1559,
+        "a": "CJU",
+        "b": "PUS",
+        "note": "제주-부산"
       },
       {
-        "from": 1569,
+        "from": 1560,
         "to": 1579,
-        "a": "TAE",
-        "b": "CJU"
+        "a": "CJU",
+        "b": "TAE",
+        "note": "제주-대구"
       },
       {
         "from": 1580,
         "to": 1589,
-        "a": "HIN",
-        "b": "CJU"
+        "a": "CJU",
+        "b": "HIN",
+        "note": "제주-사천"
       },
       {
         "from": 1590,
         "to": 1599,
-        "a": "USN",
-        "b": "CJU"
+        "a": "CJU",
+        "b": "USN",
+        "note": "제주-울산"
       },
       {
         "from": 1600,
         "to": 1629,
-        "a": "KWJ",
-        "b": "CJU"
+        "a": "CJU",
+        "b": "KWJ",
+        "note": "제주-광주"
       },
       {
         "from": 1630,
         "to": 1639,
-        "a": "RSU",
-        "b": "CJU"
+        "a": "CJU",
+        "b": "RSU",
+        "note": "제주-여수"
       },
       {
         "from": 1700,
-        "to": 1799,
-        "a": "CJJ",
-        "b": "CJU"
+        "to": 1729,
+        "a": "CJU",
+        "b": "CJJ",
+        "note": "제주-청주"
       },
       {
         "from": 1800,
         "to": 1839,
         "a": "GMP",
-        "b": "PUS"
+        "b": "PUS",
+        "note": "김포-부산"
       },
       {
         "from": 1840,
-        "to": 1899,
+        "to": 1849,
         "a": "GMP",
-        "b": "USN"
+        "b": "USN",
+        "note": "김포-울산"
       }
     ],
     "routes": {
-      "KE0005": {
-        "from": "ICN",
-        "to": "LAS",
-        "city": "라스베이거스",
-        "country": "US",
-        "flag": "🇺🇸"
-      },
-      "KE0006": {
-        "from": "LAS",
-        "to": "ICN",
-        "city": "라스베이거스",
-        "country": "US",
-        "flag": "🇺🇸"
-      },
-      "KE0011": {
-        "from": "ICN",
-        "to": "LAX",
-        "city": "로스앤젤레스",
-        "country": "US",
-        "flag": "🇺🇸"
-      },
-      "KE0012": {
-        "from": "LAX",
-        "to": "ICN",
-        "city": "로스앤젤레스",
-        "country": "US",
-        "flag": "🇺🇸"
-      },
-      "KE0017": {
-        "from": "ICN",
-        "to": "LAX",
-        "city": "로스앤젤레스",
-        "country": "US",
-        "flag": "🇺🇸"
-      },
-      "KE0018": {
-        "from": "LAX",
-        "to": "ICN",
-        "city": "로스앤젤레스",
-        "country": "US",
-        "flag": "🇺🇸"
-      },
-      "KE0023": {
-        "from": "ICN",
-        "to": "SFO",
-        "city": "샌프란시스코",
-        "country": "US",
-        "flag": "🇺🇸"
-      },
-      "KE0024": {
-        "from": "SFO",
-        "to": "ICN",
-        "city": "샌프란시스코",
-        "country": "US",
-        "flag": "🇺🇸"
-      },
-      "KE0031": {
-        "from": "ICN",
-        "to": "DFW",
-        "city": "댈러스",
-        "country": "US",
-        "flag": "🇺🇸"
-      },
-      "KE0032": {
-        "from": "DFW",
-        "to": "ICN",
-        "city": "댈러스",
-        "country": "US",
-        "flag": "🇺🇸"
-      },
-      "KE0033": {
-        "from": "ICN",
-        "to": "ATL",
-        "city": "애틀랜타",
-        "country": "US",
-        "flag": "🇺🇸"
-      },
-      "KE0034": {
-        "from": "ATL",
-        "to": "ICN",
-        "city": "애틀랜타",
-        "country": "US",
-        "flag": "🇺🇸"
-      },
-      "KE0035": {
-        "from": "ICN",
-        "to": "ATL",
-        "city": "애틀랜타",
-        "country": "US",
-        "flag": "🇺🇸"
-      },
-      "KE0036": {
-        "from": "ATL",
-        "to": "ICN",
-        "city": "애틀랜타",
-        "country": "US",
-        "flag": "🇺🇸"
-      },
-      "KE0037": {
-        "from": "ICN",
-        "to": "ORD",
-        "city": "시카고",
-        "country": "US",
-        "flag": "🇺🇸"
-      },
-      "KE0038": {
-        "from": "ORD",
-        "to": "ICN",
-        "city": "시카고",
-        "country": "US",
-        "flag": "🇺🇸"
-      },
-      "KE0041": {
-        "from": "ICN",
-        "to": "SEA",
-        "city": "시애틀",
-        "country": "US",
-        "flag": "🇺🇸"
-      },
-      "KE0042": {
-        "from": "SEA",
-        "to": "ICN",
-        "city": "시애틀",
-        "country": "US",
-        "flag": "🇺🇸"
-      },
-      "KE0053": {
-        "from": "ICN",
-        "to": "HNL",
-        "city": "호놀룰루",
-        "country": "US",
-        "flag": "🇺🇸"
-      },
-      "KE0054": {
-        "from": "HNL",
-        "to": "ICN",
-        "city": "호놀룰루",
-        "country": "US",
-        "flag": "🇺🇸"
-      },
-      "KE0071": {
-        "from": "ICN",
-        "to": "YVR",
-        "city": "밴쿠버",
-        "country": "CA",
-        "flag": "🇨🇦"
-      },
-      "KE0072": {
-        "from": "YVR",
-        "to": "ICN",
-        "city": "밴쿠버",
-        "country": "CA",
-        "flag": "🇨🇦"
-      },
-      "KE0075": {
-        "from": "ICN",
-        "to": "YVR",
-        "city": "밴쿠버",
-        "country": "CA",
-        "flag": "🇨🇦"
-      },
-      "KE0076": {
-        "from": "YVR",
-        "to": "ICN",
-        "city": "밴쿠버",
-        "country": "CA",
-        "flag": "🇨🇦"
-      },
-      "KE0077": {
-        "from": "ICN",
-        "to": "YYZ",
-        "city": "토론토",
-        "country": "CA",
-        "flag": "🇨🇦"
-      },
-      "KE0078": {
-        "from": "YYZ",
-        "to": "ICN",
-        "city": "토론토",
-        "country": "CA",
-        "flag": "🇨🇦"
-      },
-      "KE0081": {
-        "from": "ICN",
-        "to": "JFK",
-        "city": "뉴욕",
-        "country": "US",
-        "flag": "🇺🇸"
-      },
-      "KE0082": {
-        "from": "JFK",
-        "to": "ICN",
-        "city": "뉴욕",
-        "country": "US",
-        "flag": "🇺🇸"
-      },
-      "KE0085": {
-        "from": "ICN",
-        "to": "JFK",
-        "city": "뉴욕",
-        "country": "US",
-        "flag": "🇺🇸"
-      },
-      "KE0086": {
-        "from": "JFK",
-        "to": "ICN",
-        "city": "뉴욕",
-        "country": "US",
-        "flag": "🇺🇸"
-      },
-      "KE0091": {
-        "from": "ICN",
-        "to": "BOS",
-        "city": "보스턴",
-        "country": "US",
-        "flag": "🇺🇸"
-      },
-      "KE0092": {
-        "from": "BOS",
-        "to": "ICN",
-        "city": "보스턴",
-        "country": "US",
-        "flag": "🇺🇸"
-      },
-      "KE0093": {
-        "from": "ICN",
-        "to": "IAD",
-        "city": "워싱턴",
-        "country": "US",
-        "flag": "🇺🇸"
-      },
-      "KE0094": {
-        "from": "IAD",
-        "to": "ICN",
-        "city": "워싱턴",
-        "country": "US",
-        "flag": "🇺🇸"
-      },
-      "KE0101": {
-        "from": "ICN",
-        "to": "NKG",
-        "city": "난징",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0102": {
-        "from": "NKG",
-        "to": "ICN",
-        "city": "난징",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0115": {
-        "from": "ICN",
-        "to": "YNJ",
-        "city": "옌지",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0116": {
-        "from": "YNJ",
-        "to": "ICN",
-        "city": "옌지",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0125": {
-        "from": "ICN",
-        "to": "XMN",
-        "city": "샤먼",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0126": {
-        "from": "XMN",
-        "to": "ICN",
-        "city": "샤먼",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0127": {
-        "from": "ICN",
-        "to": "FOC",
-        "city": "푸저우",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0128": {
-        "from": "FOC",
-        "to": "ICN",
-        "city": "푸저우",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0133": {
-        "from": "ICN",
-        "to": "CGO",
-        "city": "정저우",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0134": {
-        "from": "CGO",
-        "to": "ICN",
-        "city": "정저우",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0141": {
-        "from": "ICN",
-        "to": "XIY",
-        "city": "시안",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0142": {
-        "from": "XIY",
-        "to": "ICN",
-        "city": "시안",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0155": {
-        "from": "ICN",
-        "to": "HFE",
-        "city": "허페이",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0156": {
-        "from": "HFE",
-        "to": "ICN",
-        "city": "허페이",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0163": {
-        "from": "ICN",
-        "to": "DYG",
-        "city": "장자제",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0164": {
-        "from": "DYG",
-        "to": "ICN",
-        "city": "장자제",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0165": {
-        "from": "ICN",
-        "to": "WUH",
-        "city": "우한",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0166": {
-        "from": "WUH",
-        "to": "ICN",
-        "city": "우한",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0213": {
-        "from": "ICN",
-        "to": "LAX",
-        "city": "로스앤젤레스",
-        "country": "US",
-        "flag": "🇺🇸"
-      },
-      "KE0214": {
-        "from": "SFO",
-        "to": "ICN",
-        "city": "샌프란시스코",
-        "country": "US",
-        "flag": "🇺🇸"
-      },
-      "KE0223": {
-        "from": "ICN",
-        "to": "NRT",
-        "city": "도쿄",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE0224": {
-        "from": "NRT",
-        "to": "ICN",
-        "city": "도쿄",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE0233": {
-        "from": "ICN",
-        "to": "SEA",
-        "city": "시애틀",
-        "country": "US",
-        "flag": "🇺🇸"
-      },
-      "KE0234": {
-        "from": "SEA",
-        "to": "ICN",
-        "city": "시애틀",
-        "country": "US",
-        "flag": "🇺🇸"
-      },
-      "KE0249": {
-        "from": "ICN",
-        "to": "JFK",
-        "city": "뉴욕",
-        "country": "US",
-        "flag": "🇺🇸"
-      },
-      "KE0250": {
-        "from": "JFK",
-        "to": "ICN",
-        "city": "뉴욕",
-        "country": "US",
-        "flag": "🇺🇸"
-      },
-      "KE0257": {
-        "from": "ICN",
-        "to": "ANC",
-        "city": "앵커리지",
-        "country": "US",
-        "flag": "🇺🇸"
-      },
-      "KE0258": {
-        "from": "ANC",
-        "to": "ICN",
-        "city": "앵커리지",
-        "country": "US",
-        "flag": "🇺🇸"
-      },
-      "KE0277": {
-        "from": "ICN",
-        "to": "YVR",
-        "city": "밴쿠버",
-        "country": "CA",
-        "flag": "🇨🇦"
-      },
-      "KE0278": {
-        "from": "YVR",
-        "to": "ICN",
-        "city": "밴쿠버",
-        "country": "CA",
-        "flag": "🇨🇦"
-      },
-      "KE0283": {
-        "from": "ICN",
-        "to": "ANC",
-        "city": "앵커리지",
-        "country": "US",
-        "flag": "🇺🇸"
-      },
-      "KE0284": {
-        "from": "ANC",
-        "to": "ICN",
-        "city": "앵커리지",
-        "country": "US",
-        "flag": "🇺🇸"
-      },
-      "KE0313": {
-        "from": "ICN",
-        "to": "HKG",
-        "city": "홍콩",
-        "country": "HK",
-        "flag": "🇭🇰"
-      },
-      "KE0314": {
-        "from": "HKG",
-        "to": "ICN",
-        "city": "홍콩",
-        "country": "HK",
-        "flag": "🇭🇰"
-      },
-      "KE0317": {
-        "from": "ICN",
-        "to": "ANC",
-        "city": "앵커리지",
-        "country": "US",
-        "flag": "🇺🇸"
-      },
-      "KE0318": {
-        "from": "ANC",
-        "to": "ICN",
-        "city": "앵커리지",
-        "country": "US",
-        "flag": "🇺🇸"
-      },
-      "KE0319": {
-        "from": "ICN",
-        "to": "CAN",
-        "city": "광저우",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0320": {
-        "from": "CAN",
-        "to": "ICN",
-        "city": "광저우",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0321": {
-        "from": "ICN",
-        "to": "CAN",
-        "city": "광저우",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0322": {
-        "from": "CAN",
-        "to": "ICN",
-        "city": "광저우",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0343": {
-        "from": "ICN",
-        "to": "MNL",
-        "city": "마닐라",
-        "country": "PH",
-        "flag": "🇵🇭"
-      },
-      "KE0344": {
-        "from": "SIN",
-        "to": "ICN",
-        "city": "싱가포르",
-        "country": "SG",
-        "flag": "🇸🇬"
-      },
-      "KE0349": {
-        "from": "ICN",
-        "to": "CGK",
-        "city": "자카르타",
-        "country": "ID",
-        "flag": "🇮🇩"
-      },
-      "KE0350": {
-        "from": "PEN",
-        "to": "ICN",
-        "city": "페낭",
-        "country": "MY",
-        "flag": "🇲🇾"
-      },
-      "KE0361": {
-        "from": "ICN",
-        "to": "HAN",
-        "city": "하노이",
-        "country": "VN",
-        "flag": "🇻🇳"
-      },
-      "KE0362": {
-        "from": "HAN",
-        "to": "ICN",
-        "city": "하노이",
-        "country": "VN",
-        "flag": "🇻🇳"
-      },
-      "KE0401": {
-        "from": "ICN",
-        "to": "SYD",
-        "city": "시드니",
-        "country": "AU",
-        "flag": "🇦🇺"
-      },
-      "KE0402": {
-        "from": "SYD",
-        "to": "ICN",
-        "city": "시드니",
-        "country": "AU",
-        "flag": "🇦🇺"
-      },
-      "KE0407": {
-        "from": "ICN",
-        "to": "BNE",
-        "city": "브리즈번",
-        "country": "AU",
-        "flag": "🇦🇺"
-      },
-      "KE0408": {
-        "from": "BNE",
-        "to": "ICN",
-        "city": "브리즈번",
-        "country": "AU",
-        "flag": "🇦🇺"
-      },
-      "KE0411": {
-        "from": "ICN",
-        "to": "AKL",
-        "city": "오클랜드",
-        "country": "NZ",
-        "flag": "🇳🇿"
-      },
-      "KE0412": {
-        "from": "AKL",
-        "to": "ICN",
-        "city": "오클랜드",
-        "country": "NZ",
-        "flag": "🇳🇿"
-      },
-      "KE0415": {
-        "from": "ICN",
-        "to": "GUM",
-        "city": "괌",
-        "country": "GU",
-        "flag": "🇬🇺"
-      },
-      "KE0416": {
-        "from": "GUM",
-        "to": "ICN",
-        "city": "괌",
-        "country": "GU",
-        "flag": "🇬🇺"
-      },
-      "KE0417": {
-        "from": "ICN",
-        "to": "GUM",
-        "city": "괌",
-        "country": "GU",
-        "flag": "🇬🇺"
-      },
-      "KE0418": {
-        "from": "GUM",
-        "to": "ICN",
-        "city": "괌",
-        "country": "GU",
-        "flag": "🇬🇺"
-      },
-      "KE0427": {
-        "from": "ICN",
-        "to": "KUL",
-        "city": "쿠알라룸푸르",
-        "country": "MY",
-        "flag": "🇲🇾"
-      },
-      "KE0428": {
-        "from": "KUL",
-        "to": "ICN",
-        "city": "쿠알라룸푸르",
-        "country": "MY",
-        "flag": "🇲🇾"
-      },
-      "KE0431": {
-        "from": "ICN",
-        "to": "DPS",
-        "city": "발리",
-        "country": "ID",
-        "flag": "🇮🇩"
-      },
-      "KE0432": {
-        "from": "DPS",
-        "to": "ICN",
-        "city": "발리",
-        "country": "ID",
-        "flag": "🇮🇩"
-      },
-      "KE0433": {
-        "from": "ICN",
-        "to": "DPS",
-        "city": "발리",
-        "country": "ID",
-        "flag": "🇮🇩"
-      },
-      "KE0434": {
-        "from": "DPS",
-        "to": "ICN",
-        "city": "발리",
-        "country": "ID",
-        "flag": "🇮🇩"
-      },
-      "KE0437": {
-        "from": "ICN",
-        "to": "CGK",
-        "city": "자카르타",
-        "country": "ID",
-        "flag": "🇮🇩"
-      },
-      "KE0438": {
-        "from": "CGK",
-        "to": "ICN",
-        "city": "자카르타",
-        "country": "ID",
-        "flag": "🇮🇩"
-      },
-      "KE0441": {
-        "from": "ICN",
-        "to": "HAN",
-        "city": "하노이",
-        "country": "VN",
-        "flag": "🇻🇳"
-      },
-      "KE0442": {
-        "from": "HAN",
-        "to": "ICN",
-        "city": "하노이",
-        "country": "VN",
-        "flag": "🇻🇳"
-      },
-      "KE0457": {
-        "from": "ICN",
-        "to": "DAD",
-        "city": "다낭",
-        "country": "VN",
-        "flag": "🇻🇳"
-      },
-      "KE0458": {
-        "from": "DAD",
-        "to": "ICN",
-        "city": "다낭",
-        "country": "VN",
-        "flag": "🇻🇳"
-      },
-      "KE0467": {
-        "from": "ICN",
-        "to": "CXR",
-        "city": "나트랑",
-        "country": "VN",
-        "flag": "🇻🇳"
-      },
-      "KE0468": {
-        "from": "CXR",
-        "to": "ICN",
-        "city": "나트랑",
-        "country": "VN",
-        "flag": "🇻🇳"
-      },
-      "KE0471": {
-        "from": "ICN",
-        "to": "SGN",
-        "city": "호치민",
-        "country": "VN",
-        "flag": "🇻🇳"
-      },
-      "KE0472": {
-        "from": "SGN",
-        "to": "ICN",
-        "city": "호치민",
-        "country": "VN",
-        "flag": "🇻🇳"
-      },
-      "KE0475": {
-        "from": "ICN",
-        "to": "SGN",
-        "city": "호치민",
-        "country": "VN",
-        "flag": "🇻🇳"
-      },
-      "KE0476": {
-        "from": "SGN",
-        "to": "ICN",
-        "city": "호치민",
-        "country": "VN",
-        "flag": "🇻🇳"
-      },
-      "KE0479": {
-        "from": "ICN",
-        "to": "SGN",
-        "city": "호치민",
-        "country": "VN",
-        "flag": "🇻🇳"
-      },
-      "KE0480": {
-        "from": "SGN",
-        "to": "ICN",
-        "city": "호치민",
-        "country": "VN",
-        "flag": "🇻🇳"
-      },
-      "KE0485": {
-        "from": "ICN",
-        "to": "PQC",
-        "city": "푸꾸옥",
-        "country": "VN",
-        "flag": "🇻🇳"
-      },
-      "KE0486": {
-        "from": "PQC",
-        "to": "ICN",
-        "city": "푸꾸옥",
-        "country": "VN",
-        "flag": "🇻🇳"
-      },
-      "KE0497": {
-        "from": "ICN",
-        "to": "DEL",
-        "city": "델리",
-        "country": "IN",
-        "flag": "🇮🇳"
-      },
-      "KE0498": {
-        "from": "DEL",
-        "to": "ICN",
-        "city": "델리",
-        "country": "IN",
-        "flag": "🇮🇳"
-      },
-      "KE0503": {
-        "from": "ICN",
-        "to": "CDG",
-        "city": "파리",
-        "country": "FR",
-        "flag": "🇫🇷"
-      },
-      "KE0504": {
-        "from": "CDG",
-        "to": "ICN",
-        "city": "파리",
-        "country": "FR",
-        "flag": "🇫🇷"
-      },
-      "KE0509": {
-        "from": "ICN",
-        "to": "AMS",
-        "city": "암스테르담",
-        "country": "NL",
-        "flag": "🇳🇱"
-      },
-      "KE0510": {
-        "from": "AMS",
-        "to": "ICN",
-        "city": "암스테르담",
-        "country": "NL",
-        "flag": "🇳🇱"
-      },
-      "KE0537": {
-        "from": "ICN",
-        "to": "FRA",
-        "city": "프랑크푸르트",
-        "country": "DE",
-        "flag": "🇩🇪"
-      },
-      "KE0538": {
-        "from": "FRA",
-        "to": "ICN",
-        "city": "프랑크푸르트",
-        "country": "DE",
-        "flag": "🇩🇪"
-      },
-      "KE0551": {
-        "from": "ICN",
-        "to": "NRT",
-        "city": "도쿄",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE0552": {
-        "from": "NRT",
-        "to": "ICN",
-        "city": "도쿄",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE0601": {
-        "from": "ICN",
-        "to": "CEB",
-        "city": "세부",
-        "country": "PH",
-        "flag": "🇵🇭"
-      },
-      "KE0602": {
-        "from": "CEB",
-        "to": "ICN",
-        "city": "세부",
-        "country": "PH",
-        "flag": "🇵🇭"
-      },
-      "KE0619": {
-        "from": "ICN",
-        "to": "MNL",
-        "city": "마닐라",
-        "country": "PH",
-        "flag": "🇵🇭"
-      },
-      "KE0620": {
-        "from": "MNL",
-        "to": "ICN",
-        "city": "마닐라",
-        "country": "PH",
-        "flag": "🇵🇭"
-      },
-      "KE0621": {
-        "from": "ICN",
-        "to": "MNL",
-        "city": "마닐라",
-        "country": "PH",
-        "flag": "🇵🇭"
-      },
-      "KE0622": {
-        "from": "MNL",
-        "to": "ICN",
-        "city": "마닐라",
-        "country": "PH",
-        "flag": "🇵🇭"
-      },
-      "KE0623": {
-        "from": "ICN",
-        "to": "MNL",
-        "city": "마닐라",
-        "country": "PH",
-        "flag": "🇵🇭"
-      },
-      "KE0624": {
-        "from": "MNL",
-        "to": "ICN",
-        "city": "마닐라",
-        "country": "PH",
-        "flag": "🇵🇭"
-      },
-      "KE0625": {
-        "from": "ICN",
-        "to": "MNL",
-        "city": "마닐라",
-        "country": "PH",
-        "flag": "🇵🇭"
-      },
-      "KE0626": {
-        "from": "MNL",
-        "to": "ICN",
-        "city": "마닐라",
-        "country": "PH",
-        "flag": "🇵🇭"
-      },
-      "KE0643": {
-        "from": "ICN",
-        "to": "SIN",
-        "city": "싱가포르",
-        "country": "SG",
-        "flag": "🇸🇬"
-      },
-      "KE0644": {
-        "from": "SIN",
-        "to": "ICN",
-        "city": "싱가포르",
-        "country": "SG",
-        "flag": "🇸🇬"
-      },
-      "KE0645": {
-        "from": "ICN",
-        "to": "SIN",
-        "city": "싱가포르",
-        "country": "SG",
-        "flag": "🇸🇬"
-      },
-      "KE0646": {
-        "from": "SIN",
-        "to": "ICN",
-        "city": "싱가포르",
-        "country": "SG",
-        "flag": "🇸🇬"
-      },
-      "KE0647": {
-        "from": "ICN",
-        "to": "SIN",
-        "city": "싱가포르",
-        "country": "SG",
-        "flag": "🇸🇬"
-      },
-      "KE0648": {
-        "from": "SIN",
-        "to": "ICN",
-        "city": "싱가포르",
-        "country": "SG",
-        "flag": "🇸🇬"
-      },
-      "KE0651": {
-        "from": "ICN",
-        "to": "BKK",
-        "city": "방콕",
-        "country": "TH",
-        "flag": "🇹🇭"
-      },
-      "KE0652": {
-        "from": "BKK",
-        "to": "ICN",
-        "city": "방콕",
-        "country": "TH",
-        "flag": "🇹🇭"
-      },
-      "KE0655": {
-        "from": "ICN",
-        "to": "BKK",
-        "city": "방콕",
-        "country": "TH",
-        "flag": "🇹🇭"
-      },
-      "KE0656": {
-        "from": "BKK",
-        "to": "ICN",
-        "city": "방콕",
-        "country": "TH",
-        "flag": "🇹🇭"
-      },
-      "KE0657": {
-        "from": "ICN",
-        "to": "BKK",
-        "city": "방콕",
-        "country": "TH",
-        "flag": "🇹🇭"
-      },
-      "KE0658": {
-        "from": "BKK",
-        "to": "ICN",
-        "city": "방콕",
-        "country": "TH",
-        "flag": "🇹🇭"
-      },
-      "KE0659": {
-        "from": "ICN",
-        "to": "BKK",
-        "city": "방콕",
-        "country": "TH",
-        "flag": "🇹🇭"
-      },
-      "KE0660": {
-        "from": "BKK",
-        "to": "ICN",
-        "city": "방콕",
-        "country": "TH",
-        "flag": "🇹🇭"
-      },
-      "KE0677": {
-        "from": "ICN",
-        "to": "HKT",
-        "city": "푸껫",
-        "country": "TH",
-        "flag": "🇹🇭"
-      },
-      "KE0678": {
-        "from": "HKT",
-        "to": "ICN",
-        "city": "푸껫",
-        "country": "TH",
-        "flag": "🇹🇭"
-      },
-      "KE0689": {
-        "from": "ICN",
-        "to": "PNH",
-        "city": "프놈펜",
-        "country": "KH",
-        "flag": "🇰🇭"
-      },
-      "KE0690": {
-        "from": "PNH",
-        "to": "ICN",
-        "city": "프놈펜",
-        "country": "KH",
-        "flag": "🇰🇭"
-      },
       "KE0703": {
         "from": "ICN",
-        "to": "NRT",
-        "city": "도쿄",
-        "country": "JP",
-        "flag": "🇯🇵"
+        "to": "NRT"
       },
       "KE0704": {
         "from": "NRT",
-        "to": "ICN",
-        "city": "도쿄",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE0705": {
-        "from": "ICN",
-        "to": "NRT",
-        "city": "도쿄",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE0706": {
-        "from": "NRT",
-        "to": "ICN",
-        "city": "도쿄",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE0707": {
-        "from": "ICN",
-        "to": "NRT",
-        "city": "도쿄",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE0708": {
-        "from": "NRT",
-        "to": "ICN",
-        "city": "도쿄",
-        "country": "JP",
-        "flag": "🇯🇵"
+        "to": "ICN"
       },
       "KE0711": {
         "from": "ICN",
-        "to": "NRT",
-        "city": "도쿄",
-        "country": "JP",
-        "flag": "🇯🇵"
+        "to": "NRT"
       },
       "KE0712": {
         "from": "NRT",
-        "to": "ICN",
-        "city": "도쿄",
-        "country": "JP",
-        "flag": "🇯🇵"
+        "to": "ICN"
+      },
+      "KE0707": {
+        "from": "ICN",
+        "to": "NRT"
+      },
+      "KE0708": {
+        "from": "NRT",
+        "to": "ICN"
       },
       "KE0713": {
         "from": "ICN",
-        "to": "NRT",
-        "city": "도쿄",
-        "country": "JP",
-        "flag": "🇯🇵"
+        "to": "NRT"
       },
       "KE0714": {
         "from": "NRT",
-        "to": "ICN",
-        "city": "도쿄",
-        "country": "JP",
-        "flag": "🇯🇵"
+        "to": "ICN"
       },
-      "KE0721": {
+      "KE0705": {
         "from": "ICN",
-        "to": "KIX",
-        "city": "오사카",
-        "country": "JP",
-        "flag": "🇯🇵"
+        "to": "NRT"
       },
-      "KE0722": {
-        "from": "KIX",
-        "to": "ICN",
-        "city": "오사카",
-        "country": "JP",
-        "flag": "🇯🇵"
+      "KE0706": {
+        "from": "NRT",
+        "to": "ICN"
+      },
+      "KE0751": {
+        "from": "ICN",
+        "to": "HND"
+      },
+      "KE0752": {
+        "from": "HND",
+        "to": "ICN"
       },
       "KE0723": {
         "from": "ICN",
-        "to": "KIX",
-        "city": "오사카",
-        "country": "JP",
-        "flag": "🇯🇵"
+        "to": "KIX"
       },
       "KE0724": {
         "from": "KIX",
-        "to": "ICN",
-        "city": "오사카",
-        "country": "JP",
-        "flag": "🇯🇵"
+        "to": "ICN"
       },
       "KE0725": {
         "from": "ICN",
-        "to": "KIX",
-        "city": "오사카",
-        "country": "JP",
-        "flag": "🇯🇵"
+        "to": "KIX"
       },
       "KE0726": {
         "from": "KIX",
-        "to": "ICN",
-        "city": "오사카",
-        "country": "JP",
-        "flag": "🇯🇵"
+        "to": "ICN"
+      },
+      "KE0721": {
+        "from": "ICN",
+        "to": "KIX"
+      },
+      "KE0722": {
+        "from": "KIX",
+        "to": "ICN"
+      },
+      "KE0737": {
+        "from": "ICN",
+        "to": "KIX"
+      },
+      "KE0738": {
+        "from": "KIX",
+        "to": "ICN"
       },
       "KE0727": {
         "from": "ICN",
         "to": "KIX",
-        "city": "오사카",
-        "country": "JP",
-        "flag": "🇯🇵"
+        "note": "동계"
       },
       "KE0728": {
         "from": "KIX",
         "to": "ICN",
-        "city": "오사카",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE0737": {
-        "from": "ICN",
-        "to": "KIX",
-        "city": "오사카",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE0738": {
-        "from": "KIX",
-        "to": "ICN",
-        "city": "오사카",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE0741": {
-        "from": "ICN",
-        "to": "NGO",
-        "city": "나고야",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE0742": {
-        "from": "NGO",
-        "to": "ICN",
-        "city": "나고야",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE0743": {
-        "from": "ICN",
-        "to": "NGO",
-        "city": "나고야",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE0744": {
-        "from": "NGO",
-        "to": "ICN",
-        "city": "나고야",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE0765": {
-        "from": "ICN",
-        "to": "CTS",
-        "city": "삿포로",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE0766": {
-        "from": "CTS",
-        "to": "ICN",
-        "city": "삿포로",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE0769": {
-        "from": "ICN",
-        "to": "CTS",
-        "city": "삿포로",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE0770": {
-        "from": "CTS",
-        "to": "ICN",
-        "city": "삿포로",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE0781": {
-        "from": "ICN",
-        "to": "FUK",
-        "city": "후쿠오카",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE0782": {
-        "from": "FUK",
-        "to": "ICN",
-        "city": "후쿠오카",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE0787": {
-        "from": "ICN",
-        "to": "FUK",
-        "city": "후쿠오카",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE0788": {
-        "from": "FUK",
-        "to": "ICN",
-        "city": "후쿠오카",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE0791": {
-        "from": "ICN",
-        "to": "FUK",
-        "city": "후쿠오카",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE0792": {
-        "from": "FUK",
-        "to": "ICN",
-        "city": "후쿠오카",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE0795": {
-        "from": "ICN",
-        "to": "FUK",
-        "city": "후쿠오카",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE0796": {
-        "from": "FUK",
-        "to": "ICN",
-        "city": "후쿠오카",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE0803": {
-        "from": "ICN",
-        "to": "TSN",
-        "city": "톈진",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0804": {
-        "from": "TSN",
-        "to": "ICN",
-        "city": "톈진",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0805": {
-        "from": "ICN",
-        "to": "TSN",
-        "city": "톈진",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0806": {
-        "from": "TSN",
-        "to": "ICN",
-        "city": "톈진",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0831": {
-        "from": "ICN",
-        "to": "SHE",
-        "city": "선양",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0832": {
-        "from": "SHE",
-        "to": "ICN",
-        "city": "선양",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0833": {
-        "from": "ICN",
-        "to": "SHE",
-        "city": "선양",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0834": {
-        "from": "SHE",
-        "to": "ICN",
-        "city": "선양",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0835": {
-        "from": "ICN",
-        "to": "SZX",
-        "city": "선전",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0836": {
-        "from": "SZX",
-        "to": "ICN",
-        "city": "선전",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0841": {
-        "from": "ICN",
-        "to": "TAO",
-        "city": "칭다오",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0842": {
-        "from": "TAO",
-        "to": "ICN",
-        "city": "칭다오",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0843": {
-        "from": "ICN",
-        "to": "TAO",
-        "city": "칭다오",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0844": {
-        "from": "TAO",
-        "to": "ICN",
-        "city": "칭다오",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0851": {
-        "from": "ICN",
-        "to": "PEK",
-        "city": "베이징",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0852": {
-        "from": "PEK",
-        "to": "ICN",
-        "city": "베이징",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0855": {
-        "from": "ICN",
-        "to": "PEK",
-        "city": "베이징",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0856": {
-        "from": "PEK",
-        "to": "ICN",
-        "city": "베이징",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0863": {
-        "from": "ICN",
-        "to": "PEK",
-        "city": "베이징",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0864": {
-        "from": "PEK",
-        "to": "ICN",
-        "city": "베이징",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0867": {
-        "from": "ICN",
-        "to": "CAN",
-        "city": "광저우",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0868": {
-        "from": "CAN",
-        "to": "ICN",
-        "city": "광저우",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0873": {
-        "from": "ICN",
-        "to": "DLC",
-        "city": "다롄",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0874": {
-        "from": "DLC",
-        "to": "ICN",
-        "city": "다롄",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0881": {
-        "from": "ICN",
-        "to": "PVG",
-        "city": "상하이",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0882": {
-        "from": "PVG",
-        "to": "ICN",
-        "city": "상하이",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0887": {
-        "from": "ICN",
-        "to": "PVG",
-        "city": "상하이",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0888": {
-        "from": "PVG",
-        "to": "ICN",
-        "city": "상하이",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0891": {
-        "from": "ICN",
-        "to": "PVG",
-        "city": "상하이",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0892": {
-        "from": "PVG",
-        "to": "ICN",
-        "city": "상하이",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE0901": {
-        "from": "ICN",
-        "to": "CDG",
-        "city": "파리",
-        "country": "FR",
-        "flag": "🇫🇷"
-      },
-      "KE0902": {
-        "from": "CDG",
-        "to": "ICN",
-        "city": "파리",
-        "country": "FR",
-        "flag": "🇫🇷"
-      },
-      "KE0907": {
-        "from": "ICN",
-        "to": "LHR",
-        "city": "런던",
-        "country": "GB",
-        "flag": "🇬🇧"
-      },
-      "KE0908": {
-        "from": "LHR",
-        "to": "ICN",
-        "city": "런던",
-        "country": "GB",
-        "flag": "🇬🇧"
-      },
-      "KE0913": {
-        "from": "ICN",
-        "to": "MAD",
-        "city": "마드리드",
-        "country": "ES",
-        "flag": "🇪🇸"
-      },
-      "KE0914": {
-        "from": "MAD",
-        "to": "ICN",
-        "city": "마드리드",
-        "country": "ES",
-        "flag": "🇪🇸"
-      },
-      "KE0917": {
-        "from": "ICN",
-        "to": "ZRH",
-        "city": "취리히",
-        "country": "CH",
-        "flag": "🇨🇭"
-      },
-      "KE0918": {
-        "from": "ZRH",
-        "to": "ICN",
-        "city": "취리히",
-        "country": "CH",
-        "flag": "🇨🇭"
-      },
-      "KE0921": {
-        "from": "ICN",
-        "to": "LIS",
-        "city": "리스본",
-        "country": "PT",
-        "flag": "🇵🇹"
-      },
-      "KE0922": {
-        "from": "LIS",
-        "to": "ICN",
-        "city": "리스본",
-        "country": "PT",
-        "flag": "🇵🇹"
-      },
-      "KE0925": {
-        "from": "ICN",
-        "to": "AMS",
-        "city": "암스테르담",
-        "country": "NL",
-        "flag": "🇳🇱"
-      },
-      "KE0926": {
-        "from": "AMS",
-        "to": "ICN",
-        "city": "암스테르담",
-        "country": "NL",
-        "flag": "🇳🇱"
-      },
-      "KE0927": {
-        "from": "ICN",
-        "to": "MXP",
-        "city": "밀라노",
-        "country": "IT",
-        "flag": "🇮🇹"
-      },
-      "KE0928": {
-        "from": "MXP",
-        "to": "ICN",
-        "city": "밀라노",
-        "country": "IT",
-        "flag": "🇮🇹"
-      },
-      "KE0931": {
-        "from": "ICN",
-        "to": "FCO",
-        "city": "로마",
-        "country": "IT",
-        "flag": "🇮🇹"
-      },
-      "KE0932": {
-        "from": "FCO",
-        "to": "ICN",
-        "city": "로마",
-        "country": "IT",
-        "flag": "🇮🇹"
-      },
-      "KE0945": {
-        "from": "ICN",
-        "to": "FRA",
-        "city": "프랑크푸르트",
-        "country": "DE",
-        "flag": "🇩🇪"
-      },
-      "KE0946": {
-        "from": "FRA",
-        "to": "ICN",
-        "city": "프랑크푸르트",
-        "country": "DE",
-        "flag": "🇩🇪"
-      },
-      "KE0955": {
-        "from": "ICN",
-        "to": "IST",
-        "city": "이스탄불",
-        "country": "TR",
-        "flag": "🇹🇷"
-      },
-      "KE0956": {
-        "from": "IST",
-        "to": "ICN",
-        "city": "이스탄불",
-        "country": "TR",
-        "flag": "🇹🇷"
-      },
-      "KE0963": {
-        "from": "ICN",
-        "to": "BUD",
-        "city": "부다페스트",
-        "country": "HU",
-        "flag": "🇭🇺"
-      },
-      "KE0964": {
-        "from": "BUD",
-        "to": "ICN",
-        "city": "부다페스트",
-        "country": "HU",
-        "flag": "🇭🇺"
-      },
-      "KE0969": {
-        "from": "ICN",
-        "to": "PRG",
-        "city": "프라하",
-        "country": "CZ",
-        "flag": "🇨🇿"
-      },
-      "KE0970": {
-        "from": "PRG",
-        "to": "ICN",
-        "city": "프라하",
-        "country": "CZ",
-        "flag": "🇨🇿"
-      },
-      "KE1007": {
-        "from": "GMP",
-        "to": "CJU",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1017": {
-        "from": "GMP",
-        "to": "CJU",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1019": {
-        "from": "GMP",
-        "to": "CJU",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1023": {
-        "from": "GMP",
-        "to": "CJU",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1045": {
-        "from": "GMP",
-        "to": "CJU",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1073": {
-        "from": "GMP",
-        "to": "CJU",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1075": {
-        "from": "GMP",
-        "to": "CJU",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1079": {
-        "from": "GMP",
-        "to": "CJU",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1081": {
-        "from": "GMP",
-        "to": "CJU",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1107": {
-        "from": "GMP",
-        "to": "CJU",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1113": {
-        "from": "GMP",
-        "to": "CJU",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1118": {
-        "from": "CJU",
-        "to": "GMP",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1121": {
-        "from": "GMP",
-        "to": "CJU",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1136": {
-        "from": "CJU",
-        "to": "GMP",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1141": {
-        "from": "GMP",
-        "to": "CJU",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1143": {
-        "from": "GMP",
-        "to": "CJU",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1150": {
-        "from": "CJU",
-        "to": "GMP",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1165": {
-        "from": "GMP",
-        "to": "CJU",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1174": {
-        "from": "CJU",
-        "to": "GMP",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1177": {
-        "from": "GMP",
-        "to": "CJU",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1178": {
-        "from": "CJU",
-        "to": "GMP",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1185": {
-        "from": "GMP",
-        "to": "CJU",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1188": {
-        "from": "CJU",
-        "to": "GMP",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1195": {
-        "from": "GMP",
-        "to": "CJU",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1205": {
-        "from": "GMP",
-        "to": "CJU",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1206": {
-        "from": "CJU",
-        "to": "GMP",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1214": {
-        "from": "CJU",
-        "to": "GMP",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1238": {
-        "from": "CJU",
-        "to": "GMP",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1244": {
-        "from": "CJU",
-        "to": "GMP",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1246": {
-        "from": "CJU",
-        "to": "GMP",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1264": {
-        "from": "CJU",
-        "to": "GMP",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1268": {
-        "from": "CJU",
-        "to": "GMP",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1272": {
-        "from": "CJU",
-        "to": "GMP",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1294": {
-        "from": "CJU",
-        "to": "GMP",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1401": {
-        "from": "ICN",
-        "to": "PUS",
-        "city": "부산",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1402": {
-        "from": "PUS",
-        "to": "ICN",
-        "city": "부산",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1403": {
-        "from": "ICN",
-        "to": "PUS",
-        "city": "부산",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1404": {
-        "from": "PUS",
-        "to": "ICN",
-        "city": "부산",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1405": {
-        "from": "ICN",
-        "to": "PUS",
-        "city": "부산",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1406": {
-        "from": "PUS",
-        "to": "ICN",
-        "city": "부산",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1407": {
-        "from": "ICN",
-        "to": "PUS",
-        "city": "부산",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1408": {
-        "from": "PUS",
-        "to": "ICN",
-        "city": "부산",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1410": {
-        "from": "PUS",
-        "to": "ICN",
-        "city": "부산",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1431": {
-        "from": "ICN",
-        "to": "TAE",
-        "city": "대구",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1432": {
-        "from": "TAE",
-        "to": "ICN",
-        "city": "대구",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1505": {
-        "from": "PUS",
-        "to": "CJU",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1512": {
-        "from": "CJU",
-        "to": "PUS",
-        "city": "부산",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1515": {
-        "from": "PUS",
-        "to": "CJU",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1517": {
-        "from": "PUS",
-        "to": "CJU",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1538": {
-        "from": "CJU",
-        "to": "PUS",
-        "city": "부산",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1543": {
-        "from": "PUS",
-        "to": "CJU",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1550": {
-        "from": "CJU",
-        "to": "PUS",
-        "city": "부산",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1558": {
-        "from": "CJU",
-        "to": "PUS",
-        "city": "부산",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1562": {
-        "from": "CJU",
-        "to": "PUS",
-        "city": "부산",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1569": {
-        "from": "TAE",
-        "to": "CJU",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1570": {
-        "from": "CJU",
-        "to": "TAE",
-        "city": "대구",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1575": {
-        "from": "TAE",
-        "to": "CJU",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1576": {
-        "from": "CJU",
-        "to": "TAE",
-        "city": "대구",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1585": {
-        "from": "HIN",
-        "to": "CJU",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1586": {
-        "from": "CJU",
-        "to": "HIN",
-        "city": "사천",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1595": {
-        "from": "USN",
-        "to": "CJU",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1596": {
-        "from": "CJU",
-        "to": "USN",
-        "city": "울산",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1607": {
-        "from": "KWJ",
-        "to": "CJU",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1608": {
-        "from": "CJU",
-        "to": "KWJ",
-        "city": "광주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1610": {
-        "from": "CJU",
-        "to": "KWJ",
-        "city": "광주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1611": {
-        "from": "KWJ",
-        "to": "CJU",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1612": {
-        "from": "CJU",
-        "to": "KWJ",
-        "city": "광주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1613": {
-        "from": "KWJ",
-        "to": "CJU",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1619": {
-        "from": "KWJ",
-        "to": "CJU",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1620": {
-        "from": "CJU",
-        "to": "KWJ",
-        "city": "광주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1635": {
-        "from": "RSU",
-        "to": "CJU",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1636": {
-        "from": "CJU",
-        "to": "RSU",
-        "city": "여수",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1704": {
-        "from": "CJU",
-        "to": "CJJ",
-        "city": "청주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1712": {
-        "from": "CJU",
-        "to": "CJJ",
-        "city": "청주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1717": {
-        "from": "CJJ",
-        "to": "CJU",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1722": {
-        "from": "CJU",
-        "to": "CJJ",
-        "city": "청주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1725": {
-        "from": "CJJ",
-        "to": "CJU",
-        "city": "제주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1762": {
-        "from": "CJU",
-        "to": "CJJ",
-        "city": "청주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1766": {
-        "from": "CJU",
-        "to": "CJJ",
-        "city": "청주",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1803": {
-        "from": "GMP",
-        "to": "PUS",
-        "city": "부산",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1806": {
-        "from": "PUS",
-        "to": "GMP",
-        "city": "부산",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1807": {
-        "from": "GMP",
-        "to": "PUS",
-        "city": "부산",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1811": {
-        "from": "GMP",
-        "to": "PUS",
-        "city": "부산",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1814": {
-        "from": "PUS",
-        "to": "GMP",
-        "city": "부산",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1819": {
-        "from": "GMP",
-        "to": "PUS",
-        "city": "부산",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1822": {
-        "from": "PUS",
-        "to": "GMP",
-        "city": "부산",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1827": {
-        "from": "GMP",
-        "to": "PUS",
-        "city": "부산",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1843": {
-        "from": "GMP",
-        "to": "USN",
-        "city": "울산",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1844": {
-        "from": "USN",
-        "to": "GMP",
-        "city": "울산",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE1847": {
-        "from": "GMP",
-        "to": "USN",
-        "city": "울산",
-        "country": "KR",
-        "flag": "🇰🇷"
-      },
-      "KE2001": {
-        "from": "ICN",
-        "to": "HKG",
-        "city": "홍콩",
-        "country": "HK",
-        "flag": "🇭🇰"
-      },
-      "KE2002": {
-        "from": "HKG",
-        "to": "ICN",
-        "city": "홍콩",
-        "country": "HK",
-        "flag": "🇭🇰"
-      },
-      "KE2005": {
-        "from": "ICN",
-        "to": "HKG",
-        "city": "홍콩",
-        "country": "HK",
-        "flag": "🇭🇰"
-      },
-      "KE2006": {
-        "from": "HKG",
-        "to": "ICN",
-        "city": "홍콩",
-        "country": "HK",
-        "flag": "🇭🇰"
-      },
-      "KE2011": {
-        "from": "ICN",
-        "to": "HKG",
-        "city": "홍콩",
-        "country": "HK",
-        "flag": "🇭🇰"
-      },
-      "KE2012": {
-        "from": "HKG",
-        "to": "ICN",
-        "city": "홍콩",
-        "country": "HK",
-        "flag": "🇭🇰"
-      },
-      "KE2015": {
-        "from": "ICN",
-        "to": "MFM",
-        "city": "마카오",
-        "country": "MO",
-        "flag": "🇲🇴"
-      },
-      "KE2016": {
-        "from": "MFM",
-        "to": "ICN",
-        "city": "마카오",
-        "country": "MO",
-        "flag": "🇲🇴"
-      },
-      "KE2021": {
-        "from": "ICN",
-        "to": "TPE",
-        "city": "타이베이",
-        "country": "TW",
-        "flag": "🇹🇼"
-      },
-      "KE2022": {
-        "from": "TPE",
-        "to": "ICN",
-        "city": "타이베이",
-        "country": "TW",
-        "flag": "🇹🇼"
-      },
-      "KE2027": {
-        "from": "ICN",
-        "to": "TPE",
-        "city": "타이베이",
-        "country": "TW",
-        "flag": "🇹🇼"
-      },
-      "KE2028": {
-        "from": "TPE",
-        "to": "ICN",
-        "city": "타이베이",
-        "country": "TW",
-        "flag": "🇹🇼"
-      },
-      "KE2041": {
-        "from": "ICN",
-        "to": "ULN",
-        "city": "울란바토르",
-        "country": "MN",
-        "flag": "🇲🇳"
-      },
-      "KE2042": {
-        "from": "ULN",
-        "to": "ICN",
-        "city": "울란바토르",
-        "country": "MN",
-        "flag": "🇲🇳"
-      },
-      "KE2051": {
-        "from": "GMP",
-        "to": "PEK",
-        "city": "베이징",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE2052": {
-        "from": "PEK",
-        "to": "GMP",
-        "city": "베이징",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE2057": {
-        "from": "GMP",
-        "to": "PVG",
-        "city": "상하이",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE2058": {
-        "from": "PVG",
-        "to": "GMP",
-        "city": "상하이",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE2061": {
-        "from": "PUS",
-        "to": "PEK",
-        "city": "베이징",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE2062": {
-        "from": "PEK",
-        "to": "PUS",
-        "city": "베이징",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE2065": {
-        "from": "CJU",
-        "to": "PEK",
-        "city": "베이징",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE2066": {
-        "from": "PEK",
-        "to": "CJU",
-        "city": "베이징",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE2071": {
-        "from": "PUS",
-        "to": "PVG",
-        "city": "상하이",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE2072": {
-        "from": "PVG",
-        "to": "PUS",
-        "city": "상하이",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE2081": {
-        "from": "PUS",
-        "to": "TAO",
-        "city": "칭다오",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE2082": {
-        "from": "TAO",
-        "to": "PUS",
-        "city": "칭다오",
-        "country": "CN",
-        "flag": "🇨🇳"
-      },
-      "KE2085": {
-        "from": "PUS",
-        "to": "TPE",
-        "city": "타이베이",
-        "country": "TW",
-        "flag": "🇹🇼"
-      },
-      "KE2086": {
-        "from": "TPE",
-        "to": "PUS",
-        "city": "타이베이",
-        "country": "TW",
-        "flag": "🇹🇼"
-      },
-      "KE2101": {
-        "from": "GMP",
-        "to": "HND",
-        "city": "도쿄",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE2102": {
-        "from": "HND",
-        "to": "GMP",
-        "city": "도쿄",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE2103": {
-        "from": "GMP",
-        "to": "HND",
-        "city": "도쿄",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE2104": {
-        "from": "HND",
-        "to": "GMP",
-        "city": "도쿄",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE2105": {
-        "from": "GMP",
-        "to": "HND",
-        "city": "도쿄",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE2106": {
-        "from": "HND",
-        "to": "GMP",
-        "city": "도쿄",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE2117": {
-        "from": "GMP",
-        "to": "KIX",
-        "city": "오사카",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE2118": {
-        "from": "KIX",
-        "to": "GMP",
-        "city": "오사카",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE2119": {
-        "from": "GMP",
-        "to": "KIX",
-        "city": "오사카",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE2120": {
-        "from": "KIX",
-        "to": "GMP",
-        "city": "오사카",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE2125": {
-        "from": "CJU",
-        "to": "NRT",
-        "city": "도쿄",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE2126": {
-        "from": "NRT",
-        "to": "CJU",
-        "city": "도쿄",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE2129": {
-        "from": "PUS",
-        "to": "NRT",
-        "city": "도쿄",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE2130": {
-        "from": "NRT",
-        "to": "PUS",
-        "city": "도쿄",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE2131": {
-        "from": "PUS",
-        "to": "NRT",
-        "city": "도쿄",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE2132": {
-        "from": "NRT",
-        "to": "PUS",
-        "city": "도쿄",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE2133": {
-        "from": "PUS",
-        "to": "NGO",
-        "city": "나고야",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE2134": {
-        "from": "NGO",
-        "to": "PUS",
-        "city": "나고야",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE2147": {
-        "from": "ICN",
-        "to": "OKA",
-        "city": "오키나와",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE2148": {
-        "from": "OKA",
-        "to": "ICN",
-        "city": "오키나와",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE2155": {
-        "from": "ICN",
-        "to": "KMJ",
-        "city": "구마모토",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE2156": {
-        "from": "KMJ",
-        "to": "ICN",
-        "city": "구마모토",
-        "country": "JP",
-        "flag": "🇯🇵"
+        "note": "동계"
       },
       "KE2171": {
         "from": "ICN",
         "to": "UKB",
-        "city": "고베",
-        "country": "JP",
-        "flag": "🇯🇵"
+        "note": "정기차터"
       },
       "KE2172": {
-        "from": "KIX",
+        "from": "UKB",
         "to": "ICN",
-        "city": "오사카",
-        "country": "JP",
-        "flag": "🇯🇵"
+        "note": "정기차터"
       },
       "KE2173": {
         "from": "ICN",
-        "to": "KIX",
-        "city": "오사카",
-        "country": "JP",
-        "flag": "🇯🇵"
+        "to": "UKB",
+        "note": "정기차터"
       },
       "KE2174": {
-        "from": "KIX",
+        "from": "UKB",
         "to": "ICN",
-        "city": "오사카",
-        "country": "JP",
-        "flag": "🇯🇵"
+        "note": "정기차터"
+      },
+      "KE0741": {
+        "from": "ICN",
+        "to": "NGO"
+      },
+      "KE0742": {
+        "from": "NGO",
+        "to": "ICN"
+      },
+      "KE0743": {
+        "from": "ICN",
+        "to": "NGO"
+      },
+      "KE0744": {
+        "from": "NGO",
+        "to": "ICN"
+      },
+      "KE0765": {
+        "from": "ICN",
+        "to": "CTS"
+      },
+      "KE0766": {
+        "from": "CTS",
+        "to": "ICN"
+      },
+      "KE0769": {
+        "from": "ICN",
+        "to": "CTS"
+      },
+      "KE0770": {
+        "from": "CTS",
+        "to": "ICN"
+      },
+      "KE0787": {
+        "from": "ICN",
+        "to": "FUK"
+      },
+      "KE0788": {
+        "from": "FUK",
+        "to": "ICN"
+      },
+      "KE0791": {
+        "from": "ICN",
+        "to": "FUK"
+      },
+      "KE0792": {
+        "from": "FUK",
+        "to": "ICN"
+      },
+      "KE0781": {
+        "from": "ICN",
+        "to": "FUK"
+      },
+      "KE0782": {
+        "from": "FUK",
+        "to": "ICN"
+      },
+      "KE8795": {
+        "from": "ICN",
+        "to": "FUK"
+      },
+      "KE8796": {
+        "from": "FUK",
+        "to": "ICN"
+      },
+      "KE2147": {
+        "from": "ICN",
+        "to": "OKA"
+      },
+      "KE2148": {
+        "from": "OKA",
+        "to": "ICN"
       },
       "KE2179": {
         "from": "ICN",
-        "to": "KOJ",
-        "city": "가고시마",
-        "country": "JP",
-        "flag": "🇯🇵"
+        "to": "KOJ"
       },
       "KE2180": {
         "from": "KOJ",
-        "to": "ICN",
-        "city": "가고시마",
-        "country": "JP",
-        "flag": "🇯🇵"
+        "to": "ICN"
       },
-      "KE2185": {
+      "KE2155": {
         "from": "ICN",
-        "to": "OKJ",
-        "city": "오카야마",
-        "country": "JP",
-        "flag": "🇯🇵"
+        "to": "KMJ"
       },
-      "KE2186": {
-        "from": "OKJ",
-        "to": "ICN",
-        "city": "오카야마",
-        "country": "JP",
-        "flag": "🇯🇵"
+      "KE2156": {
+        "from": "KMJ",
+        "to": "ICN"
+      },
+      "KE2191": {
+        "from": "ICN",
+        "to": "NGS"
+      },
+      "KE2192": {
+        "from": "NGS",
+        "to": "ICN"
       },
       "KE2189": {
         "from": "ICN",
-        "to": "KMQ",
-        "city": "고마쓰",
-        "country": "JP",
-        "flag": "🇯🇵"
+        "to": "KMQ"
       },
       "KE2190": {
         "from": "KMQ",
-        "to": "ICN",
-        "city": "고마쓰",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE2193": {
-        "from": "ICN",
-        "to": "AOJ",
-        "city": "아오모리",
-        "country": "JP",
-        "flag": "🇯🇵"
-      },
-      "KE2194": {
-        "from": "AOJ",
-        "to": "ICN",
-        "city": "아오모리",
-        "country": "JP",
-        "flag": "🇯🇵"
+        "to": "ICN"
       },
       "KE2197": {
         "from": "ICN",
-        "to": "KIJ",
-        "city": "니가타",
-        "country": "JP",
-        "flag": "🇯🇵"
+        "to": "KIJ"
       },
       "KE2198": {
         "from": "KIJ",
-        "to": "ICN",
-        "city": "니가타",
-        "country": "JP",
-        "flag": "🇯🇵"
+        "to": "ICN"
       },
-      "KE8053": {
+      "KE2193": {
         "from": "ICN",
-        "to": "HNL",
-        "city": "호놀룰루",
-        "country": "US",
-        "flag": "🇺🇸"
+        "to": "AOJ"
       },
-      "KE8054": {
+      "KE2194": {
+        "from": "AOJ",
+        "to": "ICN"
+      },
+      "KE2185": {
+        "from": "ICN",
+        "to": "OKJ"
+      },
+      "KE2186": {
+        "from": "OKJ",
+        "to": "ICN"
+      },
+      "KE2177": {
+        "from": "ICN",
+        "to": "OIT",
+        "note": "2026-10-25 복항"
+      },
+      "KE2178": {
+        "from": "OIT",
+        "to": "ICN",
+        "note": "2026-10-25 복항"
+      },
+      "KE2183": {
+        "from": "ICN",
+        "to": "HIJ",
+        "note": "2026-12-23 신규취항"
+      },
+      "KE2184": {
+        "from": "HIJ",
+        "to": "ICN",
+        "note": "2026-12-23 신규취항"
+      },
+      "KE0851": {
+        "from": "ICN",
+        "to": "PEK"
+      },
+      "KE0852": {
+        "from": "PEK",
+        "to": "ICN"
+      },
+      "KE0855": {
+        "from": "ICN",
+        "to": "PEK"
+      },
+      "KE0856": {
+        "from": "PEK",
+        "to": "ICN"
+      },
+      "KE0863": {
+        "from": "ICN",
+        "to": "PEK"
+      },
+      "KE0864": {
+        "from": "PEK",
+        "to": "ICN"
+      },
+      "KE0881": {
+        "from": "ICN",
+        "to": "PVG"
+      },
+      "KE0882": {
+        "from": "PVG",
+        "to": "ICN"
+      },
+      "KE0887": {
+        "from": "ICN",
+        "to": "PVG"
+      },
+      "KE0888": {
+        "from": "PVG",
+        "to": "ICN"
+      },
+      "KE0891": {
+        "from": "ICN",
+        "to": "PVG"
+      },
+      "KE0892": {
+        "from": "PVG",
+        "to": "ICN"
+      },
+      "KE0867": {
+        "from": "ICN",
+        "to": "CAN"
+      },
+      "KE0868": {
+        "from": "CAN",
+        "to": "ICN"
+      },
+      "KE0101": {
+        "from": "ICN",
+        "to": "NKG"
+      },
+      "KE0102": {
+        "from": "NKG",
+        "to": "ICN"
+      },
+      "KE0873": {
+        "from": "ICN",
+        "to": "DLC"
+      },
+      "KE0874": {
+        "from": "DLC",
+        "to": "ICN"
+      },
+      "KE0875": {
+        "from": "ICN",
+        "to": "DLC",
+        "note": "하계"
+      },
+      "KE0876": {
+        "from": "DLC",
+        "to": "ICN",
+        "note": "하계"
+      },
+      "KE0125": {
+        "from": "ICN",
+        "to": "XMN"
+      },
+      "KE0126": {
+        "from": "XMN",
+        "to": "ICN"
+      },
+      "KE0831": {
+        "from": "ICN",
+        "to": "SHE"
+      },
+      "KE0832": {
+        "from": "SHE",
+        "to": "ICN"
+      },
+      "KE0833": {
+        "from": "ICN",
+        "to": "SHE"
+      },
+      "KE0834": {
+        "from": "SHE",
+        "to": "ICN"
+      },
+      "KE0835": {
+        "from": "ICN",
+        "to": "SZX"
+      },
+      "KE0836": {
+        "from": "SZX",
+        "to": "ICN"
+      },
+      "KE0141": {
+        "from": "ICN",
+        "to": "XIY"
+      },
+      "KE0142": {
+        "from": "XIY",
+        "to": "ICN"
+      },
+      "KE0115": {
+        "from": "ICN",
+        "to": "YNJ"
+      },
+      "KE0116": {
+        "from": "YNJ",
+        "to": "ICN"
+      },
+      "KE0165": {
+        "from": "ICN",
+        "to": "WUH"
+      },
+      "KE0166": {
+        "from": "WUH",
+        "to": "ICN"
+      },
+      "KE0163": {
+        "from": "ICN",
+        "to": "DYG"
+      },
+      "KE0164": {
+        "from": "DYG",
+        "to": "ICN"
+      },
+      "KE0133": {
+        "from": "ICN",
+        "to": "CGO"
+      },
+      "KE0134": {
+        "from": "CGO",
+        "to": "ICN"
+      },
+      "KE0145": {
+        "from": "ICN",
+        "to": "CSX"
+      },
+      "KE0146": {
+        "from": "CSX",
+        "to": "ICN"
+      },
+      "KE0841": {
+        "from": "ICN",
+        "to": "TAO"
+      },
+      "KE0842": {
+        "from": "TAO",
+        "to": "ICN"
+      },
+      "KE0843": {
+        "from": "ICN",
+        "to": "TAO"
+      },
+      "KE0844": {
+        "from": "TAO",
+        "to": "ICN"
+      },
+      "KE0161": {
+        "from": "ICN",
+        "to": "KMG"
+      },
+      "KE0162": {
+        "from": "KMG",
+        "to": "ICN"
+      },
+      "KE0805": {
+        "from": "ICN",
+        "to": "TSN"
+      },
+      "KE0806": {
+        "from": "TSN",
+        "to": "ICN"
+      },
+      "KE0803": {
+        "from": "ICN",
+        "to": "TSN",
+        "note": "하계"
+      },
+      "KE0804": {
+        "from": "TSN",
+        "to": "ICN",
+        "note": "하계"
+      },
+      "KE0127": {
+        "from": "ICN",
+        "to": "FOC"
+      },
+      "KE0128": {
+        "from": "FOC",
+        "to": "ICN"
+      },
+      "KE0107": {
+        "from": "ICN",
+        "to": "HGH"
+      },
+      "KE0108": {
+        "from": "HGH",
+        "to": "ICN"
+      },
+      "KE0155": {
+        "from": "ICN",
+        "to": "HFE"
+      },
+      "KE0156": {
+        "from": "HFE",
+        "to": "ICN"
+      },
+      "KE2001": {
+        "from": "ICN",
+        "to": "HKG"
+      },
+      "KE2002": {
+        "from": "HKG",
+        "to": "ICN"
+      },
+      "KE2005": {
+        "from": "ICN",
+        "to": "HKG"
+      },
+      "KE2006": {
+        "from": "HKG",
+        "to": "ICN"
+      },
+      "KE2011": {
+        "from": "ICN",
+        "to": "HKG"
+      },
+      "KE2012": {
+        "from": "HKG",
+        "to": "ICN"
+      },
+      "KE2015": {
+        "from": "ICN",
+        "to": "MFM"
+      },
+      "KE2016": {
+        "from": "MFM",
+        "to": "ICN"
+      },
+      "KE2021": {
+        "from": "ICN",
+        "to": "TPE"
+      },
+      "KE2022": {
+        "from": "TPE",
+        "to": "ICN"
+      },
+      "KE2027": {
+        "from": "ICN",
+        "to": "TPE"
+      },
+      "KE2028": {
+        "from": "TPE",
+        "to": "ICN"
+      },
+      "KE0657": {
+        "from": "ICN",
+        "to": "BKK"
+      },
+      "KE0658": {
+        "from": "BKK",
+        "to": "ICN"
+      },
+      "KE0651": {
+        "from": "ICN",
+        "to": "BKK"
+      },
+      "KE0652": {
+        "from": "BKK",
+        "to": "ICN"
+      },
+      "KE0659": {
+        "from": "ICN",
+        "to": "BKK"
+      },
+      "KE0660": {
+        "from": "BKK",
+        "to": "ICN"
+      },
+      "KE0655": {
+        "from": "ICN",
+        "to": "BKK"
+      },
+      "KE0656": {
+        "from": "BKK",
+        "to": "ICN"
+      },
+      "KE0653": {
+        "from": "ICN",
+        "to": "BKK",
+        "note": "동계"
+      },
+      "KE0654": {
+        "from": "BKK",
+        "to": "ICN",
+        "note": "동계"
+      },
+      "KE0683": {
+        "from": "ICN",
+        "to": "CNX",
+        "note": "2026 하계 비운항"
+      },
+      "KE0684": {
+        "from": "CNX",
+        "to": "ICN",
+        "note": "2026 하계 비운항"
+      },
+      "KE0677": {
+        "from": "ICN",
+        "to": "HKT"
+      },
+      "KE0678": {
+        "from": "HKT",
+        "to": "ICN"
+      },
+      "KE0601": {
+        "from": "ICN",
+        "to": "CEB"
+      },
+      "KE0602": {
+        "from": "CEB",
+        "to": "ICN"
+      },
+      "KE0621": {
+        "from": "ICN",
+        "to": "MNL"
+      },
+      "KE0622": {
+        "from": "MNL",
+        "to": "ICN"
+      },
+      "KE0623": {
+        "from": "ICN",
+        "to": "MNL"
+      },
+      "KE0624": {
+        "from": "MNL",
+        "to": "ICN"
+      },
+      "KE0625": {
+        "from": "ICN",
+        "to": "MNL"
+      },
+      "KE0626": {
+        "from": "MNL",
+        "to": "ICN"
+      },
+      "KE0619": {
+        "from": "ICN",
+        "to": "MNL"
+      },
+      "KE0620": {
+        "from": "MNL",
+        "to": "ICN"
+      },
+      "KE0643": {
+        "from": "ICN",
+        "to": "SIN"
+      },
+      "KE0644": {
+        "from": "SIN",
+        "to": "ICN"
+      },
+      "KE0645": {
+        "from": "ICN",
+        "to": "SIN"
+      },
+      "KE0646": {
+        "from": "SIN",
+        "to": "ICN"
+      },
+      "KE0647": {
+        "from": "ICN",
+        "to": "SIN"
+      },
+      "KE0648": {
+        "from": "SIN",
+        "to": "ICN"
+      },
+      "KE0427": {
+        "from": "ICN",
+        "to": "KUL"
+      },
+      "KE0428": {
+        "from": "KUL",
+        "to": "ICN"
+      },
+      "KE0437": {
+        "from": "ICN",
+        "to": "CGK"
+      },
+      "KE0438": {
+        "from": "CGK",
+        "to": "ICN"
+      },
+      "KE0431": {
+        "from": "ICN",
+        "to": "DPS"
+      },
+      "KE0432": {
+        "from": "DPS",
+        "to": "ICN"
+      },
+      "KE0433": {
+        "from": "ICN",
+        "to": "DPS"
+      },
+      "KE0434": {
+        "from": "DPS",
+        "to": "ICN"
+      },
+      "KE0441": {
+        "from": "ICN",
+        "to": "HAN"
+      },
+      "KE0442": {
+        "from": "HAN",
+        "to": "ICN"
+      },
+      "KE0447": {
+        "from": "ICN",
+        "to": "HAN"
+      },
+      "KE0448": {
+        "from": "HAN",
+        "to": "ICN"
+      },
+      "KE0471": {
+        "from": "ICN",
+        "to": "SGN"
+      },
+      "KE0472": {
+        "from": "SGN",
+        "to": "ICN"
+      },
+      "KE0475": {
+        "from": "ICN",
+        "to": "SGN"
+      },
+      "KE0476": {
+        "from": "SGN",
+        "to": "ICN"
+      },
+      "KE0479": {
+        "from": "ICN",
+        "to": "SGN"
+      },
+      "KE0480": {
+        "from": "SGN",
+        "to": "ICN"
+      },
+      "KE0457": {
+        "from": "ICN",
+        "to": "DAD"
+      },
+      "KE0458": {
+        "from": "DAD",
+        "to": "ICN"
+      },
+      "KE0459": {
+        "from": "ICN",
+        "to": "DAD"
+      },
+      "KE0460": {
+        "from": "DAD",
+        "to": "ICN"
+      },
+      "KE0467": {
+        "from": "ICN",
+        "to": "CXR"
+      },
+      "KE0468": {
+        "from": "CXR",
+        "to": "ICN"
+      },
+      "KE0485": {
+        "from": "ICN",
+        "to": "PQC"
+      },
+      "KE0486": {
+        "from": "PQC",
+        "to": "ICN"
+      },
+      "KE0483": {
+        "from": "ICN",
+        "to": "PQC",
+        "note": "동계"
+      },
+      "KE0484": {
+        "from": "PQC",
+        "to": "ICN",
+        "note": "동계"
+      },
+      "KE0689": {
+        "from": "ICN",
+        "to": "PNH"
+      },
+      "KE0690": {
+        "from": "PNH",
+        "to": "ICN"
+      },
+      "KE0489": {
+        "from": "ICN",
+        "to": "RGN"
+      },
+      "KE0490": {
+        "from": "RGN",
+        "to": "ICN"
+      },
+      "KE0497": {
+        "from": "ICN",
+        "to": "DEL"
+      },
+      "KE0498": {
+        "from": "DEL",
+        "to": "ICN"
+      },
+      "KE0695": {
+        "from": "ICN",
+        "to": "KTM"
+      },
+      "KE0696": {
+        "from": "KTM",
+        "to": "ICN"
+      },
+      "KE0081": {
+        "from": "ICN",
+        "to": "JFK"
+      },
+      "KE0082": {
+        "from": "JFK",
+        "to": "ICN"
+      },
+      "KE0085": {
+        "from": "ICN",
+        "to": "JFK"
+      },
+      "KE0086": {
+        "from": "JFK",
+        "to": "ICN"
+      },
+      "KE0093": {
+        "from": "ICN",
+        "to": "IAD"
+      },
+      "KE0094": {
+        "from": "IAD",
+        "to": "ICN"
+      },
+      "KE0091": {
+        "from": "ICN",
+        "to": "BOS"
+      },
+      "KE0092": {
+        "from": "BOS",
+        "to": "ICN"
+      },
+      "KE0033": {
+        "from": "ICN",
+        "to": "ATL"
+      },
+      "KE0034": {
+        "from": "ATL",
+        "to": "ICN"
+      },
+      "KE0035": {
+        "from": "ICN",
+        "to": "ATL"
+      },
+      "KE0036": {
+        "from": "ATL",
+        "to": "ICN"
+      },
+      "KE0037": {
+        "from": "ICN",
+        "to": "ORD"
+      },
+      "KE0038": {
+        "from": "ORD",
+        "to": "ICN"
+      },
+      "KE0031": {
+        "from": "ICN",
+        "to": "DFW"
+      },
+      "KE0032": {
+        "from": "DFW",
+        "to": "ICN"
+      },
+      "KE0017": {
+        "from": "ICN",
+        "to": "LAX"
+      },
+      "KE0018": {
+        "from": "LAX",
+        "to": "ICN"
+      },
+      "KE0011": {
+        "from": "ICN",
+        "to": "LAX"
+      },
+      "KE0012": {
+        "from": "LAX",
+        "to": "ICN"
+      },
+      "KE0023": {
+        "from": "ICN",
+        "to": "SFO"
+      },
+      "KE0024": {
+        "from": "SFO",
+        "to": "ICN"
+      },
+      "KE0041": {
+        "from": "ICN",
+        "to": "SEA"
+      },
+      "KE0042": {
+        "from": "SEA",
+        "to": "ICN"
+      },
+      "KE0005": {
+        "from": "ICN",
+        "to": "LAS"
+      },
+      "KE0006": {
+        "from": "LAS",
+        "to": "ICN"
+      },
+      "KE0053": {
+        "from": "ICN",
+        "to": "HNL"
+      },
+      "KE0054": {
         "from": "HNL",
-        "to": "ICN",
-        "city": "호놀룰루",
-        "country": "US",
-        "flag": "🇺🇸"
+        "to": "ICN"
       },
-      "KE8203": {
+      "KE0071": {
         "from": "ICN",
-        "to": "LAX",
-        "city": "로스앤젤레스",
-        "country": "US",
-        "flag": "🇺🇸"
+        "to": "YVR"
       },
-      "KE8204": {
-        "from": "LAX",
-        "to": "ICN",
-        "city": "로스앤젤레스",
-        "country": "US",
-        "flag": "🇺🇸"
+      "KE0072": {
+        "from": "YVR",
+        "to": "ICN"
       },
-      "KE8207": {
+      "KE0075": {
         "from": "ICN",
-        "to": "LAX",
-        "city": "로스앤젤레스",
-        "country": "US",
-        "flag": "🇺🇸"
+        "to": "YVR"
       },
-      "KE8208": {
-        "from": "LAX",
+      "KE0076": {
+        "from": "YVR",
+        "to": "ICN"
+      },
+      "KE0077": {
+        "from": "ICN",
+        "to": "YYZ"
+      },
+      "KE0078": {
+        "from": "YYZ",
+        "to": "ICN"
+      },
+      "KE0901": {
+        "from": "ICN",
+        "to": "CDG"
+      },
+      "KE0902": {
+        "from": "CDG",
+        "to": "ICN"
+      },
+      "KE0907": {
+        "from": "ICN",
+        "to": "LHR"
+      },
+      "KE0908": {
+        "from": "LHR",
+        "to": "ICN"
+      },
+      "KE0913": {
+        "from": "ICN",
+        "to": "MAD"
+      },
+      "KE0914": {
+        "from": "MAD",
+        "to": "ICN"
+      },
+      "KE0921": {
+        "from": "ICN",
+        "to": "LIS"
+      },
+      "KE0922": {
+        "from": "LIS",
+        "to": "ICN"
+      },
+      "KE0925": {
+        "from": "ICN",
+        "to": "AMS"
+      },
+      "KE0926": {
+        "from": "AMS",
+        "to": "ICN"
+      },
+      "KE0945": {
+        "from": "ICN",
+        "to": "FRA"
+      },
+      "KE0946": {
+        "from": "FRA",
+        "to": "ICN"
+      },
+      "KE0937": {
+        "from": "ICN",
+        "to": "VIE"
+      },
+      "KE0938": {
+        "from": "VIE",
+        "to": "ICN"
+      },
+      "KE0917": {
+        "from": "ICN",
+        "to": "ZRH",
+        "note": "하계"
+      },
+      "KE0918": {
+        "from": "ZRH",
         "to": "ICN",
-        "city": "로스앤젤레스",
-        "country": "US",
-        "flag": "🇺🇸"
+        "note": "하계"
       },
-      "KE8315": {
+      "KE0969": {
+        "from": "ICN",
+        "to": "PRG"
+      },
+      "KE0970": {
+        "from": "PRG",
+        "to": "ICN"
+      },
+      "KE0963": {
+        "from": "ICN",
+        "to": "BUD"
+      },
+      "KE0964": {
+        "from": "BUD",
+        "to": "ICN"
+      },
+      "KE0927": {
+        "from": "ICN",
+        "to": "MXP"
+      },
+      "KE0928": {
+        "from": "MXP",
+        "to": "ICN"
+      },
+      "KE0931": {
+        "from": "ICN",
+        "to": "FCO"
+      },
+      "KE0932": {
+        "from": "FCO",
+        "to": "ICN"
+      },
+      "KE0955": {
+        "from": "ICN",
+        "to": "IST"
+      },
+      "KE0956": {
+        "from": "IST",
+        "to": "ICN"
+      },
+      "KE2041": {
+        "from": "ICN",
+        "to": "UBN"
+      },
+      "KE2042": {
+        "from": "UBN",
+        "to": "ICN"
+      },
+      "KE2045": {
+        "from": "ICN",
+        "to": "UBN",
+        "note": "하계"
+      },
+      "KE2046": {
+        "from": "UBN",
+        "to": "ICN",
+        "note": "하계"
+      },
+      "KE0951": {
+        "from": "ICN",
+        "to": "DXB",
+        "note": "운휴"
+      },
+      "KE0952": {
+        "from": "DXB",
+        "to": "ICN",
+        "note": "운휴"
+      },
+      "KE0401": {
+        "from": "ICN",
+        "to": "SYD"
+      },
+      "KE0402": {
+        "from": "SYD",
+        "to": "ICN"
+      },
+      "KE0407": {
+        "from": "ICN",
+        "to": "BNE"
+      },
+      "KE0408": {
+        "from": "BNE",
+        "to": "ICN"
+      },
+      "KE0409": {
+        "from": "ICN",
+        "to": "MEL",
+        "note": "동계 / 2026-12-18 복항"
+      },
+      "KE0410": {
+        "from": "MEL",
+        "to": "ICN",
+        "note": "동계 / 2026-12-18 복항"
+      },
+      "KE0411": {
+        "from": "ICN",
+        "to": "AKL"
+      },
+      "KE0412": {
+        "from": "AKL",
+        "to": "ICN"
+      },
+      "KE0415": {
+        "from": "ICN",
+        "to": "GUM"
+      },
+      "KE0416": {
+        "from": "GUM",
+        "to": "ICN"
+      },
+      "KE0417": {
+        "from": "ICN",
+        "to": "GUM"
+      },
+      "KE0418": {
+        "from": "GUM",
+        "to": "ICN"
+      },
+      "KE2101": {
+        "from": "GMP",
+        "to": "HND"
+      },
+      "KE2102": {
+        "from": "HND",
+        "to": "GMP"
+      },
+      "KE2103": {
+        "from": "GMP",
+        "to": "HND"
+      },
+      "KE2104": {
+        "from": "HND",
+        "to": "GMP"
+      },
+      "KE2105": {
+        "from": "GMP",
+        "to": "HND"
+      },
+      "KE2106": {
+        "from": "HND",
+        "to": "GMP"
+      },
+      "KE2117": {
+        "from": "GMP",
+        "to": "KIX"
+      },
+      "KE2118": {
+        "from": "KIX",
+        "to": "GMP"
+      },
+      "KE2119": {
+        "from": "GMP",
+        "to": "KIX"
+      },
+      "KE2120": {
+        "from": "KIX",
+        "to": "GMP"
+      },
+      "KE2051": {
+        "from": "GMP",
+        "to": "PEK"
+      },
+      "KE2052": {
+        "from": "PEK",
+        "to": "GMP"
+      },
+      "KE2057": {
+        "from": "GMP",
+        "to": "SHA"
+      },
+      "KE2058": {
+        "from": "SHA",
+        "to": "GMP"
+      },
+      "KE2133": {
+        "from": "PUS",
+        "to": "NGO"
+      },
+      "KE2134": {
+        "from": "NGO",
+        "to": "PUS"
+      },
+      "KE2129": {
+        "from": "PUS",
+        "to": "NRT"
+      },
+      "KE2130": {
+        "from": "NRT",
+        "to": "PUS"
+      },
+      "KE2131": {
+        "from": "PUS",
+        "to": "NRT"
+      },
+      "KE2132": {
+        "from": "NRT",
+        "to": "PUS"
+      },
+      "KE2061": {
+        "from": "PUS",
+        "to": "PEK"
+      },
+      "KE2062": {
+        "from": "PEK",
+        "to": "PUS"
+      },
+      "KE2071": {
+        "from": "PUS",
+        "to": "PVG"
+      },
+      "KE2072": {
+        "from": "PVG",
+        "to": "PUS"
+      },
+      "KE2073": {
+        "from": "PUS",
+        "to": "PVG",
+        "note": "하계"
+      },
+      "KE2074": {
+        "from": "PVG",
+        "to": "PUS",
+        "note": "하계"
+      },
+      "KE2081": {
+        "from": "PUS",
+        "to": "TAO"
+      },
+      "KE2082": {
+        "from": "TAO",
+        "to": "PUS"
+      },
+      "KE2085": {
+        "from": "PUS",
+        "to": "TPE"
+      },
+      "KE2086": {
+        "from": "TPE",
+        "to": "PUS"
+      },
+      "KE2093": {
+        "from": "PUS",
+        "to": "DAD"
+      },
+      "KE2094": {
+        "from": "DAD",
+        "to": "PUS"
+      },
+      "KE2125": {
+        "from": "CJU",
+        "to": "NRT"
+      },
+      "KE2126": {
+        "from": "NRT",
+        "to": "CJU"
+      },
+      "KE2065": {
+        "from": "CJU",
+        "to": "PEK"
+      },
+      "KE2066": {
+        "from": "PEK",
+        "to": "CJU"
+      },
+      "KE5749": {
+        "from": "ICN",
+        "to": "KKJ",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5750": {
+        "from": "KKJ",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5079": {
+        "from": "ICN",
+        "to": "NGO",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5080": {
+        "from": "NGO",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5081": {
+        "from": "ICN",
+        "to": "NGO",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5082": {
+        "from": "NGO",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5741": {
+        "from": "ICN",
+        "to": "NRT",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5742": {
+        "from": "NRT",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5093": {
+        "from": "ICN",
+        "to": "NRT",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5094": {
+        "from": "NRT",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5097": {
+        "from": "ICN",
+        "to": "SHI",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5098": {
+        "from": "SHI",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5061": {
+        "from": "ICN",
+        "to": "CTS",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5062": {
+        "from": "CTS",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5071": {
+        "from": "ICN",
+        "to": "KIX",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5072": {
+        "from": "KIX",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5745": {
+        "from": "ICN",
+        "to": "OKA",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5746": {
+        "from": "OKA",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5075": {
+        "from": "ICN",
+        "to": "FUK",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5076": {
+        "from": "FUK",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5095": {
+        "from": "ICN",
+        "to": "FUK",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5096": {
+        "from": "FUK",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5859": {
+        "from": "ICN",
+        "to": "NKG",
+        "codeshare": true,
+        "operator": "MU",
+        "operatorName": "중국동방항공"
+      },
+      "KE5860": {
+        "from": "NKG",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "MU",
+        "operatorName": "중국동방항공"
+      },
+      "KE5879": {
         "from": "ICN",
         "to": "PVG",
-        "city": "상하이",
-        "country": "CN",
-        "flag": "🇨🇳"
+        "codeshare": true,
+        "operator": "MU",
+        "operatorName": "중국동방항공"
       },
-      "KE8316": {
+      "KE5880": {
         "from": "PVG",
         "to": "ICN",
-        "city": "상하이",
-        "country": "CN",
-        "flag": "🇨🇳"
+        "codeshare": true,
+        "operator": "MU",
+        "operatorName": "중국동방항공"
+      },
+      "KE5857": {
+        "from": "ICN",
+        "to": "PVG",
+        "codeshare": true,
+        "operator": "MU",
+        "operatorName": "중국동방항공"
+      },
+      "KE5858": {
+        "from": "PVG",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "MU",
+        "operatorName": "중국동방항공"
+      },
+      "KE5863": {
+        "from": "ICN",
+        "to": "PVG",
+        "codeshare": true,
+        "operator": "MU",
+        "operatorName": "중국동방항공"
+      },
+      "KE5864": {
+        "from": "PVG",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "MU",
+        "operatorName": "중국동방항공"
+      },
+      "KE5885": {
+        "from": "ICN",
+        "to": "PVG",
+        "codeshare": true,
+        "operator": "MU",
+        "operatorName": "중국동방항공"
+      },
+      "KE5886": {
+        "from": "PVG",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "MU",
+        "operatorName": "중국동방항공"
+      },
+      "KE5893": {
+        "from": "ICN",
+        "to": "PVG",
+        "codeshare": true,
+        "operator": "FM",
+        "operatorName": "상하이항공"
+      },
+      "KE5894": {
+        "from": "PVG",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "FM",
+        "operatorName": "상하이항공"
+      },
+      "KE5887": {
+        "from": "ICN",
+        "to": "XMN",
+        "codeshare": true,
+        "operator": "MF",
+        "operatorName": "샤먼항공"
+      },
+      "KE5888": {
+        "from": "XMN",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "MF",
+        "operatorName": "샤먼항공"
+      },
+      "KE5873": {
+        "from": "ICN",
+        "to": "YNJ",
+        "codeshare": true,
+        "operator": "MU",
+        "operatorName": "중국동방항공"
+      },
+      "KE5874": {
+        "from": "YNJ",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "MU",
+        "operatorName": "중국동방항공"
+      },
+      "KE5845": {
+        "from": "ICN",
+        "to": "YNT",
+        "codeshare": true,
+        "operator": "MU",
+        "operatorName": "중국동방항공"
+      },
+      "KE5846": {
+        "from": "YNT",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "MU",
+        "operatorName": "중국동방항공"
+      },
+      "KE5847": {
+        "from": "ICN",
+        "to": "YNT",
+        "codeshare": true,
+        "operator": "MU",
+        "operatorName": "중국동방항공"
+      },
+      "KE5848": {
+        "from": "YNT",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "MU",
+        "operatorName": "중국동방항공"
+      },
+      "KE5851": {
+        "from": "ICN",
+        "to": "YNT",
+        "codeshare": true,
+        "operator": "MU",
+        "operatorName": "중국동방항공"
+      },
+      "KE5852": {
+        "from": "YNT",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "MU",
+        "operatorName": "중국동방항공"
+      },
+      "KE5849": {
+        "from": "ICN",
+        "to": "WEH",
+        "codeshare": true,
+        "operator": "MU",
+        "operatorName": "중국동방항공"
+      },
+      "KE5850": {
+        "from": "WEH",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "MU",
+        "operatorName": "중국동방항공"
+      },
+      "KE5869": {
+        "from": "ICN",
+        "to": "TAO",
+        "codeshare": true,
+        "operator": "MU",
+        "operatorName": "중국동방항공"
+      },
+      "KE5870": {
+        "from": "TAO",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "MU",
+        "operatorName": "중국동방항공"
+      },
+      "KE5853": {
+        "from": "ICN",
+        "to": "TAO",
+        "codeshare": true,
+        "operator": "MU",
+        "operatorName": "중국동방항공"
+      },
+      "KE5854": {
+        "from": "TAO",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "MU",
+        "operatorName": "중국동방항공"
+      },
+      "KE5843": {
+        "from": "ICN",
+        "to": "TAO",
+        "codeshare": true,
+        "operator": "MU",
+        "operatorName": "중국동방항공"
+      },
+      "KE5844": {
+        "from": "TAO",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "MU",
+        "operatorName": "중국동방항공"
+      },
+      "KE5871": {
+        "from": "ICN",
+        "to": "TAO",
+        "codeshare": true,
+        "operator": "MU",
+        "operatorName": "중국동방항공"
+      },
+      "KE5872": {
+        "from": "TAO",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "MU",
+        "operatorName": "중국동방항공"
+      },
+      "KE5841": {
+        "from": "ICN",
+        "to": "TAO",
+        "codeshare": true,
+        "operator": "MU",
+        "operatorName": "중국동방항공"
+      },
+      "KE5842": {
+        "from": "TAO",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "MU",
+        "operatorName": "중국동방항공"
+      },
+      "KE5855": {
+        "from": "ICN",
+        "to": "KMG",
+        "codeshare": true,
+        "operator": "MU",
+        "operatorName": "중국동방항공"
+      },
+      "KE5856": {
+        "from": "KMG",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "MU",
+        "operatorName": "중국동방항공"
+      },
+      "KE5897": {
+        "from": "ICN",
+        "to": "FOC",
+        "codeshare": true,
+        "operator": "MF",
+        "operatorName": "샤먼항공"
+      },
+      "KE5898": {
+        "from": "FOC",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "MF",
+        "operatorName": "샤먼항공"
+      },
+      "KE5877": {
+        "from": "ICN",
+        "to": "HGH",
+        "codeshare": true,
+        "operator": "MU",
+        "operatorName": "중국동방항공"
+      },
+      "KE5878": {
+        "from": "HGH",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "MU",
+        "operatorName": "중국동방항공"
+      },
+      "KE5759": {
+        "from": "ICN",
+        "to": "TPE",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5760": {
+        "from": "TPE",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5691": {
+        "from": "ICN",
+        "to": "TPE",
+        "codeshare": true,
+        "operator": "CI",
+        "operatorName": "중화항공"
+      },
+      "KE5692": {
+        "from": "TPE",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "CI",
+        "operatorName": "중화항공"
+      },
+      "KE5693": {
+        "from": "ICN",
+        "to": "TPE",
+        "codeshare": true,
+        "operator": "CI",
+        "operatorName": "중화항공"
+      },
+      "KE5694": {
+        "from": "TPE",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "CI",
+        "operatorName": "중화항공"
+      },
+      "KE5699": {
+        "from": "ICN",
+        "to": "KHH",
+        "codeshare": true,
+        "operator": "CI",
+        "operatorName": "중화항공"
+      },
+      "KE5700": {
+        "from": "KHH",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "CI",
+        "operatorName": "중화항공"
+      },
+      "KE5707": {
+        "from": "GMP",
+        "to": "HND",
+        "codeshare": true,
+        "operator": "JL",
+        "operatorName": "일본항공"
+      },
+      "KE5708": {
+        "from": "HND",
+        "to": "GMP",
+        "codeshare": true,
+        "operator": "JL",
+        "operatorName": "일본항공"
+      },
+      "KE5709": {
+        "from": "GMP",
+        "to": "HND",
+        "codeshare": true,
+        "operator": "JL",
+        "operatorName": "일본항공"
+      },
+      "KE5710": {
+        "from": "HND",
+        "to": "GMP",
+        "codeshare": true,
+        "operator": "JL",
+        "operatorName": "일본항공"
+      },
+      "KE5711": {
+        "from": "GMP",
+        "to": "HND",
+        "codeshare": true,
+        "operator": "JL",
+        "operatorName": "일본항공"
+      },
+      "KE5712": {
+        "from": "HND",
+        "to": "GMP",
+        "codeshare": true,
+        "operator": "JL",
+        "operatorName": "일본항공"
+      },
+      "KE5861": {
+        "from": "GMP",
+        "to": "SHA",
+        "codeshare": true,
+        "operator": "MU",
+        "operatorName": "중국동방항공"
+      },
+      "KE5862": {
+        "from": "SHA",
+        "to": "GMP",
+        "codeshare": true,
+        "operator": "MU",
+        "operatorName": "중국동방항공"
+      },
+      "KE5899": {
+        "from": "GMP",
+        "to": "SHA",
+        "codeshare": true,
+        "operator": "FM",
+        "operatorName": "상하이항공"
+      },
+      "KE5900": {
+        "from": "SHA",
+        "to": "GMP",
+        "codeshare": true,
+        "operator": "FM",
+        "operatorName": "상하이항공"
+      },
+      "KE5083": {
+        "from": "PUS",
+        "to": "NRT",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5084": {
+        "from": "NRT",
+        "to": "PUS",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5063": {
+        "from": "PUS",
+        "to": "CTS",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5064": {
+        "from": "CTS",
+        "to": "PUS",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5085": {
+        "from": "PUS",
+        "to": "KIX",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5086": {
+        "from": "KIX",
+        "to": "PUS",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5087": {
+        "from": "PUS",
+        "to": "KIX",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5088": {
+        "from": "KIX",
+        "to": "PUS",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5747": {
+        "from": "PUS",
+        "to": "OKA",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5748": {
+        "from": "OKA",
+        "to": "PUS",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5875": {
+        "from": "PUS",
+        "to": "PVG",
+        "codeshare": true,
+        "operator": "MU",
+        "operatorName": "중국동방항공"
+      },
+      "KE5876": {
+        "from": "PVG",
+        "to": "PUS",
+        "codeshare": true,
+        "operator": "MU",
+        "operatorName": "중국동방항공"
+      },
+      "KE5891": {
+        "from": "PUS",
+        "to": "PVG",
+        "codeshare": true,
+        "operator": "FM",
+        "operatorName": "상하이항공"
+      },
+      "KE5892": {
+        "from": "PVG",
+        "to": "PUS",
+        "codeshare": true,
+        "operator": "FM",
+        "operatorName": "상하이항공"
+      },
+      "KE5695": {
+        "from": "PUS",
+        "to": "TPE",
+        "codeshare": true,
+        "operator": "CI",
+        "operatorName": "중화항공"
+      },
+      "KE5696": {
+        "from": "TPE",
+        "to": "PUS",
+        "codeshare": true,
+        "operator": "CI",
+        "operatorName": "중화항공"
+      },
+      "KE5697": {
+        "from": "PUS",
+        "to": "TPE",
+        "codeshare": true,
+        "operator": "CI",
+        "operatorName": "중화항공"
+      },
+      "KE5698": {
+        "from": "TPE",
+        "to": "PUS",
+        "codeshare": true,
+        "operator": "CI",
+        "operatorName": "중화항공"
+      },
+      "KE5057": {
+        "from": "CJU",
+        "to": "PVG",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5058": {
+        "from": "PVG",
+        "to": "CJU",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5065": {
+        "from": "ICN",
+        "to": "BKK",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5066": {
+        "from": "BKK",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5089": {
+        "from": "ICN",
+        "to": "CNX",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5090": {
+        "from": "CNX",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5781": {
+        "from": "ICN",
+        "to": "CEB",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5782": {
+        "from": "CEB",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5763": {
+        "from": "ICN",
+        "to": "CRK",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5764": {
+        "from": "CRK",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5761": {
+        "from": "ICN",
+        "to": "BKI",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5762": {
+        "from": "BKI",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5671": {
+        "from": "ICN",
+        "to": "KUL",
+        "codeshare": true,
+        "operator": "MH",
+        "operatorName": "말레이시아항공"
+      },
+      "KE5672": {
+        "from": "KUL",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "MH",
+        "operatorName": "말레이시아항공"
+      },
+      "KE5471": {
+        "from": "ICN",
+        "to": "CMB",
+        "codeshare": true,
+        "operator": "UL",
+        "operatorName": "스리랑카항공"
+      },
+      "KE5472": {
+        "from": "CMB",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "UL",
+        "operatorName": "스리랑카항공"
+      },
+      "KE5643": {
+        "from": "ICN",
+        "to": "CGK",
+        "codeshare": true,
+        "operator": "GA",
+        "operatorName": "가루다인도네시아"
+      },
+      "KE5644": {
+        "from": "CGK",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "GA",
+        "operatorName": "가루다인도네시아"
+      },
+      "KE5679": {
+        "from": "ICN",
+        "to": "CXR",
+        "codeshare": true,
+        "operator": "VN",
+        "operatorName": "베트남항공",
+        "note": "출처상 다낭 VN430/431과 번호 중복 — 확인 필요"
+      },
+      "KE5680": {
+        "from": "CXR",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "VN",
+        "operatorName": "베트남항공",
+        "note": "출처상 다낭 VN430/431과 번호 중복 — 확인 필요"
+      },
+      "KE5769": {
+        "from": "ICN",
+        "to": "DAD",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5770": {
+        "from": "DAD",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5683": {
+        "from": "ICN",
+        "to": "HAN",
+        "codeshare": true,
+        "operator": "VN",
+        "operatorName": "베트남항공"
+      },
+      "KE5684": {
+        "from": "HAN",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "VN",
+        "operatorName": "베트남항공"
+      },
+      "KE5689": {
+        "from": "ICN",
+        "to": "HAN",
+        "codeshare": true,
+        "operator": "VN",
+        "operatorName": "베트남항공"
+      },
+      "KE5690": {
+        "from": "HAN",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "VN",
+        "operatorName": "베트남항공"
+      },
+      "KE5681": {
+        "from": "ICN",
+        "to": "SGN",
+        "codeshare": true,
+        "operator": "VN",
+        "operatorName": "베트남항공"
+      },
+      "KE5682": {
+        "from": "SGN",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "VN",
+        "operatorName": "베트남항공"
+      },
+      "KE5675": {
+        "from": "ICN",
+        "to": "SGN",
+        "codeshare": true,
+        "operator": "VN",
+        "operatorName": "베트남항공"
+      },
+      "KE5676": {
+        "from": "SGN",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "VN",
+        "operatorName": "베트남항공"
+      },
+      "KE5773": {
+        "from": "PUS",
+        "to": "CEB",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5774": {
+        "from": "CEB",
+        "to": "PUS",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5765": {
+        "from": "PUS",
+        "to": "CRK",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5766": {
+        "from": "CRK",
+        "to": "PUS",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5055": {
+        "from": "PUS",
+        "to": "CXR",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5056": {
+        "from": "CXR",
+        "to": "PUS",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5771": {
+        "from": "PUS",
+        "to": "DAD",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5772": {
+        "from": "DAD",
+        "to": "PUS",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5685": {
+        "from": "PUS",
+        "to": "HAN",
+        "codeshare": true,
+        "operator": "VN",
+        "operatorName": "베트남항공"
+      },
+      "KE5686": {
+        "from": "HAN",
+        "to": "PUS",
+        "codeshare": true,
+        "operator": "VN",
+        "operatorName": "베트남항공"
+      },
+      "KE5687": {
+        "from": "PUS",
+        "to": "SGN",
+        "codeshare": true,
+        "operator": "VN",
+        "operatorName": "베트남항공"
+      },
+      "KE5688": {
+        "from": "SGN",
+        "to": "PUS",
+        "codeshare": true,
+        "operator": "VN",
+        "operatorName": "베트남항공"
+      },
+      "KE7273": {
+        "from": "ICN",
+        "to": "DTW",
+        "codeshare": true,
+        "operator": "DL",
+        "operatorName": "델타항공"
+      },
+      "KE7274": {
+        "from": "DTW",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "DL",
+        "operatorName": "델타항공"
+      },
+      "KE5033": {
+        "from": "ICN",
+        "to": "MSP",
+        "codeshare": true,
+        "operator": "DL",
+        "operatorName": "델타항공"
+      },
+      "KE5034": {
+        "from": "MSP",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "DL",
+        "operatorName": "델타항공"
+      },
+      "KE5023": {
+        "from": "ICN",
+        "to": "SLC",
+        "codeshare": true,
+        "operator": "DL",
+        "operatorName": "델타항공"
+      },
+      "KE5024": {
+        "from": "SLC",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "DL",
+        "operatorName": "델타항공"
+      },
+      "KE5019": {
+        "from": "ICN",
+        "to": "SEA",
+        "codeshare": true,
+        "operator": "DL",
+        "operatorName": "델타항공"
+      },
+      "KE5020": {
+        "from": "SEA",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "DL",
+        "operatorName": "델타항공"
+      },
+      "KE5039": {
+        "from": "ICN",
+        "to": "ATL",
+        "codeshare": true,
+        "operator": "DL",
+        "operatorName": "델타항공"
+      },
+      "KE5040": {
+        "from": "ATL",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "DL",
+        "operatorName": "델타항공"
+      },
+      "KE5035": {
+        "from": "ICN",
+        "to": "ATL",
+        "codeshare": true,
+        "operator": "DL",
+        "operatorName": "델타항공"
+      },
+      "KE5036": {
+        "from": "ATL",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "DL",
+        "operatorName": "델타항공"
+      },
+      "KE5031": {
+        "from": "ICN",
+        "to": "DFW",
+        "codeshare": true,
+        "operator": "AA",
+        "operatorName": "아메리칸항공"
+      },
+      "KE5032": {
+        "from": "DFW",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "AA",
+        "operatorName": "아메리칸항공"
+      },
+      "KE5007": {
+        "from": "ICN",
+        "to": "YYC",
+        "codeshare": true,
+        "operator": "WS",
+        "operatorName": "웨스트젯"
+      },
+      "KE5008": {
+        "from": "YYC",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "WS",
+        "operatorName": "웨스트젯"
+      },
+      "KE5907": {
+        "from": "ICN",
+        "to": "LHR",
+        "codeshare": true,
+        "operator": "VS",
+        "operatorName": "버진애틀랜틱"
+      },
+      "KE5908": {
+        "from": "LHR",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "VS",
+        "operatorName": "버진애틀랜틱"
+      },
+      "KE5901": {
+        "from": "ICN",
+        "to": "CDG",
+        "codeshare": true,
+        "operator": "AF",
+        "operatorName": "에어프랑스"
+      },
+      "KE5902": {
+        "from": "CDG",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "AF",
+        "operatorName": "에어프랑스"
+      },
+      "KE5903": {
+        "from": "ICN",
+        "to": "CDG",
+        "codeshare": true,
+        "operator": "OZ",
+        "operatorName": "아시아나항공"
+      },
+      "KE5904": {
+        "from": "CDG",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "OZ",
+        "operatorName": "아시아나항공"
+      },
+      "KE5925": {
+        "from": "ICN",
+        "to": "AMS",
+        "codeshare": true,
+        "operator": "KL",
+        "operatorName": "KLM"
+      },
+      "KE5926": {
+        "from": "AMS",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "KL",
+        "operatorName": "KLM"
+      },
+      "KE5911": {
+        "from": "ICN",
+        "to": "BCN",
+        "codeshare": true,
+        "operator": "OZ",
+        "operatorName": "아시아나항공"
+      },
+      "KE5912": {
+        "from": "BCN",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "OZ",
+        "operatorName": "아시아나항공"
+      },
+      "KE5941": {
+        "from": "ICN",
+        "to": "TAS",
+        "codeshare": true,
+        "operator": "HY",
+        "operatorName": "우즈베키스탄항공"
+      },
+      "KE5942": {
+        "from": "TAS",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "HY",
+        "operatorName": "우즈베키스탄항공"
+      },
+      "KE5943": {
+        "from": "ICN",
+        "to": "TAS",
+        "codeshare": true,
+        "operator": "HY",
+        "operatorName": "우즈베키스탄항공"
+      },
+      "KE5944": {
+        "from": "TAS",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "HY",
+        "operatorName": "우즈베키스탄항공"
+      },
+      "KE5945": {
+        "from": "ICN",
+        "to": "TAS",
+        "codeshare": true,
+        "operator": "HY",
+        "operatorName": "우즈베키스탄항공"
+      },
+      "KE5946": {
+        "from": "TAS",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "HY",
+        "operatorName": "우즈베키스탄항공"
+      },
+      "KE5949": {
+        "from": "ICN",
+        "to": "TAS",
+        "codeshare": true,
+        "operator": "OZ",
+        "operatorName": "아시아나항공"
+      },
+      "KE5950": {
+        "from": "TAS",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "OZ",
+        "operatorName": "아시아나항공"
+      },
+      "KE5649": {
+        "from": "ICN",
+        "to": "UBN",
+        "codeshare": true,
+        "operator": "OM",
+        "operatorName": "미아트몽골항공"
+      },
+      "KE5650": {
+        "from": "UBN",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "OM",
+        "operatorName": "미아트몽골항공"
+      },
+      "KE5839": {
+        "from": "ICN",
+        "to": "UBN",
+        "codeshare": true,
+        "operator": "OM",
+        "operatorName": "미아트몽골항공"
+      },
+      "KE5840": {
+        "from": "UBN",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "OM",
+        "operatorName": "미아트몽골항공"
+      },
+      "KE5867": {
+        "from": "ICN",
+        "to": "UBN",
+        "codeshare": true,
+        "operator": "OM",
+        "operatorName": "미아트몽골항공"
+      },
+      "KE5868": {
+        "from": "UBN",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "OM",
+        "operatorName": "미아트몽골항공"
+      },
+      "KE5951": {
+        "from": "ICN",
+        "to": "DXB",
+        "codeshare": true,
+        "operator": "EK",
+        "operatorName": "에미레이트항공"
+      },
+      "KE5952": {
+        "from": "DXB",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "EK",
+        "operatorName": "에미레이트항공"
+      },
+      "KE5779": {
+        "from": "ICN",
+        "to": "GUM",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5780": {
+        "from": "GUM",
+        "to": "ICN",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5777": {
+        "from": "PUS",
+        "to": "GUM",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
+      },
+      "KE5778": {
+        "from": "GUM",
+        "to": "PUS",
+        "codeshare": true,
+        "operator": "LJ",
+        "operatorName": "진에어"
       }
     }
   };
@@ -2946,7 +3490,8 @@
     "AKL": {
       "city": "오클랜드",
       "country": "NZ",
-      "flag": "🇳🇿"
+      "flag": "🇳🇿",
+      "tz": "Pacific/Auckland"
     },
     "ALA": {
       "city": "알마티",
@@ -2966,7 +3511,8 @@
     "AMS": {
       "city": "암스테르담",
       "country": "NL",
-      "flag": "🇳🇱"
+      "flag": "🇳🇱",
+      "tz": "Europe/Amsterdam"
     },
     "ANC": {
       "city": "앵커리지",
@@ -2976,7 +3522,8 @@
     "AOJ": {
       "city": "아오모리",
       "country": "JP",
-      "flag": "🇯🇵"
+      "flag": "🇯🇵",
+      "tz": "Asia/Tokyo"
     },
     "APW": {
       "city": "아피아",
@@ -3001,7 +3548,8 @@
     "ATL": {
       "city": "애틀랜타",
       "country": "US",
-      "flag": "🇺🇸"
+      "flag": "🇺🇸",
+      "tz": "America/New_York"
     },
     "AUH": {
       "city": "아부다비",
@@ -3031,7 +3579,8 @@
     "BCN": {
       "city": "바르셀로나",
       "country": "ES",
-      "flag": "🇪🇸"
+      "flag": "🇪🇸",
+      "tz": "Europe/Madrid"
     },
     "BEG": {
       "city": "베오그라드",
@@ -3061,12 +3610,14 @@
     "BKI": {
       "city": "코타키나발루",
       "country": "MY",
-      "flag": "🇲🇾"
+      "flag": "🇲🇾",
+      "tz": "Asia/Kuala_Lumpur"
     },
     "BKK": {
       "city": "방콕",
       "country": "TH",
-      "flag": "🇹🇭"
+      "flag": "🇹🇭",
+      "tz": "Asia/Bangkok"
     },
     "BLL": {
       "city": "빌룬",
@@ -3091,7 +3642,8 @@
     "BNE": {
       "city": "브리즈번",
       "country": "AU",
-      "flag": "🇦🇺"
+      "flag": "🇦🇺",
+      "tz": "Australia/Brisbane"
     },
     "BOD": {
       "city": "보르도",
@@ -3116,7 +3668,8 @@
     "BOS": {
       "city": "보스턴",
       "country": "US",
-      "flag": "🇺🇸"
+      "flag": "🇺🇸",
+      "tz": "America/New_York"
     },
     "BRU": {
       "city": "브뤼셀",
@@ -3146,7 +3699,8 @@
     "BUD": {
       "city": "부다페스트",
       "country": "HU",
-      "flag": "🇭🇺"
+      "flag": "🇭🇺",
+      "tz": "Europe/Budapest"
     },
     "BUR": {
       "city": "버뱅크",
@@ -3171,7 +3725,8 @@
     "CAN": {
       "city": "광저우",
       "country": "CN",
-      "flag": "🇨🇳"
+      "flag": "🇨🇳",
+      "tz": "Asia/Shanghai"
     },
     "CCU": {
       "city": "콜카타",
@@ -3181,12 +3736,14 @@
     "CDG": {
       "city": "파리",
       "country": "FR",
-      "flag": "🇫🇷"
+      "flag": "🇫🇷",
+      "tz": "Europe/Paris"
     },
     "CEB": {
       "city": "세부",
       "country": "PH",
-      "flag": "🇵🇭"
+      "flag": "🇵🇭",
+      "tz": "Asia/Manila"
     },
     "CEI": {
       "city": "치앙라이",
@@ -3196,7 +3753,8 @@
     "CGK": {
       "city": "자카르타",
       "country": "ID",
-      "flag": "🇮🇩"
+      "flag": "🇮🇩",
+      "tz": "Asia/Jakarta"
     },
     "CGN": {
       "city": "쾰른",
@@ -3206,7 +3764,8 @@
     "CGO": {
       "city": "정저우",
       "country": "CN",
-      "flag": "🇨🇳"
+      "flag": "🇨🇳",
+      "tz": "Asia/Shanghai"
     },
     "CGQ": {
       "city": "창춘",
@@ -3221,12 +3780,14 @@
     "CJJ": {
       "city": "청주",
       "country": "KR",
-      "flag": "🇰🇷"
+      "flag": "🇰🇷",
+      "tz": "Asia/Seoul"
     },
     "CJU": {
       "city": "제주",
       "country": "KR",
-      "flag": "🇰🇷"
+      "flag": "🇰🇷",
+      "tz": "Asia/Seoul"
     },
     "CKG": {
       "city": "충칭",
@@ -3251,7 +3812,8 @@
     "CMB": {
       "city": "콜롬보",
       "country": "LK",
-      "flag": "🇱🇰"
+      "flag": "🇱🇰",
+      "tz": "Asia/Colombo"
     },
     "CMN": {
       "city": "카사블랑카",
@@ -3271,7 +3833,8 @@
     "CNX": {
       "city": "치앙마이",
       "country": "TH",
-      "flag": "🇹🇭"
+      "flag": "🇹🇭",
+      "tz": "Asia/Bangkok"
     },
     "COK": {
       "city": "코치",
@@ -3289,9 +3852,10 @@
       "flag": "🇿🇦"
     },
     "CRK": {
-      "city": "클락",
+      "city": "앙헬레스(클라크)",
       "country": "PH",
-      "flag": "🇵🇭"
+      "flag": "🇵🇭",
+      "tz": "Asia/Manila"
     },
     "CRL": {
       "city": "브뤼셀",
@@ -3301,7 +3865,8 @@
     "CSX": {
       "city": "창사",
       "country": "CN",
-      "flag": "🇨🇳"
+      "flag": "🇨🇳",
+      "tz": "Asia/Shanghai"
     },
     "CTA": {
       "city": "카타니아",
@@ -3316,7 +3881,8 @@
     "CTS": {
       "city": "삿포로",
       "country": "JP",
-      "flag": "🇯🇵"
+      "flag": "🇯🇵",
+      "tz": "Asia/Tokyo"
     },
     "CTU": {
       "city": "청두",
@@ -3336,7 +3902,8 @@
     "CXR": {
       "city": "나트랑",
       "country": "VN",
-      "flag": "🇻🇳"
+      "flag": "🇻🇳",
+      "tz": "Asia/Ho_Chi_Minh"
     },
     "DAC": {
       "city": "다카",
@@ -3346,7 +3913,8 @@
     "DAD": {
       "city": "다낭",
       "country": "VN",
-      "flag": "🇻🇳"
+      "flag": "🇻🇳",
+      "tz": "Asia/Ho_Chi_Minh"
     },
     "DAR": {
       "city": "다르에스살람",
@@ -3366,7 +3934,8 @@
     "DEL": {
       "city": "델리",
       "country": "IN",
-      "flag": "🇮🇳"
+      "flag": "🇮🇳",
+      "tz": "Asia/Kolkata"
     },
     "DEN": {
       "city": "덴버",
@@ -3376,7 +3945,8 @@
     "DFW": {
       "city": "댈러스",
       "country": "US",
-      "flag": "🇺🇸"
+      "flag": "🇺🇸",
+      "tz": "America/Chicago"
     },
     "DIL": {
       "city": "딜리",
@@ -3386,7 +3956,8 @@
     "DLC": {
       "city": "다롄",
       "country": "CN",
-      "flag": "🇨🇳"
+      "flag": "🇨🇳",
+      "tz": "Asia/Shanghai"
     },
     "DME": {
       "city": "모스크바",
@@ -3411,7 +3982,8 @@
     "DPS": {
       "city": "발리",
       "country": "ID",
-      "flag": "🇮🇩"
+      "flag": "🇮🇩",
+      "tz": "Asia/Makassar"
     },
     "DRW": {
       "city": "다윈",
@@ -3421,7 +3993,8 @@
     "DTW": {
       "city": "디트로이트",
       "country": "US",
-      "flag": "🇺🇸"
+      "flag": "🇺🇸",
+      "tz": "America/Detroit"
     },
     "DUB": {
       "city": "더블린",
@@ -3446,12 +4019,14 @@
     "DXB": {
       "city": "두바이",
       "country": "AE",
-      "flag": "🇦🇪"
+      "flag": "🇦🇪",
+      "tz": "Asia/Dubai"
     },
     "DYG": {
       "city": "장자제",
       "country": "CN",
-      "flag": "🇨🇳"
+      "flag": "🇨🇳",
+      "tz": "Asia/Shanghai"
     },
     "EBL": {
       "city": "에르빌",
@@ -3491,7 +4066,8 @@
     "FCO": {
       "city": "로마",
       "country": "IT",
-      "flag": "🇮🇹"
+      "flag": "🇮🇹",
+      "tz": "Europe/Rome"
     },
     "FLL": {
       "city": "포트로더데일",
@@ -3511,12 +4087,14 @@
     "FOC": {
       "city": "푸저우",
       "country": "CN",
-      "flag": "🇨🇳"
+      "flag": "🇨🇳",
+      "tz": "Asia/Shanghai"
     },
     "FRA": {
       "city": "프랑크푸르트",
       "country": "DE",
-      "flag": "🇩🇪"
+      "flag": "🇩🇪",
+      "tz": "Europe/Berlin"
     },
     "FRU": {
       "city": "비슈케크",
@@ -3531,7 +4109,8 @@
     "FUK": {
       "city": "후쿠오카",
       "country": "JP",
-      "flag": "🇯🇵"
+      "flag": "🇯🇵",
+      "tz": "Asia/Tokyo"
     },
     "GDL": {
       "city": "과달라하라",
@@ -3556,7 +4135,8 @@
     "GMP": {
       "city": "김포",
       "country": "KR",
-      "flag": "🇰🇷"
+      "flag": "🇰🇷",
+      "tz": "Asia/Seoul"
     },
     "GOT": {
       "city": "예테보리",
@@ -3570,8 +4150,9 @@
     },
     "GUM": {
       "city": "괌",
-      "country": "GU",
-      "flag": "🇬🇺"
+      "country": "US",
+      "flag": "🇺🇸",
+      "tz": "Pacific/Guam"
     },
     "GVA": {
       "city": "제네바",
@@ -3606,7 +4187,8 @@
     "HAN": {
       "city": "하노이",
       "country": "VN",
-      "flag": "🇻🇳"
+      "flag": "🇻🇳",
+      "tz": "Asia/Ho_Chi_Minh"
     },
     "HAV": {
       "city": "아바나",
@@ -3631,22 +4213,26 @@
     "HFE": {
       "city": "허페이",
       "country": "CN",
-      "flag": "🇨🇳"
+      "flag": "🇨🇳",
+      "tz": "Asia/Shanghai"
     },
     "HGH": {
       "city": "항저우",
       "country": "CN",
-      "flag": "🇨🇳"
+      "flag": "🇨🇳",
+      "tz": "Asia/Shanghai"
     },
     "HIJ": {
       "city": "히로시마",
       "country": "JP",
-      "flag": "🇯🇵"
+      "flag": "🇯🇵",
+      "tz": "Asia/Tokyo"
     },
     "HIN": {
       "city": "사천",
       "country": "KR",
-      "flag": "🇰🇷"
+      "flag": "🇰🇷",
+      "tz": "Asia/Seoul"
     },
     "HKD": {
       "city": "하코다테",
@@ -3656,22 +4242,26 @@
     "HKG": {
       "city": "홍콩",
       "country": "HK",
-      "flag": "🇭🇰"
+      "flag": "🇭🇰",
+      "tz": "Asia/Hong_Kong"
     },
     "HKT": {
       "city": "푸껫",
       "country": "TH",
-      "flag": "🇹🇭"
+      "flag": "🇹🇭",
+      "tz": "Asia/Bangkok"
     },
     "HND": {
-      "city": "도쿄",
+      "city": "도쿄(하네다)",
       "country": "JP",
-      "flag": "🇯🇵"
+      "flag": "🇯🇵",
+      "tz": "Asia/Tokyo"
     },
     "HNL": {
       "city": "호놀룰루",
       "country": "US",
-      "flag": "🇺🇸"
+      "flag": "🇺🇸",
+      "tz": "Pacific/Honolulu"
     },
     "HPH": {
       "city": "하이퐁",
@@ -3696,7 +4286,8 @@
     "IAD": {
       "city": "워싱턴",
       "country": "US",
-      "flag": "🇺🇸"
+      "flag": "🇺🇸",
+      "tz": "America/New_York"
     },
     "IAH": {
       "city": "휴스턴",
@@ -3706,7 +4297,8 @@
     "ICN": {
       "city": "인천",
       "country": "KR",
-      "flag": "🇰🇷"
+      "flag": "🇰🇷",
+      "tz": "Asia/Seoul"
     },
     "IEV": {
       "city": "키이우",
@@ -3746,7 +4338,8 @@
     "IST": {
       "city": "이스탄불",
       "country": "TR",
-      "flag": "🇹🇷"
+      "flag": "🇹🇷",
+      "tz": "Europe/Istanbul"
     },
     "ITM": {
       "city": "오사카",
@@ -3771,7 +4364,8 @@
     "JFK": {
       "city": "뉴욕",
       "country": "US",
-      "flag": "🇺🇸"
+      "flag": "🇺🇸",
+      "tz": "America/New_York"
     },
     "JHB": {
       "city": "조호르바루",
@@ -3831,7 +4425,8 @@
     "KHH": {
       "city": "가오슝",
       "country": "TW",
-      "flag": "🇹🇼"
+      "flag": "🇹🇼",
+      "tz": "Asia/Taipei"
     },
     "KHI": {
       "city": "카라치",
@@ -3846,12 +4441,14 @@
     "KIJ": {
       "city": "니가타",
       "country": "JP",
-      "flag": "🇯🇵"
+      "flag": "🇯🇵",
+      "tz": "Asia/Tokyo"
     },
     "KIX": {
       "city": "오사카",
       "country": "JP",
-      "flag": "🇯🇵"
+      "flag": "🇯🇵",
+      "tz": "Asia/Tokyo"
     },
     "KLO": {
       "city": "칼리보",
@@ -3861,7 +4458,8 @@
     "KMG": {
       "city": "쿤밍",
       "country": "CN",
-      "flag": "🇨🇳"
+      "flag": "🇨🇳",
+      "tz": "Asia/Shanghai"
     },
     "KMI": {
       "city": "미야자키",
@@ -3871,12 +4469,14 @@
     "KMJ": {
       "city": "구마모토",
       "country": "JP",
-      "flag": "🇯🇵"
+      "flag": "🇯🇵",
+      "tz": "Asia/Tokyo"
     },
     "KMQ": {
-      "city": "고마쓰",
+      "city": "코마츠",
       "country": "JP",
-      "flag": "🇯🇵"
+      "flag": "🇯🇵",
+      "tz": "Asia/Tokyo"
     },
     "KOA": {
       "city": "코나",
@@ -3886,7 +4486,8 @@
     "KOJ": {
       "city": "가고시마",
       "country": "JP",
-      "flag": "🇯🇵"
+      "flag": "🇯🇵",
+      "tz": "Asia/Tokyo"
     },
     "KPO": {
       "city": "포항",
@@ -3901,12 +4502,14 @@
     "KTM": {
       "city": "카트만두",
       "country": "NP",
-      "flag": "🇳🇵"
+      "flag": "🇳🇵",
+      "tz": "Asia/Kathmandu"
     },
     "KUL": {
       "city": "쿠알라룸푸르",
       "country": "MY",
-      "flag": "🇲🇾"
+      "flag": "🇲🇾",
+      "tz": "Asia/Kuala_Lumpur"
     },
     "KUV": {
       "city": "군산",
@@ -3926,7 +4529,8 @@
     "KWJ": {
       "city": "광주",
       "country": "KR",
-      "flag": "🇰🇷"
+      "flag": "🇰🇷",
+      "tz": "Asia/Seoul"
     },
     "KWL": {
       "city": "구이린",
@@ -3941,12 +4545,14 @@
     "LAS": {
       "city": "라스베이거스",
       "country": "US",
-      "flag": "🇺🇸"
+      "flag": "🇺🇸",
+      "tz": "America/Los_Angeles"
     },
     "LAX": {
       "city": "로스앤젤레스",
       "country": "US",
-      "flag": "🇺🇸"
+      "flag": "🇺🇸",
+      "tz": "America/Los_Angeles"
     },
     "LCA": {
       "city": "라르나카",
@@ -3991,7 +4597,8 @@
     "LHR": {
       "city": "런던",
       "country": "GB",
-      "flag": "🇬🇧"
+      "flag": "🇬🇧",
+      "tz": "Europe/London"
     },
     "LHW": {
       "city": "란저우",
@@ -4016,7 +4623,8 @@
     "LIS": {
       "city": "리스본",
       "country": "PT",
-      "flag": "🇵🇹"
+      "flag": "🇵🇹",
+      "tz": "Europe/Lisbon"
     },
     "LJU": {
       "city": "류블랴나",
@@ -4051,7 +4659,8 @@
     "MAD": {
       "city": "마드리드",
       "country": "ES",
-      "flag": "🇪🇸"
+      "flag": "🇪🇸",
+      "tz": "Europe/Madrid"
     },
     "MAN": {
       "city": "맨체스터",
@@ -4091,7 +4700,8 @@
     "MEL": {
       "city": "멜버른",
       "country": "AU",
-      "flag": "🇦🇺"
+      "flag": "🇦🇺",
+      "tz": "Australia/Melbourne"
     },
     "MEM": {
       "city": "멤피스",
@@ -4106,7 +4716,8 @@
     "MFM": {
       "city": "마카오",
       "country": "MO",
-      "flag": "🇲🇴"
+      "flag": "🇲🇴",
+      "tz": "Asia/Macau"
     },
     "MIA": {
       "city": "마이애미",
@@ -4131,7 +4742,8 @@
     "MNL": {
       "city": "마닐라",
       "country": "PH",
-      "flag": "🇵🇭"
+      "flag": "🇵🇭",
+      "tz": "Asia/Manila"
     },
     "MRS": {
       "city": "마르세유",
@@ -4146,7 +4758,8 @@
     "MSP": {
       "city": "미니애폴리스",
       "country": "US",
-      "flag": "🇺🇸"
+      "flag": "🇺🇸",
+      "tz": "America/Chicago"
     },
     "MSQ": {
       "city": "민스크",
@@ -4176,7 +4789,8 @@
     "MXP": {
       "city": "밀라노",
       "country": "IT",
-      "flag": "🇮🇹"
+      "flag": "🇮🇹",
+      "tz": "Europe/Rome"
     },
     "MYJ": {
       "city": "마쓰야마",
@@ -4211,17 +4825,20 @@
     "NGO": {
       "city": "나고야",
       "country": "JP",
-      "flag": "🇯🇵"
+      "flag": "🇯🇵",
+      "tz": "Asia/Tokyo"
     },
     "NGS": {
       "city": "나가사키",
       "country": "JP",
-      "flag": "🇯🇵"
+      "flag": "🇯🇵",
+      "tz": "Asia/Tokyo"
     },
     "NKG": {
       "city": "난징",
       "country": "CN",
-      "flag": "🇨🇳"
+      "flag": "🇨🇳",
+      "tz": "Asia/Shanghai"
     },
     "NNG": {
       "city": "난닝",
@@ -4239,9 +4856,10 @@
       "flag": "🇰🇿"
     },
     "NRT": {
-      "city": "도쿄",
+      "city": "도쿄(나리타)",
       "country": "JP",
-      "flag": "🇯🇵"
+      "flag": "🇯🇵",
+      "tz": "Asia/Tokyo"
     },
     "NUE": {
       "city": "뉘른베르크",
@@ -4261,17 +4879,20 @@
     "OIT": {
       "city": "오이타",
       "country": "JP",
-      "flag": "🇯🇵"
+      "flag": "🇯🇵",
+      "tz": "Asia/Tokyo"
     },
     "OKA": {
       "city": "오키나와",
       "country": "JP",
-      "flag": "🇯🇵"
+      "flag": "🇯🇵",
+      "tz": "Asia/Tokyo"
     },
     "OKJ": {
       "city": "오카야마",
       "country": "JP",
-      "flag": "🇯🇵"
+      "flag": "🇯🇵",
+      "tz": "Asia/Tokyo"
     },
     "OMA": {
       "city": "오마하",
@@ -4296,7 +4917,8 @@
     "ORD": {
       "city": "시카고",
       "country": "US",
-      "flag": "🇺🇸"
+      "flag": "🇺🇸",
+      "tz": "America/Chicago"
     },
     "ORY": {
       "city": "파리",
@@ -4331,7 +4953,8 @@
     "PEK": {
       "city": "베이징",
       "country": "CN",
-      "flag": "🇨🇳"
+      "flag": "🇨🇳",
+      "tz": "Asia/Shanghai"
     },
     "PEN": {
       "city": "페낭",
@@ -4371,7 +4994,8 @@
     "PNH": {
       "city": "프놈펜",
       "country": "KH",
-      "flag": "🇰🇭"
+      "flag": "🇰🇭",
+      "tz": "Asia/Phnom_Penh"
     },
     "POM": {
       "city": "포트모르즈비",
@@ -4391,12 +5015,14 @@
     "PQC": {
       "city": "푸꾸옥",
       "country": "VN",
-      "flag": "🇻🇳"
+      "flag": "🇻🇳",
+      "tz": "Asia/Ho_Chi_Minh"
     },
     "PRG": {
       "city": "프라하",
       "country": "CZ",
-      "flag": "🇨🇿"
+      "flag": "🇨🇿",
+      "tz": "Europe/Prague"
     },
     "PSA": {
       "city": "피사",
@@ -4416,12 +5042,14 @@
     "PUS": {
       "city": "부산",
       "country": "KR",
-      "flag": "🇰🇷"
+      "flag": "🇰🇷",
+      "tz": "Asia/Seoul"
     },
     "PVG": {
-      "city": "상하이",
+      "city": "상하이(푸둥)",
       "country": "CN",
-      "flag": "🇨🇳"
+      "flag": "🇨🇳",
+      "tz": "Asia/Shanghai"
     },
     "PVR": {
       "city": "푸에르토바야르타",
@@ -4446,7 +5074,8 @@
     "RGN": {
       "city": "양곤",
       "country": "MM",
-      "flag": "🇲🇲"
+      "flag": "🇲🇲",
+      "tz": "Asia/Yangon"
     },
     "RIX": {
       "city": "리가",
@@ -4466,7 +5095,8 @@
     "RSU": {
       "city": "여수",
       "country": "KR",
-      "flag": "🇰🇷"
+      "flag": "🇰🇷",
+      "tz": "Asia/Seoul"
     },
     "RSW": {
       "city": "포트마이어스",
@@ -4511,7 +5141,8 @@
     "SEA": {
       "city": "시애틀",
       "country": "US",
-      "flag": "🇺🇸"
+      "flag": "🇺🇸",
+      "tz": "America/Los_Angeles"
     },
     "SEZ": {
       "city": "세이셸",
@@ -4521,22 +5152,26 @@
     "SFO": {
       "city": "샌프란시스코",
       "country": "US",
-      "flag": "🇺🇸"
+      "flag": "🇺🇸",
+      "tz": "America/Los_Angeles"
     },
     "SGN": {
-      "city": "호치민",
+      "city": "호찌민",
       "country": "VN",
-      "flag": "🇻🇳"
+      "flag": "🇻🇳",
+      "tz": "Asia/Ho_Chi_Minh"
     },
     "SHA": {
-      "city": "상하이",
+      "city": "상하이(훙차오)",
       "country": "CN",
-      "flag": "🇨🇳"
+      "flag": "🇨🇳",
+      "tz": "Asia/Shanghai"
     },
     "SHE": {
       "city": "선양",
       "country": "CN",
-      "flag": "🇨🇳"
+      "flag": "🇨🇳",
+      "tz": "Asia/Shanghai"
     },
     "SHJ": {
       "city": "샤르자",
@@ -4546,7 +5181,8 @@
     "SIN": {
       "city": "싱가포르",
       "country": "SG",
-      "flag": "🇸🇬"
+      "flag": "🇸🇬",
+      "tz": "Asia/Singapore"
     },
     "SJC": {
       "city": "새너제이",
@@ -4581,7 +5217,8 @@
     "SLC": {
       "city": "솔트레이크시티",
       "country": "US",
-      "flag": "🇺🇸"
+      "flag": "🇺🇸",
+      "tz": "America/Denver"
     },
     "SMF": {
       "city": "새크라멘토",
@@ -4656,7 +5293,8 @@
     "SYD": {
       "city": "시드니",
       "country": "AU",
-      "flag": "🇦🇺"
+      "flag": "🇦🇺",
+      "tz": "Australia/Sydney"
     },
     "SYX": {
       "city": "싼야",
@@ -4671,12 +5309,14 @@
     "SZX": {
       "city": "선전",
       "country": "CN",
-      "flag": "🇨🇳"
+      "flag": "🇨🇳",
+      "tz": "Asia/Shanghai"
     },
     "TAE": {
       "city": "대구",
       "country": "KR",
-      "flag": "🇰🇷"
+      "flag": "🇰🇷",
+      "tz": "Asia/Seoul"
     },
     "TAG": {
       "city": "보홀",
@@ -4691,12 +5331,14 @@
     "TAO": {
       "city": "칭다오",
       "country": "CN",
-      "flag": "🇨🇳"
+      "flag": "🇨🇳",
+      "tz": "Asia/Shanghai"
     },
     "TAS": {
       "city": "타슈켄트",
       "country": "UZ",
-      "flag": "🇺🇿"
+      "flag": "🇺🇿",
+      "tz": "Asia/Tashkent"
     },
     "TBS": {
       "city": "트빌리시",
@@ -4746,7 +5388,8 @@
     "TPE": {
       "city": "타이베이",
       "country": "TW",
-      "flag": "🇹🇼"
+      "flag": "🇹🇼",
+      "tz": "Asia/Taipei"
     },
     "TRD": {
       "city": "트론헤임",
@@ -4766,7 +5409,8 @@
     "TSN": {
       "city": "톈진",
       "country": "CN",
-      "flag": "🇨🇳"
+      "flag": "🇨🇳",
+      "tz": "Asia/Shanghai"
     },
     "TUN": {
       "city": "튀니스",
@@ -4784,9 +5428,10 @@
       "flag": "🇨🇳"
     },
     "UBN": {
-      "city": "울란바토르",
+      "city": "울란바타르",
       "country": "MN",
-      "flag": "🇲🇳"
+      "flag": "🇲🇳",
+      "tz": "Asia/Ulaanbaatar"
     },
     "UIO": {
       "city": "키토",
@@ -4796,7 +5441,8 @@
     "UKB": {
       "city": "고베",
       "country": "JP",
-      "flag": "🇯🇵"
+      "flag": "🇯🇵",
+      "tz": "Asia/Tokyo"
     },
     "ULN": {
       "city": "울란바토르",
@@ -4821,7 +5467,8 @@
     "USN": {
       "city": "울산",
       "country": "KR",
-      "flag": "🇰🇷"
+      "flag": "🇰🇷",
+      "tz": "Asia/Seoul"
     },
     "UUS": {
       "city": "유즈노사할린스크",
@@ -4844,9 +5491,10 @@
       "flag": "🇮🇹"
     },
     "VIE": {
-      "city": "빈",
+      "city": "비엔나",
       "country": "AT",
-      "flag": "🇦🇹"
+      "flag": "🇦🇹",
+      "tz": "Europe/Vienna"
     },
     "VKO": {
       "city": "모스크바",
@@ -4881,7 +5529,8 @@
     "WEH": {
       "city": "웨이하이",
       "country": "CN",
-      "flag": "🇨🇳"
+      "flag": "🇨🇳",
+      "tz": "Asia/Shanghai"
     },
     "WJU": {
       "city": "원주",
@@ -4901,17 +5550,20 @@
     "WUH": {
       "city": "우한",
       "country": "CN",
-      "flag": "🇨🇳"
+      "flag": "🇨🇳",
+      "tz": "Asia/Shanghai"
     },
     "XIY": {
       "city": "시안",
       "country": "CN",
-      "flag": "🇨🇳"
+      "flag": "🇨🇳",
+      "tz": "Asia/Shanghai"
     },
     "XMN": {
       "city": "샤먼",
       "country": "CN",
-      "flag": "🇨🇳"
+      "flag": "🇨🇳",
+      "tz": "Asia/Shanghai"
     },
     "XNN": {
       "city": "시닝",
@@ -4936,12 +5588,14 @@
     "YNJ": {
       "city": "옌지",
       "country": "CN",
-      "flag": "🇨🇳"
+      "flag": "🇨🇳",
+      "tz": "Asia/Shanghai"
     },
     "YNT": {
       "city": "옌타이",
       "country": "CN",
-      "flag": "🇨🇳"
+      "flag": "🇨🇳",
+      "tz": "Asia/Shanghai"
     },
     "YNY": {
       "city": "양양",
@@ -4961,7 +5615,8 @@
     "YVR": {
       "city": "밴쿠버",
       "country": "CA",
-      "flag": "🇨🇦"
+      "flag": "🇨🇦",
+      "tz": "America/Vancouver"
     },
     "YWG": {
       "city": "위니펙",
@@ -4971,12 +5626,14 @@
     "YYC": {
       "city": "캘거리",
       "country": "CA",
-      "flag": "🇨🇦"
+      "flag": "🇨🇦",
+      "tz": "America/Edmonton"
     },
     "YYZ": {
       "city": "토론토",
       "country": "CA",
-      "flag": "🇨🇦"
+      "flag": "🇨🇦",
+      "tz": "America/Toronto"
     },
     "ZAG": {
       "city": "자그레브",
@@ -4991,12 +5648,25 @@
     "ZRH": {
       "city": "취리히",
       "country": "CH",
-      "flag": "🇨🇭"
+      "flag": "🇨🇭",
+      "tz": "Europe/Zurich"
     },
     "ZUH": {
       "city": "주하이",
       "country": "CN",
       "flag": "🇨🇳"
+    },
+    "KKJ": {
+      "city": "기타큐슈",
+      "country": "JP",
+      "flag": "🇯🇵",
+      "tz": "Asia/Tokyo"
+    },
+    "SHI": {
+      "city": "미야코지마",
+      "country": "JP",
+      "flag": "🇯🇵",
+      "tz": "Asia/Tokyo"
     }
   };
 

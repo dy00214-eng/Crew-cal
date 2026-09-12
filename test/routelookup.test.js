@@ -54,52 +54,52 @@ test('text 블록만 골라 잇고 코드펜스를 떼어 낸다', () => {
 
 test('confidence 가 high 가 아니면 저장하지 않는다', async () => {
   const seen = stubFetch({
-    KE5901: reply('KE5901', 'ICN', 'PVG', 'high'),
-    KE5903: reply('KE5903', null, null, 'unknown')
+    KE9994: reply('KE9994', 'ICN', 'PVG', 'high'),
+    KE9996: reply('KE9996', null, null, 'unknown')
   });
-  const out = await lookup.run(['KE5901', 'KE5903']);
+  const out = await lookup.run(['KE9994', 'KE9996']);
   assert.strictEqual(out.filled, 1);
-  assert.deepStrictEqual(seen.sort(), ['KE5901', 'KE5903']);
-  assert.strictEqual(routes.loadCache().KE5901.to, 'PVG');
-  assert.strictEqual(routes.loadCache().KE5903.fail, true, '못 찾은 것도 적어 둔다');
+  assert.deepStrictEqual(seen.sort(), ['KE9994', 'KE9996']);
+  assert.strictEqual(routes.loadCache().KE9994.to, 'PVG');
+  assert.strictEqual(routes.loadCache().KE9996.fail, true, '못 찾은 것도 적어 둔다');
 });
 
 test('조회가 실패해도 조용히 넘어간다', async () => {
-  stubFetch({ KE5901: 'error', KE5903: 'http500' });
+  stubFetch({ KE9994: 'error', KE9996: 'http500' });
   const warned = [];
   const real = console.warn;
   console.warn = (m) => warned.push(String(m));
   let out;
   try {
-    out = await lookup.run(['KE5901', 'KE5903']);
+    out = await lookup.run(['KE9994', 'KE9996']);
   } finally { console.warn = real; }
   assert.strictEqual(out.filled, 0);
-  assert.strictEqual(routes.loadCache().KE5901.fail, true);
-  assert.strictEqual(routes.loadCache().KE5903.fail, true);
+  assert.strictEqual(routes.loadCache().KE9994.fail, true);
+  assert.strictEqual(routes.loadCache().KE9996.fail, true);
 });
 
 test('같은 편명은 한 번만 묻고, 중복은 미리 지운다', async () => {
-  const seen = stubFetch({ KE5901: reply('KE5901', 'ICN', 'PVG', 'high') });
-  await lookup.run(['KE5901', 'KE5901', 'ke5901']);
-  assert.deepStrictEqual(seen, ['KE5901']);
+  const seen = stubFetch({ KE9994: reply('KE9994', 'ICN', 'PVG', 'high') });
+  await lookup.run(['KE9994', 'KE9994', 'ke9994']);
+  assert.deepStrictEqual(seen, ['KE9994']);
 
-  await lookup.run(['KE5901']);
-  assert.deepStrictEqual(seen, ['KE5901'], '이번 판에서는 두 번 묻지 않는다');
+  await lookup.run(['KE9994']);
+  assert.deepStrictEqual(seen, ['KE9994'], '이번 판에서는 두 번 묻지 않는다');
   assert.strictEqual(lookup.stats().calls, 1);
 });
 
 test('캐시가 차면 다음 달에는 아예 물어볼 일이 없다', async () => {
-  const seen = stubFetch({ KE5901: reply('KE5901', 'ICN', 'PVG', 'high') });
-  await lookup.run(['KE5901']);
+  const seen = stubFetch({ KE9994: reply('KE9994', 'ICN', 'PVG', 'high') });
+  await lookup.run(['KE9994']);
   lookup.reset();
 
   // 2단계에서 바로 풀리므로 apply 가 내주는 목록이 비어 있다
   const store = require('../src/store.js');
-  const byDate = { '2026-02-01': [store.decorate({ date: '2026-02-01', code: 'KE5901' })] };
+  const byDate = { '2026-02-01': [store.decorate({ date: '2026-02-01', code: 'KE9994' })] };
   assert.deepStrictEqual(routes.apply(byDate), []);
   const out = await lookup.run(routes.apply(byDate));
   assert.strictEqual(out.asked, 0);
-  assert.deepStrictEqual(seen, ['KE5901'], 'API 를 더 부르지 않는다');
+  assert.deepStrictEqual(seen, ['KE9994'], 'API 를 더 부르지 않는다');
 });
 
 test('한꺼번에 셋까지만 보낸다', async () => {
@@ -109,9 +109,9 @@ test('한꺼번에 셋까지만 보낸다', async () => {
     live++; peak = Math.max(peak, live);
     return new Promise((done) => setTimeout(() => {
       live--;
-      done({ ok: true, json: () => Promise.resolve(reply('KE5901', 'ICN', 'PVG', 'high')) });
+      done({ ok: true, json: () => Promise.resolve(reply('KE9994', 'ICN', 'PVG', 'high')) });
     }, 5));
   };
-  await lookup.run(['KE5901', 'KE5903', 'KE5905', 'KE5907', 'KE5909', 'KE5911']);
+  await lookup.run(['KE9994', 'KE9996', 'KE9998', 'KE9990', 'KE9992', 'KE9986']);
   assert.strictEqual(peak, 3, '동시에 셋: ' + peak);
 });

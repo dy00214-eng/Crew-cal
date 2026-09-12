@@ -157,3 +157,33 @@ test('범위 밖은 건드리지 않고, 달 전체 지우기를 고르면 그 �
   assert.deepStrictEqual(store.dateSpan([], { clearMonth: '2026-02' }),
     { from: '2026-02-01', to: '2026-02-28' });
 });
+
+test('시각은 덮어쓰지 않고 보탠다', () => {
+  const HOME = '01\n9\nFRI\nKE 0005\nICN -LAS / 21:03 - 14:43';
+  store.applyEntries(parser.parse(HOME, { year: 2026, month: 1 }).entries, 'replace');
+  assert.deepStrictEqual(store.getByDate('2026-01-09').map((e) => [e.start, e.end]), [['21:03', '14:43']]);
+
+  // 시각 없는 달력 캡처를 나중에 넣어도 시각이 날아가지 않는다
+  store.applyEntries(parser.parse('2026-01-09\tKE0005', { year: 2026, month: 1 }).entries, 'replace');
+  const kept = store.getByDate('2026-01-09')[0];
+  assert.deepStrictEqual([kept.start, kept.end, kept.timeSource], ['21:03', '14:43', 'kept']);
+});
+
+test('직접 넣은 시각은 원본보다 우선한다', () => {
+  store.applyEntries(parser.parse('2026-01-09\tKE0005', { year: 2026, month: 1 }).entries, 'replace');
+  const e = store.getByDate('2026-01-09')[0];
+  store.setTimes('2026-01-09', e.id, { start: '20:00' });
+  assert.strictEqual(store.getByDate('2026-01-09')[0].timeSource, 'user');
+
+  store.applyEntries(parser.parse('01\n9\nFRI\nKE 0005\nICN -LAS / 21:03 - 14:43',
+    { year: 2026, month: 1 }).entries, 'replace');
+  const after = store.getByDate('2026-01-09')[0];
+  assert.strictEqual(after.start, '20:00', '직접 넣은 값이 남는다');
+  assert.strictEqual(after.timeSource, 'user');
+});
+
+test('시각이 빈 비행만 모아 준다', () => {
+  store.applyEntries(parser.parse('2026-01-09\tKE0005 LO\n2026-01-11\tKE0006',
+    { year: 2026, month: 1 }).entries, 'replace');
+  assert.deepStrictEqual(store.missingTimes().map((x) => x.code), ['KE0005', 'KE0006'], '체류는 빼고 비행만');
+});

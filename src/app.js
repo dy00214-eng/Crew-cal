@@ -170,6 +170,7 @@
     // 연간 화면에서는 달 이름 대신 해를 보여준다
     if (mode === 'year') $('monthLabel').textContent = state.year + '년';
     renderYearSummary(mode === 'year' ? entriesByDate : null);
+    showNoTimeBanner(entriesByDate);
 
     renderMonthSummary(entriesByDate);
     renderNextDuty(entriesByDate);
@@ -299,6 +300,29 @@
       toast('저장해 둔 노선을 지웠습니다.');
     });
     refreshRouteCache();
+  }
+
+  /**
+   * 이 달 비행에 시각이 하나도 없으면 알린다. 달력 화면 캡처에는 시각이 없어서,
+   * 홈 화면 글을 붙여넣으면 채워진다는 것을 모르고 지나치기 쉽다.
+   */
+  function showNoTimeBanner(entriesByDate) {
+    var box = $('noTimeBanner');
+    if (!box) return;
+    var prefix = state.year + '-' + pad2(state.month);
+    var flights = 0;
+    var timed = 0;
+    Object.keys(entriesByDate).forEach(function (date) {
+      if (date.indexOf(prefix) !== 0) return;
+      entriesByDate[date].forEach(function (e) {
+        if (e.type !== 'flight') return;
+        flights++;
+        if (e.start || e.end) timed++;
+      });
+    });
+    if (state.view !== 'calendar' || !flights || timed) { box.hidden = true; return; }
+    box.textContent = '시각 정보가 없습니다. 크루넷 홈 화면(리스트) 글을 붙여넣으면 채워집니다.';
+    box.hidden = false;
   }
 
   function renderMonthSummary(entriesByDate) {
@@ -1796,7 +1820,7 @@
   /* ---------------- 동료가 보내는 의견 ---------------- */
 
   // 화면 아래와 의견 보내기에 적히는 판 번호. sw.js 의 VERSION 과 함께 올린다.
-  var APP_VERSION = 'v33';
+  var APP_VERSION = 'v34';
 
   /**
    * 의견을 받을 메일 주소. 저장소가 공개라 통짜로 적어두면 스팸 크롤러가 긁어가므로
@@ -1963,6 +1987,111 @@
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape' && !$('feedbackSheet').hidden) closeFeedback();
     });
+  }
+
+  /* ---------------- 시각 채우기 ----------------
+   * 크루넷 홈 화면 글에는 시각이 있지만 달력 캡처에는 없다. 빈 것만 모아
+   * 한 번에 넣는다. 직접 넣은 값은 나중에 덮어쓰이지 않는다.
+   */
+
+  function openTimes() {
+    $('timePanel').hidden = false;
+    renderTimes();
+    $('timePanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function renderTimes() {
+    var month = state.year + '-' + pad2(state.month);
+    var span = store.dateSpan([], { clearMonth: month });
+    var list = store.missingTimes(span.from, span.to);
+    var box = $('timeList');
+    box.innerHTML = '';
+    $('timeStatus').textContent = '';
+    $('timeStatus').className = 'status';
+
+    if (!list.length) {
+      var done = document.createElement('p');
+      done.className = 'muted';
+      done.textContent = monthLabel(state.year, state.month) + ' 에는 시각이 빈 비행이 없습니다.';
+      box.appendChild(done);
+      return;
+    }
+
+    list.forEach(function (item) {
+      var row = document.createElement('div');
+      row.className = 'route-row time-row';
+      row.setAttribute('data-date', item.date);
+      row.setAttribute('data-id', item.id);
+
+      var when = document.createElement('span');
+      when.className = 'code';
+      when.textContent = (+item.date.slice(8)) + '일 ' + item.code;
+      when.title = item.route || '';
+      row.appendChild(when);
+
+      var start = document.createElement('input');
+      start.type = 'text';
+      start.className = 'start';
+      start.inputMode = 'numeric';
+      start.autocomplete = 'off';
+      start.placeholder = '출발 2146';
+      row.appendChild(start);
+
+      var end = document.createElement('input');
+      end.type = 'text';
+      end.className = 'end';
+      end.inputMode = 'numeric';
+      end.autocomplete = 'off';
+      end.placeholder = '도착 0507';
+      row.appendChild(end);
+
+      var where = document.createElement('span');
+      where.className = 'tag';
+      where.textContent = item.route || '';
+      row.appendChild(where);
+
+      box.appendChild(row);
+    });
+  }
+
+  function saveTimes() {
+    var rows = $('timeList').querySelectorAll('.time-row');
+    var saved = 0;
+    var bad = [];
+    Array.prototype.forEach.call(rows, function (row) {
+      var startRaw = row.querySelector('.start').value.trim();
+      var endRaw = row.querySelector('.end').value.trim();
+      if (!startRaw && !endRaw) return;
+      var start = startRaw ? readTime(startRaw) : null;
+      var end = endRaw ? readTime(endRaw) : null;
+      if ((startRaw && !start) || (endRaw && !end)) { bad.push(row.querySelector('.code').textContent); return; }
+      store.setTimes(row.getAttribute('data-date'), row.getAttribute('data-id'), { start: start, end: end });
+      saved++;
+    });
+    if (!saved && !bad.length) {
+      $('timeStatus').textContent = '넣은 시각이 없습니다.';
+      return;
+    }
+    refresh();
+    if (!bad.length) renderTimes();
+    $('timeStatus').textContent = saved + '건을 넣었습니다.' +
+      (bad.length ? ' 못 알아본 시각: ' + bad.join(', ') : '');
+    $('timeStatus').className = 'status ' + (bad.length ? 'error' : 'ok');
+  }
+
+  /** '2146' '21:46' -> '21:46'. 시각이 아니면 null. */
+  function readTime(text) {
+    var raw = String(text == null ? '' : text).trim().replace(/[.\s]/g, '');
+    var m = /^(\d{1,2}):?([0-5]\d)$/.exec(raw);
+    if (!m) return null;
+    var h = +m[1];
+    return h > 23 ? null : pad2(h) + ':' + m[2];
+  }
+
+  function initTimes() {
+    $('timeOpen').addEventListener('click', openTimes);
+    $('timeClose').addEventListener('click', function () { $('timePanel').hidden = true; });
+    $('timeSave').addEventListener('click', saveTimes);
   }
 
   /* ---------------- 파싱 검증 (개발용) ----------------
@@ -2190,6 +2319,7 @@
     initAssumeOff();
     initAirlines();
     initRouteLookup();
+    initTimes();
     initVerify();
     initTabs();
     initSingleForm();

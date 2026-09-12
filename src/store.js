@@ -91,6 +91,7 @@
       end: entry.end || entry.arr || null,       // 도착(종료) 시각 HH:MM
       endOffset: +(entry.endOffset || entry.arrOffset || 0) || 0, // 도착이 익일이면 1
       memo: entry.memo || null,
+      timeSource: entry.timeSource || null,
       // 크루넷 원본이 알려 주는 것들. 짐작한 값이 아니라 화면에 적혀 있던 값이다.
       from: entry.from || null,
       to: entry.to || null,
@@ -235,6 +236,14 @@
     var removed = 0;
     var added = 0;
 
+    // 지우기 전에 갖고 있던 시각을 챙겨 둔다
+    var kept = {};
+    Object.keys(data.entries).forEach(function (date) {
+      data.entries[date].forEach(function (old) {
+        if (old.start || old.end) kept[date + '|' + old.code] = old;
+      });
+    });
+
     if (mode === 'replace') {
       // 넣는 날짜만 지우면, 예전에 잘못 들어간 날은 새로 읽어도 그대로 남는다.
       // (1월 1일에 유령 비행이 계속 붙어 있던 까닭) 그래서 넣는 범위를 통째로 지운다.
@@ -253,6 +262,9 @@
       var e = decorate(entry);
       e.id = newId();
       data.entries[e.date] = data.entries[e.date] || [];
+      // 시각은 덮어쓰지 않고 보탠다. 달력 캡처(시각 없음)를 나중에 넣어도
+      // 홈 화면에서 받아 둔 시각이나 직접 넣은 시각이 날아가지 않도록.
+      keepTimes(kept[e.date + '|' + e.code], e);
       if (mode !== 'replace') {
         var dup = data.entries[e.date].some(function (x) {
           return x.code === e.code && (x.route || '') === (e.route || '') && (x.start || '') === (e.start || '');
@@ -268,6 +280,60 @@
 
     save(data);
     return { added: added, removed: removed, dates: Object.keys(touched).length, dropped: dropped };
+  }
+
+  /**
+   * 새로 들어온 건에 시각이 없으면 갖고 있던 시각을 옮겨 준다.
+   * 사용자가 직접 넣은 값(timeSource 'user')은 어떤 경우에도 지키고,
+   * 새 원본에 시각이 있으면 그쪽이 맞다(스케줄이 바뀌었을 수 있으니).
+   */
+  function keepTimes(old, next) {
+    if (!old) return next;
+    var mine = old.timeSource === 'user';
+    if (!next.start && old.start) { next.start = old.start; next.timeSource = old.timeSource || 'kept'; }
+    else if (mine && old.start) { next.start = old.start; next.timeSource = 'user'; }
+    if (!next.end && old.end) {
+      next.end = old.end;
+      next.endOffset = old.endOffset || 0;
+      next.timeSource = next.timeSource || old.timeSource || 'kept';
+    } else if (mine && old.end) {
+      next.end = old.end;
+      next.endOffset = old.endOffset || 0;
+      next.timeSource = 'user';
+    }
+    return next;
+  }
+
+  /** 한 건의 시각을 직접 고친다. 직접 넣은 값이라고 표시해 둔다. */
+  function setTimes(date, id, times) {
+    var data = load();
+    var list = data.entries[date] || [];
+    var hit = null;
+    list.forEach(function (e) { if (e.id === id) hit = e; });
+    if (!hit) return null;
+    hit.start = times.start || null;
+    hit.end = times.end || null;
+    hit.endOffset = times.end ? (+times.endOffset || 0) : 0;
+    hit.timeSource = (times.start || times.end) ? 'user' : null;
+    if (!hit.legRole) hit.legRole = hit.start ? 'depart' : (hit.end ? 'arrive' : null);
+    save(data);
+    return hit;
+  }
+
+  /** 시각이 비어 있는 비행. 한 번에 채우는 화면이 쓴다. */
+  function missingTimes(fromIso, toIso) {
+    var all = load().entries;
+    var out = [];
+    Object.keys(all).sort().forEach(function (date) {
+      if (fromIso && date < fromIso) return;
+      if (toIso && date > toIso) return;
+      all[date].forEach(function (e) {
+        if (e.type !== 'flight' || e.strange) return;
+        if (e.start || e.end) return;
+        out.push({ date: date, id: e.id, code: e.code, route: e.route || null, legRole: e.legRole || null });
+      });
+    });
+    return out;
   }
 
   function dates(entries) {
@@ -345,6 +411,9 @@
     countInRange: countInRange,
     clearAll: clearAll,
     dateSpan: dateSpan,
+    keepTimes: keepTimes,
+    setTimes: setTimes,
+    missingTimes: missingTimes,
     resolveDates: resolveDates,
     exportJson: exportJson,
     importJson: importJson,

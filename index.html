@@ -69,6 +69,7 @@
     <div id="calendar" class="calendar"></div>
     <div id="listView" class="list-view" hidden></div>
     <div id="yearView" class="year-view" hidden></div>
+    <div id="noTimeBanner" class="warnings danger-note" hidden></div>
     <div id="yearSummary" class="month-summary" hidden></div>
     <div id="monthSummary" class="month-summary"></div>
     <ul class="legend">
@@ -103,13 +104,13 @@
 
   <section class="card input-card">
     <div class="tabs" role="tablist">
-      <button type="button" class="tab active" role="tab" data-tab="single" aria-selected="true">직접 입력</button>
-      <button type="button" class="tab" role="tab" data-tab="paste" aria-selected="false">붙여넣기</button>
+      <button type="button" class="tab" role="tab" data-tab="single" aria-selected="false">직접 입력</button>
+      <button type="button" class="tab active" role="tab" data-tab="paste" aria-selected="true">붙여넣기</button>
       <button type="button" class="tab" role="tab" data-tab="image" aria-selected="false">스크린샷</button>
     </div>
 
     <!-- 1) 날짜별 개별 입력 -->
-    <div class="panel active" id="panel-single" role="tabpanel">
+    <div class="panel" id="panel-single" role="tabpanel">
       <form id="singleForm" class="form-grid">
         <label class="field">
           <span>날짜</span>
@@ -154,7 +155,8 @@
     </div>
 
     <!-- 2) 붙여넣기 -->
-    <div class="panel" id="panel-paste" role="tabpanel">
+    <div class="panel active" id="panel-paste" role="tabpanel">
+      <p class="hint">크루넷 <b>홈 화면(리스트)</b> 글을 붙여넣으면 출발·도착 시각까지 자동으로 들어갑니다. 월별 달력 화면에는 시각이 없어 편명만 들어옵니다.</p>
       <p class="hint">
         크루넷에서 복사한 스케줄을 그대로 붙여넣으세요. 날짜와 코드(KE0035, LO, ATDO, STBY 등)에
         더해 구간과 출발·도착 시각까지 읽어 미리보기로 보여준 뒤, 확인을 누르면 캘린더에 반영합니다.
@@ -315,6 +317,7 @@
         </div>
       </details>
       <p class="actions">
+        <button type="button" id="timeOpen" class="ghost small">시각 채우기</button>
         <button type="button" id="verifyOpen" class="ghost small">파싱 검증 (개발용)</button>
       </p>
       <p class="muted small-note">
@@ -322,6 +325,21 @@
         잘못 읽힌 글자(AS0016 같은)가 비행으로 달력에 뜨는 것을 막아 줍니다.
       </p>
     </details>
+
+    <section id="timePanel" class="verify-panel" hidden>
+      <h2>시각 채우기</h2>
+      <p class="muted small-note">
+        시각이 비어 있는 비행입니다. 크루넷 홈 화면 글을 붙여넣으면 저절로 채워지지만,
+        여기서 직접 넣어도 됩니다. 직접 넣은 값은 나중에 덮어쓰이지 않습니다.
+        시각은 그 공항 현지 시각으로 적으세요.
+      </p>
+      <div id="timeList" class="route-cache"></div>
+      <div class="actions">
+        <button type="button" id="timeSave" class="primary">저장</button>
+        <button type="button" id="timeClose" class="ghost small">닫기</button>
+      </div>
+      <p id="timeStatus" class="status"></p>
+    </section>
 
     <section id="verifyPanel" class="verify-panel" hidden>
       <h2>파싱 검증 <em>(개발용)</em></h2>

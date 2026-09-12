@@ -117,3 +117,17 @@ test('크루넷 목록인지 알아본다', () => {
   assert.strictEqual(crewnet.looksLikeCrewnet('2026-09-06 KE0035 LO'), false);
   assert.strictEqual(crewnet.looksLikeCrewnet(''), false);
 });
+
+test('TVL 은 제 엔트리를 만들지 않고 그 편에만 붙는다', () => {
+  // 배지로 한 번, 엔트리로 한 번 두 번 나오던 것
+  const out = crewnet.parse('01\n29\nTHU\nKE 0601\nICN -CEB / 18:50 - 22:05\nTVL',
+    { year: 2026, month: 1 });
+  assert.strictEqual(out.entries.length, 1, 'TVL 엔트리는 만들지 않는다');
+  assert.strictEqual(out.entries[0].code, 'KE0601');
+  assert.strictEqual(out.entries[0].deadhead, true);
+});
+
+test('하루치만 붙여넣어도 크루넷 목록으로 알아본다', () => {
+  assert.strictEqual(crewnet.looksLikeCrewnet('01\n9\nFRI\nKE 0005\nICN -LAS / 21:03 - 14:43'), true);
+  assert.strictEqual(crewnet.looksLikeCrewnet('2026-09-06 KE0035 LO'), false);
+});

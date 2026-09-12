@@ -216,8 +216,13 @@
   function markDeadhead(entriesByDate) {
     Object.keys(entriesByDate || {}).forEach(function (date) {
       var list = entriesByDate[date] || [];
-      if (!list.some(function (e) { return codeOf(e) === 'TVL'; })) return;
-      list.forEach(function (e) { if (e.type === 'flight') e.deadhead = true; });
+      var tvl = list.filter(function (e) { return codeOf(e) === 'TVL'; });
+      if (!tvl.length) return;
+      var flights = list.filter(function (e) { return e.type === 'flight'; });
+      if (!flights.length) return;                 // 붙일 편이 없으면 그대로 둔다
+      flights.forEach(function (e) { e.deadhead = true; });
+      // 배지로 보이니 제 엔트리는 화면에서 접는다. 데이터는 지우지 않는다.
+      tvl.forEach(function (e) { e.attachedTo = flights[0].code; });
     });
     return entriesByDate;
   }

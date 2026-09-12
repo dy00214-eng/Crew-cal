@@ -45,7 +45,7 @@ test('국기는 나라 코드 두 글자로 만든다', () => {
 test('취항지 목록에 중복된 공항 코드가 없다', () => {
   assert.ok(Object.keys(airports.AIRPORT_COUNTRY).length > 300);
   assert.strictEqual(airports.countryOf('NBO'), 'KE');   // 케냐. 항공사 코드 KE 와 헷갈리지 않는다
-  assert.strictEqual(airports.countryOf('GUM'), 'GU');
+  assert.strictEqual(airports.countryOf('GUM'), 'US', '괌은 미국령 — 노선 파일을 따른다');
 });
 
 test('공항 코드로도 도시 이름으로도 찾는다', () => {

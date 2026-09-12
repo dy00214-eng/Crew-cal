@@ -211,7 +211,12 @@
    * 날짜를 누르면 원래 글자가 그대로 보인다.
    */
   function cellItems(list) {
-    return (list || []).filter(function (e) { return !e.strange; });
+    return (list || []).filter(function (e) {
+      if (e.strange) return false;
+      // TVL 은 그 편에 배지로 붙었으므로 따로 그리지 않는다(두 번 나오던 것)
+      if (e.attachedTo) return false;
+      return true;
+    });
   }
 
   /**
@@ -439,6 +444,23 @@
             waiting.className = 'cal-lookup pending';
             waiting.textContent = '조회 중';
             item.appendChild(waiting);
+          }
+
+          // 공동운항이면 실제로 누가 띄우는 편인지 작게 알려 준다. 주인공은 도시다.
+          if (e.codeshare && e.operatorName) {
+            var by = document.createElement('span');
+            by.className = 'cal-operator';
+            by.textContent = e.operatorName + '운항';
+            by.title = e.code + ' 는 ' + e.operatorName + ' 가 띄우는 공동운항편입니다.';
+            item.appendChild(by);
+          }
+          // 시즌·운휴 같은 덧말. 미심쩍다고 적힌 것은 다른 색으로.
+          if (e.routeNote) {
+            var note = document.createElement('span');
+            note.className = 'cal-note' + (e.routeNoteWarn ? ' warn' : '');
+            note.textContent = e.routeNote.length > 14 ? e.routeNote.slice(0, 13) + '…' : e.routeNote;
+            note.title = e.routeNote;
+            item.appendChild(note);
           }
 
           // 손님으로 타고 가는 편(TVL)은 실제 승무가 아니므로 표를 남긴다

@@ -1380,3 +1380,23 @@ button.ghost.danger { color: var(--danger); }
   font-weight: 600;
 }
 button.primary[disabled] { opacity: 0.45; cursor: not-allowed; }
+
+/* 공동운항 운항사 · 시즌 덧말 */
+.cal-operator, .cal-note {
+  align-self: center;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--muted);
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cal-operator { opacity: 0.85; }
+.cal-note { font-weight: 500; }
+.cal-note.warn { color: var(--cat-unknown); font-weight: 700; }
+
+/* 시각 채우기 */
+.route-row.time-row { grid-template-columns: 96px 1fr 1fr auto; }
+@media (max-width: 380px) { .route-row.time-row { grid-template-columns: 78px 1fr 1fr; } .route-row.time-row .tag { grid-column: 1 / -1; } }

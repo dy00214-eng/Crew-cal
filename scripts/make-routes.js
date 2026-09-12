@@ -21,7 +21,15 @@ function read(file) {
 
 function build() {
   const seed = read(ROUTES);
-  const airports = read(AIRPORTS);
+  // 공항 이름은 노선 파일이 먼저다. 거기 없는 공항만 예전 표에서 채운다.
+  // (노선 파일은 취항지 위주 116곳, 예전 표는 418곳)
+  const legacy = read(AIRPORTS);
+  const airports = {};
+  Object.keys(legacy).forEach((iata) => { airports[iata] = legacy[iata]; });
+  Object.keys(seed.airports || {}).forEach((iata) => {
+    const row = seed.airports[iata];
+    airports[iata] = { city: row.city, country: row.country, flag: row.flag, tz: row.tz || null };
+  });
   const body = `/**
  * 노선 시드와 공항 자료. data/ke-routes.json 과 data/airports.json 에서 옮겨 적은 것이다.
  * 손으로 고치지 말 것 — scripts/make-routes.js 가 다시 쓴다.

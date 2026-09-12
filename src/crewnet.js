@@ -170,6 +170,16 @@
       return item;
     }
 
+    /** 오늘 칸에 이미 들어온 마지막 편명. TVL 이 카드 밖에 떨어져 읽혔을 때 쓴다. */
+    function lastFlightToday() {
+      if (!current) return null;
+      for (var i = entries.length - 1; i >= 0; i--) {
+        if (entries[i].date !== current.date) break;
+        if (entries[i].type === 'flight') return entries[i];
+      }
+      return null;
+    }
+
     function startDay(block) {
       var month = opts.month || block.month;
       var year = opts.year || new Date().getFullYear();
@@ -223,10 +233,11 @@
         continue;
       }
 
-      // 손님으로 타고 가는 표시. 바로 앞 편명 카드에 붙는다.
+      // 손님으로 타고 가는 표시. 독립된 근무가 아니라 그 편에 붙는 성질이므로
+      // 제 엔트리를 만들지 않는다. 만들면 배지와 엔트리로 두 번 나온다.
       if (upper === 'TVL') {
-        if (card && card.type === 'flight') card.deadhead = true;
-        else pushEntry(dutyItem('TVL'));
+        var target = card && card.type === 'flight' ? card : lastFlightToday();
+        if (target) target.deadhead = true;
         continue;
       }
 
@@ -330,7 +341,9 @@
       if (RE.legLine.test(lines[i].toUpperCase())) legs++;
       if (readDateBlock(lines, i)) blocks++;
     }
-    return blocks >= 2 && (legs >= 1 || blocks >= 3);
+    // 날짜 블록 하나에 구간 줄 하나만 있어도 크루넷 목록이다. 하루치만 붙여넣는
+    // 경우가 있어 둘 이상을 요구하면 엉뚱한 파서로 넘어간다.
+    return (blocks >= 1 && legs >= 1) || blocks >= 3;
   }
 
   return {

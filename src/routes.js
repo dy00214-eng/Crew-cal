@@ -143,7 +143,16 @@
 
   function fromSeed(code) {
     var row = (SEED.routes || {})[normalize(code)];
-    return row && row.from && row.to ? { from: row.from, to: row.to } : null;
+    if (!row || !row.from || !row.to) return null;
+    return {
+      from: row.from,
+      to: row.to,
+      // 공동운항이면 실제로 누가 띄우는 편인지, 시즌 같은 덧말이 있으면 그것도 함께.
+      codeshare: !!row.codeshare,
+      operator: row.operator || null,
+      operatorName: row.operatorName || (row.operator ? (SEED.operators || {})[row.operator] : null) || null,
+      note: row.note || null
+    };
   }
 
   /* ---------------- 세 단계를 순서대로 ---------------- */
@@ -173,7 +182,17 @@
     }
 
     var hit = fromSeed(code) || fromDomesticRange(code);
-    if (hit) return { from: hit.from, to: hit.to, route: hit.from + '/' + hit.to, source: 'db' };
+    if (hit) {
+      return {
+        from: hit.from, to: hit.to, route: hit.from + '/' + hit.to, source: 'db',
+        codeshare: !!hit.codeshare,
+        operator: hit.operator || null,
+        operatorName: hit.operatorName || null,
+        note: hit.note || null,
+        // 출처가 스스로 미심쩍다고 적어 둔 것은 따로 표시한다
+        noteWarn: !!(hit.note && /확인 필요|중복|불확실/.test(hit.note))
+      };
+    }
 
     // 예전에 조회해 둔 값
     if (cache && cache.from && cache.to) {
@@ -198,6 +217,13 @@
           entry.from = found.from;
           entry.to = found.to;
           entry.routeSource = found.source;
+          // 원본이 알려 준 구간이어도 편명으로 공동운항·덧말은 붙여 준다
+          var extra = fromSeed(entry.code);
+          entry.codeshare = !!(found.codeshare || (extra && extra.codeshare));
+          entry.operator = found.operator || (extra && extra.operator) || null;
+          entry.operatorName = found.operatorName || (extra && extra.operatorName) || null;
+          entry.routeNote = found.note || (extra && extra.note) || null;
+          entry.routeNoteWarn = !!(entry.routeNote && /확인 필요|중복|불확실/.test(entry.routeNote));
           return;
         }
         entry.routeSource = null;
@@ -231,6 +257,7 @@
     loadCache: loadCache,
     staleFailure: staleFailure,
     fromSeed: fromSeed,
+    OPERATORS: SEED.operators || {},
     fromDomesticRange: fromDomesticRange,
     normalize: normalize
   };
