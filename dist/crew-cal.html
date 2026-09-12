@@ -5551,27 +5551,57 @@ button.ghost.danger { color: var(--danger); }
   }
 
   /**
-   * 한 주의 칸마다 날짜를 매긴다. 읽히지 않은 날짜는 옆 칸에서 세어 메운다.
-   * 달력은 칸 하나에 하루씩 늘어나므로, 하나만 알면 나머지가 따라온다.
+   * 한 주의 칸마다 날짜를 매긴다.
+   *
+   * 읽은 숫자를 그대로 믿지 않는다. 달력은 칸 하나에 하루씩 늘어나므로, 읽은 숫자마다
+   * "첫 칸이 며칠인지"를 셈해 보고 가장 많이 나온 값을 쓴다. 25 를 23 으로 잘못 읽어도
+   * 나머지 여섯 칸이 바로잡아 준다. 잘못 읽은 숫자 하나가 그 뒤 주를 통째로 날려 버리는
+   * 일이 있었다.
+   *
+   * 달이 바뀌는 주는 한 줄 안에서 기준이 한 번 바뀐다(28 29 30 1 2 3 4). 그래서 바뀌는
+   * 자리를 하나 찾아, 앞뒤로 각각 기준을 잡는다.
    */
   function daysOfWeekRow(row, columns) {
-    var slots = new Array(columns.length).fill(null);
+    var reads = [];
     row.words.forEach(function (word) {
       if (!DAY.test(word.text)) return;
-      var at = nearestColumn(word.cx, columns);
-      if (slots[at] == null) slots[at] = +word.text;
+      reads.push({ col: nearestColumn(word.cx, columns), day: +word.text });
     });
+    if (!reads.length) return new Array(columns.length).fill(null);
 
-    var anchor = -1;
-    for (var i = 0; i < slots.length; i++) if (slots[i] != null) { anchor = i; break; }
-    if (anchor < 0) return slots;
-
-    for (var j = 0; j < slots.length; j++) {
-      if (slots[j] != null) { anchor = j; continue; }
-      var guess = slots[anchor] + (j - anchor);
-      slots[j] = guess >= 1 && guess <= 31 ? guess : null;
+    function baseOf(list) {
+      var votes = {};
+      var best = null;
+      list.forEach(function (read) {
+        var base = read.day - read.col;
+        votes[base] = (votes[base] || 0) + 1;
+        if (best === null || votes[base] > votes[best]) best = base;
+      });
+      return best === null ? null : { base: +best, votes: votes[best] };
     }
-    return slots;
+
+    // 나누지 않는 쪽을 먼저 본다. 나누는 쪽은 앞뒤가 모두 두 칸 이상 받쳐 주고,
+    // 나누지 않은 것보다 더 많은 숫자를 설명할 때만 쓴다.
+    var whole = baseOf(reads);
+    var bestPlan = { score: whole ? whole.votes : 0, cut: columns.length, left: whole, right: null };
+
+    for (var cut = 2; cut < columns.length; cut++) {
+      var left = baseOf(reads.filter(function (read) { return read.col < cut; }));
+      var right = baseOf(reads.filter(function (read) { return read.col >= cut; }));
+      if (!left || !right || left.votes < 2 || right.votes < 2) continue;
+      if (left.base === right.base) continue;
+      var score = left.votes + right.votes;
+      if (score > bestPlan.score) {
+        bestPlan = { score: score, cut: cut, left: left, right: right };
+      }
+    }
+
+    return columns.map(function (column, index) {
+      var side = index < bestPlan.cut ? bestPlan.left : bestPlan.right;
+      if (!side) return null;
+      var day = side.base + index;
+      return day >= 1 && day <= 31 ? day : null;
+    });
   }
 
   /**
@@ -6473,20 +6503,37 @@ button.ghost.danger { color: var(--danger); }
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
         ctx.drawImage(prepared.canvas, box.x0, box.y0, w, h, 0, 0, canvas.width, canvas.height);
-        return worker.setParameters({ tessedit_pageseg_mode: '7' })      // 한 줄로 읽기
-          .then(function () { return worker.recognize(canvas, {}, { text: true }); })
-          .then(function (result) {
-            var text = String((result.data && result.data.text) || '').trim();
-            if (!text) return null;
-            text.split(/\s+/).forEach(function (piece) {
-              if (!piece) return;
-              found.push({
-                text: piece, conf: Math.round(result.data.confidence || 0), tone: box.tone,
-                x0: box.x0, x1: box.x1, y0: box.y0, y1: box.y1
+        // 한 줄로도 읽어 보고 낱말 하나로도 읽어 본다. 아는 코드가 나오는 쪽을 쓴다.
+        var modes = ['7', '8', '13'];
+        var best = null;
+        return modes.reduce(function (chain, mode) {
+          return chain.then(function () {
+            if (best && best.known) return null;
+            return worker.setParameters({ tessedit_pageseg_mode: mode })
+              .then(function () { return worker.recognize(canvas, {}, { text: true }); })
+              .then(function (result) {
+                var text = String((result.data && result.data.text) || '').trim();
+                if (!text) return null;
+                var known = ocrlayout.isKnownCode(text.replace(/\s+/g, ''));
+                var conf = Math.round((result.data && result.data.confidence) || 0);
+                // 아는 코드로 읽힌 것을 모르는 글자로 덮지 않는다
+                var better = !best || (known && !best.known) ||
+                  (known === best.known && conf > best.conf);
+                if (better) best = { text: text, conf: conf, known: known };
+                return null;
               });
-            });
-            return null;
           });
+        }, Promise.resolve()).then(function () {
+          if (!best) return null;
+          best.text.split(/\s+/).forEach(function (piece) {
+            if (!piece) return;
+            found.push({
+              text: piece, conf: best.conf, tone: box.tone,
+              x0: box.x0, x1: box.x1, y0: box.y0, y1: box.y1
+            });
+          });
+          return null;
+        });
       });
     }, Promise.resolve())
       .then(function () { return worker.setParameters({ tessedit_pageseg_mode: '11' }); })
@@ -8626,7 +8673,7 @@ button.ghost.danger { color: var(--danger); }
   /* ---------------- 동료가 보내는 의견 ---------------- */
 
   // 화면 아래와 의견 보내기에 적히는 판 번호. sw.js 의 VERSION 과 함께 올린다.
-  var APP_VERSION = 'v19';
+  var APP_VERSION = 'v20';
 
   /**
    * 의견을 받을 메일 주소. 저장소가 공개라 통짜로 적어두면 스팸 크롤러가 긁어가므로

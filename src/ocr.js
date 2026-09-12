@@ -705,20 +705,37 @@
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
         ctx.drawImage(prepared.canvas, box.x0, box.y0, w, h, 0, 0, canvas.width, canvas.height);
-        return worker.setParameters({ tessedit_pageseg_mode: '7' })      // 한 줄로 읽기
-          .then(function () { return worker.recognize(canvas, {}, { text: true }); })
-          .then(function (result) {
-            var text = String((result.data && result.data.text) || '').trim();
-            if (!text) return null;
-            text.split(/\s+/).forEach(function (piece) {
-              if (!piece) return;
-              found.push({
-                text: piece, conf: Math.round(result.data.confidence || 0), tone: box.tone,
-                x0: box.x0, x1: box.x1, y0: box.y0, y1: box.y1
+        // 한 줄로도 읽어 보고 낱말 하나로도 읽어 본다. 아는 코드가 나오는 쪽을 쓴다.
+        var modes = ['7', '8', '13'];
+        var best = null;
+        return modes.reduce(function (chain, mode) {
+          return chain.then(function () {
+            if (best && best.known) return null;
+            return worker.setParameters({ tessedit_pageseg_mode: mode })
+              .then(function () { return worker.recognize(canvas, {}, { text: true }); })
+              .then(function (result) {
+                var text = String((result.data && result.data.text) || '').trim();
+                if (!text) return null;
+                var known = ocrlayout.isKnownCode(text.replace(/\s+/g, ''));
+                var conf = Math.round((result.data && result.data.confidence) || 0);
+                // 아는 코드로 읽힌 것을 모르는 글자로 덮지 않는다
+                var better = !best || (known && !best.known) ||
+                  (known === best.known && conf > best.conf);
+                if (better) best = { text: text, conf: conf, known: known };
+                return null;
               });
-            });
-            return null;
           });
+        }, Promise.resolve()).then(function () {
+          if (!best) return null;
+          best.text.split(/\s+/).forEach(function (piece) {
+            if (!piece) return;
+            found.push({
+              text: piece, conf: best.conf, tone: box.tone,
+              x0: box.x0, x1: box.x1, y0: box.y0, y1: box.y1
+            });
+          });
+          return null;
+        });
       });
     }, Promise.resolve())
       .then(function () { return worker.setParameters({ tessedit_pageseg_mode: '11' }); })

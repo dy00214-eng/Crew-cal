@@ -341,27 +341,57 @@
   }
 
   /**
-   * 한 주의 칸마다 날짜를 매긴다. 읽히지 않은 날짜는 옆 칸에서 세어 메운다.
-   * 달력은 칸 하나에 하루씩 늘어나므로, 하나만 알면 나머지가 따라온다.
+   * 한 주의 칸마다 날짜를 매긴다.
+   *
+   * 읽은 숫자를 그대로 믿지 않는다. 달력은 칸 하나에 하루씩 늘어나므로, 읽은 숫자마다
+   * "첫 칸이 며칠인지"를 셈해 보고 가장 많이 나온 값을 쓴다. 25 를 23 으로 잘못 읽어도
+   * 나머지 여섯 칸이 바로잡아 준다. 잘못 읽은 숫자 하나가 그 뒤 주를 통째로 날려 버리는
+   * 일이 있었다.
+   *
+   * 달이 바뀌는 주는 한 줄 안에서 기준이 한 번 바뀐다(28 29 30 1 2 3 4). 그래서 바뀌는
+   * 자리를 하나 찾아, 앞뒤로 각각 기준을 잡는다.
    */
   function daysOfWeekRow(row, columns) {
-    var slots = new Array(columns.length).fill(null);
+    var reads = [];
     row.words.forEach(function (word) {
       if (!DAY.test(word.text)) return;
-      var at = nearestColumn(word.cx, columns);
-      if (slots[at] == null) slots[at] = +word.text;
+      reads.push({ col: nearestColumn(word.cx, columns), day: +word.text });
     });
+    if (!reads.length) return new Array(columns.length).fill(null);
 
-    var anchor = -1;
-    for (var i = 0; i < slots.length; i++) if (slots[i] != null) { anchor = i; break; }
-    if (anchor < 0) return slots;
-
-    for (var j = 0; j < slots.length; j++) {
-      if (slots[j] != null) { anchor = j; continue; }
-      var guess = slots[anchor] + (j - anchor);
-      slots[j] = guess >= 1 && guess <= 31 ? guess : null;
+    function baseOf(list) {
+      var votes = {};
+      var best = null;
+      list.forEach(function (read) {
+        var base = read.day - read.col;
+        votes[base] = (votes[base] || 0) + 1;
+        if (best === null || votes[base] > votes[best]) best = base;
+      });
+      return best === null ? null : { base: +best, votes: votes[best] };
     }
-    return slots;
+
+    // 나누지 않는 쪽을 먼저 본다. 나누는 쪽은 앞뒤가 모두 두 칸 이상 받쳐 주고,
+    // 나누지 않은 것보다 더 많은 숫자를 설명할 때만 쓴다.
+    var whole = baseOf(reads);
+    var bestPlan = { score: whole ? whole.votes : 0, cut: columns.length, left: whole, right: null };
+
+    for (var cut = 2; cut < columns.length; cut++) {
+      var left = baseOf(reads.filter(function (read) { return read.col < cut; }));
+      var right = baseOf(reads.filter(function (read) { return read.col >= cut; }));
+      if (!left || !right || left.votes < 2 || right.votes < 2) continue;
+      if (left.base === right.base) continue;
+      var score = left.votes + right.votes;
+      if (score > bestPlan.score) {
+        bestPlan = { score: score, cut: cut, left: left, right: right };
+      }
+    }
+
+    return columns.map(function (column, index) {
+      var side = index < bestPlan.cut ? bestPlan.left : bestPlan.right;
+      if (!side) return null;
+      var day = side.base + index;
+      return day >= 1 && day <= 31 ? day : null;
+    });
   }
 
   /**

@@ -173,3 +173,28 @@ test('붙어 읽힌 두 편명은 가른다', () => {
   assert.deepStrictEqual(ocrlayout.splitCodes(['KE2071{KE1402']), ['KE2071', 'KE1402']);
   assert.deepStrictEqual(ocrlayout.splitCodes(['KE0035', 'LO']), ['KE0035', 'LO']);
 });
+
+test('날짜 하나를 잘못 읽어도 그 주가 어긋나지 않는다', () => {
+  // 25 를 23 으로 잘못 읽은 줄. 나머지 여섯 칸이 바로잡아야 한다.
+  const words = [];
+  ['19', '20', '21', 'PE', '23', '24', '23'].forEach((d, i) => words.push(word(d, i, 0)));
+  ['ATDO', 'KE0647', 'LO', 'VAC', 'DO'].forEach((code, i) => words.push(word(code, i === 4 ? 6 : i, 1)));
+
+  const out = ocrlayout.toText(words, { year: 2026, month: 4 });
+  assert.ok(out.text.indexOf('2026-04-19\tATDO') !== -1, out.text);
+  assert.ok(out.text.indexOf('2026-04-25\tDO') !== -1, '마지막 칸은 25일: ' + out.text);
+});
+
+test('달이 바뀌는 주는 한 줄 안에서 기준이 바뀐다', () => {
+  const words = [];
+  ['28', '29', '30', '1', '2', '3', '4'].forEach((d, i) => words.push(word(d, i, 0)));
+  words.push(word('LO', 1, 1));      // 8월 29일
+  words.push(word('VAC', 4, 1));     // 9월 2일
+
+  const days = ocrlayout.daysOfWeekRow(ocrlayout.rows(words.map((w) => ({
+    text: w.text, conf: w.conf, x0: w.x0, x1: w.x1, y0: w.y0, y1: w.y1,
+    cx: (w.x0 + w.x1) / 2, cy: (w.y0 + w.y1) / 2, h: w.y1 - w.y0
+  })))[0], [26, 186, 346, 506, 666, 826, 986]);
+
+  assert.deepStrictEqual(days, [28, 29, 30, 1, 2, 3, 4]);
+});
