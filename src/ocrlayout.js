@@ -188,7 +188,8 @@
    * 한 낱말로 읽은 자국이라, 가르지 않으면 둘 다 알 수 없는 코드가 된다.
    */
   function splitJunk(text) {
-    return String(text).split(/[^0-9A-Za-z가-힣+\-/:.]+/).filter(Boolean);
+    return String(text).split(/[^0-9A-Za-z가-힣+\-/:.]+/)
+      .filter(function (piece) { return /[0-9A-Za-z가-힣]/.test(piece); });
   }
 
   function clean(word) {
@@ -538,6 +539,7 @@
     rows: rows,
     isDayRow: isDayRow,
     joinTimes: joinTimes,
-    splitCodes: splitCodes
+    splitCodes: splitCodes,
+    splitJunk: splitJunk
   };
 });

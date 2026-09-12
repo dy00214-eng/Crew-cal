@@ -5398,7 +5398,8 @@ button.ghost.danger { color: var(--danger); }
    * 한 낱말로 읽은 자국이라, 가르지 않으면 둘 다 알 수 없는 코드가 된다.
    */
   function splitJunk(text) {
-    return String(text).split(/[^0-9A-Za-z가-힣+\-/:.]+/).filter(Boolean);
+    return String(text).split(/[^0-9A-Za-z가-힣+\-/:.]+/)
+      .filter(function (piece) { return /[0-9A-Za-z가-힣]/.test(piece); });
   }
 
   function clean(word) {
@@ -5748,7 +5749,8 @@ button.ghost.danger { color: var(--danger); }
     rows: rows,
     isDayRow: isDayRow,
     joinTimes: joinTimes,
-    splitCodes: splitCodes
+    splitCodes: splitCodes,
+    splitJunk: splitJunk
   };
 });
 </script>
@@ -6283,36 +6285,76 @@ button.ghost.danger { color: var(--danger); }
       };
     });
 
-    // 작고 또렷하게 잡힌 글자부터 자기 판을 고르게 한다. 인식기가 두 판을 하나로
-    // 묶어 읽는 일이 있는데(옆 칸까지 덮는 큰 네모), 그런 글자는 뒤로 미뤄 두면
-    // 남은 판, 곧 제 칸을 찾아간다.
-    var order = words.map(function (word, index) {
-      return { word: word, index: index, area: Math.max(1, (word.x1 - word.x0) * (word.y1 - word.y0)) };
-    }).sort(function (a, b) { return a.area - b.area; });
+    // 인식기가 두 판을 한 낱말로 묶어 읽는 일이 있다(ATDO._-—«KE0843). 이상한 기호에서
+    // 토막 내 두면 조각 수가 곧 판의 수이므로, 왼쪽부터 차례로 제 판에 넣어 줄 수 있다.
+    var items = words.map(function (word, index) {
+      var pieces = ocrlayout.splitJunk ? ocrlayout.splitJunk(word.text) : [word.text];
+      return {
+        index: index,
+        word: word,
+        pieces: pieces.length ? pieces : [word.text],
+        area: Math.max(1, (word.x1 - word.x0) * (word.y1 - word.y0))
+      };
+    });
+
+    // 작고 또렷하게 잡힌 글자부터 자기 판을 고르게 한다. 옆 칸까지 덮는 큰 네모는
+    // 뒤로 미뤄 두면 남은 판, 곧 제 칸을 찾아간다.
+    var order = items.slice().sort(function (a, b) { return a.area - b.area; });
 
     var taken = {};
-    var out = words.slice();
+    var out = [];
 
-    order.forEach(function (item) {
-      var word = item.word;
-      var best = -1, bestScore = 0;
+    function chipsUnder(word) {
+      var hits = [];
       for (var i = 0; i < boxes.length; i++) {
         var box = boxes[i];
         var overlap = Math.max(0, Math.min(word.x1, box.x1) - Math.max(word.x0, box.x0)) *
           Math.max(0, Math.min(word.y1, box.y1) - Math.max(word.y0, box.y0));
         if (!overlap) continue;
         var share = overlap / Math.max(1, (box.x1 - box.x0) * (box.y1 - box.y0));
-        if (share < 0.3) continue;
-        var score = share + (taken[i] ? 0 : 1);        // 임자 없는 판을 먼저
-        if (score > bestScore) { bestScore = score; best = i; }
+        if (share >= 0.3) hits.push({ at: i, share: share });
       }
-      if (best < 0) return;
+      return hits;
+    }
+
+    order.forEach(function (item) {
+      var word = item.word;
+      var hits = chipsUnder(word);
+
+      // 조각이 여럿이고 그만큼의 판을 덮고 있으면, 읽는 차례대로 나눠 담는다
+      if (item.pieces.length > 1 && hits.length >= item.pieces.length) {
+        var sorted = hits.slice().sort(function (a, b) {
+          var A = boxes[a.at], B = boxes[b.at];
+          // 같은 줄에 있으면 왼쪽부터. 줄이 다를 때만 위에서 아래로.
+          var tol = Math.min(A.y1 - A.y0, B.y1 - B.y0) * 0.5;
+          if (Math.abs(A.y0 - B.y0) > tol) return A.y0 - B.y0;
+          return A.x0 - B.x0;
+        });
+        item.pieces.forEach(function (piece, n) {
+          var slot = sorted[n];
+          if (!slot || taken[slot.at]) return;        // 임자 있는 판은 그 판이 읽은 것을 쓴다
+          taken[slot.at] = true;
+          var box = boxes[slot.at];
+          out.push({
+            text: piece, conf: word.conf, tone: box.tone,
+            x0: box.x0, x1: box.x1, y0: box.y0, y1: box.y1
+          });
+        });
+        return;
+      }
+
+      var best = -1, bestScore = 0;
+      hits.forEach(function (hit) {
+        var score = hit.share + (taken[hit.at] ? 0 : 1);   // 임자 없는 판을 먼저
+        if (score > bestScore) { bestScore = score; best = hit.at; }
+      });
+      if (best < 0) { out.push(word); return; }
       taken[best] = true;
       var chosen = boxes[best];
-      out[item.index] = {
+      out.push({
         text: word.text, conf: word.conf, tone: chosen.tone,
         x0: chosen.x0, x1: chosen.x1, y0: chosen.y0, y1: chosen.y1
-      };
+      });
     });
 
     return out;
@@ -8478,7 +8520,7 @@ button.ghost.danger { color: var(--danger); }
   /* ---------------- 동료가 보내는 의견 ---------------- */
 
   // 화면 아래와 의견 보내기에 적히는 판 번호. sw.js 의 VERSION 과 함께 올린다.
-  var APP_VERSION = 'v17';
+  var APP_VERSION = 'v18';
 
   /**
    * 의견을 받을 메일 주소. 저장소가 공개라 통짜로 적어두면 스팸 크롤러가 긁어가므로
