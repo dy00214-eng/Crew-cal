@@ -143,3 +143,33 @@ test('달력도 표도 아니면 줄만 이어 붙인다', () => {
   assert.strictEqual(out.shape, 'plain');
   assert.strictEqual(out.text, '스케줄 KE0035 ICN/ATL');
 });
+
+test('판 색을 알면 두 글자 코드도 되돌린다', () => {
+  // 크루넷은 휴무를 연두, 비행·체류를 파랑 판에 적는다. 색을 알면 PO 가 DO 인지
+  // LO 인지 가려진다. 색을 모르면 헷갈릴 수 있으니 건드리지 않는다.
+  assert.strictEqual(ocrlayout.fixCode('PO', 'green'), 'DO');
+  assert.strictEqual(ocrlayout.fixCode('TO', 'blue'), 'LO');
+  assert.strictEqual(ocrlayout.fixCode('WO', 'blue'), 'LO');
+  assert.strictEqual(ocrlayout.fixCode('PO'), 'PO', '색을 모르면 그냥 둔다');
+  assert.strictEqual(ocrlayout.fixCode('STBV', 'gray'), 'STBY');
+  assert.strictEqual(ocrlayout.fixCode('FVG', 'blue'), 'FVC');
+
+  // 제대로 읽힌 코드는 색과 무관하게 그대로
+  assert.strictEqual(ocrlayout.fixCode('LO', 'blue'), 'LO');
+  assert.strictEqual(ocrlayout.fixCode('ATDO', 'green'), 'ATDO');
+  // 그 색에 없는 갈래로는 바꾸지 않는다
+  assert.strictEqual(ocrlayout.fixCode('STBV', 'green'), 'STBV');
+});
+
+test('앞 글자가 떨어져 나간 편명은 시간표를 보고 되살린다', () => {
+  assert.strictEqual(ocrlayout.fixCode('E0805'), 'KE0805');
+  assert.strictEqual(ocrlayout.fixCode('0805'), '0805', '숫자만 남은 것은 시각일 수 있다');
+  assert.strictEqual(ocrlayout.fixCode('1020'), '1020');
+  assert.strictEqual(ocrlayout.fixCode('E9999'), 'E9999', '시간표에 없으면 그냥 둔다');
+});
+
+test('붙어 읽힌 두 편명은 가른다', () => {
+  assert.deepStrictEqual(ocrlayout.splitCodes(['KE2071KE1402']), ['KE2071', 'KE1402']);
+  assert.deepStrictEqual(ocrlayout.splitCodes(['KE2071{KE1402']), ['KE2071', 'KE1402']);
+  assert.deepStrictEqual(ocrlayout.splitCodes(['KE0035', 'LO']), ['KE0035', 'LO']);
+});

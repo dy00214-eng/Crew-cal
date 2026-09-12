@@ -39,7 +39,7 @@
    * 아니까, 그 꼴에 맞춰 되돌린다. 글자 수가 하나 늘어 KE00035 처럼 되는 일도 있어
    * 앞의 0 을 떼고 네 자리로 맞춘다. 편명 아닌 글자는 건드리지 않는다.
    */
-  function fixCode(token) {
+  function fixCode(token, tone) {
     // 코드 뒤에 붙어 읽힌 칸 선(ATDO-)을 떼어 낸다. 시각은 뒤의 - 가 뜻이 있어 그대로 둔다.
     var trailing = /^([A-Z]{2,})[-.]+$/.exec(token);
     if (trailing) token = trailing[1];
@@ -56,6 +56,16 @@
     // 앞에 군더더기가 붙은 편명(JJKE1402)은 뒤의 편명만 남긴다
     var tail = /^[A-Z]{1,3}([A-Z]{2}\d{4})$/.exec(token);
     if (tail) return tail[1];
+
+    // 앞 글자가 떨어져 나간 편명(E0805). 숫자만 남은 것은 시각일 수 있으니 손대지 않고,
+    // 글자 한 자가 남아 있고 시간표에 그런 편이 하나뿐일 때만 되살린다.
+    var lost = /^([A-Z])(\d{4})$/.exec(token);
+    if (lost && schedule) {
+      var guesses = ['KE', 'OZ', 'LJ', 'TW', 'BX'].filter(function (prefix) {
+        return prefix.charAt(1) === lost[1] && schedule.lookup(prefix + lost[2]);
+      });
+      if (guesses.length === 1) return guesses[0] + lost[2];
+    }
     // 날짜(01SEP26). 자릿수가 하나 늘거나 0 이 O 로 읽힌 것을 되돌린다
     var date = /^([O0-9]{1,3})([A-Z]{3})([O0-9]{2,3})$/.exec(token);
     if (date && MONTHS.indexOf(date[2]) !== -1) {
@@ -68,8 +78,16 @@
     if (/^[O0-9]{3,4}([-+][O0-9+]{1,6})?$/.test(token) && /O/.test(token)) {
       return token.replace(/O/g, '0');
     }
-    return snapToKnownCode(token);
+    return snapToKnownCode(token, tone);
   }
+
+  // 판 색이 일러 주는 근무의 갈래. 크루넷이 색으로 갈라 적어 둔 것을 그대로 옮겼다.
+  // 파랑은 비행·체류·휴가(FVC), 연두는 휴무, 회색은 대기다.
+  var TONE_KINDS = {
+    blue: ['layover', 'flight', 'vacation'],
+    green: ['off'],
+    gray: ['standby']
+  };
 
   /**
    * 헷갈리는 글자를 숫자로 바꿔 가며 있을 법한 편명을 모두 만든다.
@@ -107,19 +125,28 @@
    * 헷갈릴 만한 후보가 둘 이상이면 건드리지 않는다. 엉뚱한 근무로 바꾸는 것보다
    * 모르는 코드로 두고 사람이 고치는 편이 낫다. 두 글자짜리는 서로 너무 닮아 뺀다.
    */
-  function snapToKnownCode(token) {
-    if (!codes || token.length < 3 || token.length > 6 || !/^[A-Z0-9]+$/.test(token)) return token;
+  function snapToKnownCode(token, tone) {
+    if (!codes || token.length < 2 || token.length > 6 || !/^[A-Z0-9]+$/.test(token)) return token;
     var known = codes.knownCodeList();
     if (known.indexOf(token) !== -1) return token;
 
-    var hit = null;
-    for (var i = 0; i < known.length; i++) {
-      if (known[i].length < 3) continue;
-      if (!oneEditApart(token, known[i])) continue;
-      if (hit) return token;                  // 후보가 둘이면 그냥 둔다
-      hit = known[i];
-    }
-    return hit || token;
+    // 판 색을 알면 그 색으로 적는 근무만 후보로 둔다. 연두 판의 PO 는 LO 가 아니라 DO 다.
+    var kinds = tone && TONE_KINDS[tone];
+    // 색을 모르면 두 글자짜리는 손대지 않는다. LO·DO·SB 처럼 서로 너무 닮았다.
+    if (!kinds && token.length < 3) return token;
+    var pool = known.filter(function (code) {
+      if (code.length < 2) return false;
+      if (!kinds) return code.length >= 3;    // 색을 모르면 두 글자짜리는 건드리지 않는다
+      var found = codes.lookup(code);
+      return found && kinds.indexOf(found.category) !== -1;
+    });
+
+    var near = pool.filter(function (code) { return oneEditApart(token, code); });
+    // 글자 수가 같은 후보가 있으면 그쪽만 본다. 인식기는 글자를 빠뜨리기보다
+    // 다른 글자로 잘못 읽는 일이 훨씬 잦다. (PO 는 PDO 보다 DO 일 것이다)
+    var same = near.filter(function (code) { return code.length === token.length; });
+    var candidates = same.length ? same : near;
+    return candidates.length === 1 ? candidates[0] : token;
   }
 
   /** 한 글자를 바꾸거나 넣거나 빼면 같아지는지. */
@@ -152,7 +179,7 @@
     // 다만 홀로 선 글자 하나(획이나 칸 선을 글자로 본 것)는 글이 아니다.
     if (text.length === 1 && !/[0-9]/.test(text)) return null;
     return {
-      text: fixCode(text),
+      text: fixCode(text, word.tone),
       conf: conf,
       x0: word.x0, x1: word.x1, y0: word.y0, y1: word.y1,
       cx: (word.x0 + word.x1) / 2,
@@ -215,7 +242,7 @@
   function splitCodes(tokens) {
     var out = [];
     tokens.forEach(function (token) {
-      var pair = /^([A-Z]{2}\d{4})([A-Z]{2}\d{4})$/.exec(token);
+      var pair = /^([A-Z]{2}\d{4})[^A-Z0-9]?([A-Z]{2}\d{4})$/.exec(token);
       if (pair) { out.push(pair[1], pair[2]); return; }
       out.push(token);
     });

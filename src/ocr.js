@@ -121,14 +121,30 @@
    * 희게 바꾼다. 판마다 색이 다르므로 한꺼번에 재면 안 되고, 이어진 판끼리 따로 재야 한다.
    * 색 글씨(빨간 일요일 숫자 따위)는 속이 빈 가는 획이라 판으로 보지 않는다.
    */
+  /**
+   * 판 색을 근무의 갈래로 옮긴다. 크루넷은 비행·체류를 파랑, 휴무를 연두, 대기를 회색
+   * 판에 적는다. 글자를 잘못 읽었을 때 무엇이었을지 가려내는 실마리가 된다.
+   */
+  function toneOf(r, g, b) {
+    var max = Math.max(r, g, b), min = Math.min(r, g, b);
+    if (max - min < 30) return 'gray';
+    if (b >= r && b >= g) return 'blue';
+    if (g >= r && g >= b) return 'green';
+    return 'other';
+  }
+
   function unchip(data, width, height) {
     var n = width * height;
     var gray = new Uint8Array(n);
     var colored = new Uint8Array(n);
+    var red = new Uint8Array(n);
+    var green = new Uint8Array(n);
+    var blue = new Uint8Array(n);
     var i;
 
     for (i = 0; i < n; i++) {
       var r = data[i * 4], g = data[i * 4 + 1], b = data[i * 4 + 2];
+      red[i] = r; green[i] = g; blue[i] = b;
       gray[i] = (r * 299 + g * 587 + b * 114) / 1000;
       colored[i] = (Math.max(r, g, b) - Math.min(r, g, b)) > 40 ? 1 : 0;
     }
@@ -148,62 +164,111 @@
       }
     }
 
-    var label = new Int32Array(n);
-    var stack = new Int32Array(n);
-    var pixels = new Int32Array(n);
     var plates = 0;
-    var top0 = height, bottom0 = -1, tall = 0;
     var rects = [];
+    var top0 = height, bottom0 = -1, tall = 0;
 
-    for (var seed = 0; seed < n; seed++) {
-      if (!region[seed] || label[seed]) continue;
-      var top = 0;
-      var count = 0;
-      stack[top++] = seed;
-      label[seed] = 1;
-      var x0 = width, x1 = -1, y0 = height, y1 = -1;
-      while (top > 0) {
-        var at = stack[--top];
-        pixels[count++] = at;
-        var ax = at % width, ay = (at / width) | 0;
-        if (ax < x0) x0 = ax;
-        if (ax > x1) x1 = ax;
-        if (ay < y0) y0 = ay;
-        if (ay > y1) y1 = ay;
-        if (ax > 0 && region[at - 1] && !label[at - 1]) { label[at - 1] = 1; stack[top++] = at - 1; }
-        if (ax < width - 1 && region[at + 1] && !label[at + 1]) { label[at + 1] = 1; stack[top++] = at + 1; }
-        if (ay > 0 && region[at - width] && !label[at - width]) { label[at - width] = 1; stack[top++] = at - width; }
-        if (ay < height - 1 && region[at + width] && !label[at + width]) { label[at + width] = 1; stack[top++] = at + width; }
+    // 이어진 판 찾기. 한 줄씩 토막(run)으로 보고, 위아래 토막이 거의 같은 자리에 있을
+    // 때만 하나로 잇는다. 그냥 이웃끼리 이으면 오늘 날짜에 쳐진 동그라미 같은 것이
+    // 바로 아래 판에 달라붙어, 판이 아닌 모양으로 보여 통째로 버려진다.
+    var runs = [];
+    var rowStart = [];
+    for (y = 0; y < height; y++) {
+      rowStart.push(runs.length);
+      var from = -1;
+      for (x = 0; x <= width; x++) {
+        var on = x < width && region[y * width + x];
+        if (on && from < 0) from = x;
+        if (!on && from >= 0) {
+          runs.push({ y: y, x0: from, x1: x - 1, label: runs.length });
+          from = -1;
+        }
       }
+    }
+    rowStart.push(runs.length);
 
+    function rootOf(index) {
+      while (runs[index].label !== index) {
+        runs[index].label = runs[runs[index].label].label;
+        index = runs[index].label;
+      }
+      return index;
+    }
+
+    for (var row = 1; row < height; row++) {
+      for (var a = rowStart[row]; a < rowStart[row + 1]; a++) {
+        for (var b = rowStart[row - 1]; b < rowStart[row]; b++) {
+          var overlap = Math.min(runs[a].x1, runs[b].x1) - Math.max(runs[a].x0, runs[b].x0) + 1;
+          if (overlap <= 0) continue;
+          var lenA = runs[a].x1 - runs[a].x0 + 1;
+          var lenB = runs[b].x1 - runs[b].x0 + 1;
+          if (overlap < lenA * 0.7 || overlap < lenB * 0.7) continue;   // 자리가 다르면 딴 것
+          var ra = rootOf(a), rb = rootOf(b);
+          if (ra !== rb) runs[ra].label = rb;
+        }
+      }
+    }
+
+    var groups = {};
+    for (i = 0; i < runs.length; i++) {
+      var key = rootOf(i);
+      var group = groups[key] || (groups[key] = { runs: [], count: 0, x0: width, x1: -1, y0: height, y1: -1 });
+      group.runs.push(runs[i]);
+      group.count += runs[i].x1 - runs[i].x0 + 1;
+      if (runs[i].x0 < group.x0) group.x0 = runs[i].x0;
+      if (runs[i].x1 > group.x1) group.x1 = runs[i].x1;
+      if (runs[i].y < group.y0) group.y0 = runs[i].y;
+      if (runs[i].y > group.y1) group.y1 = runs[i].y;
+    }
+
+    Object.keys(groups).forEach(function (key) {
+      var group = groups[key];
+      var x0 = group.x0, x1 = group.x1, y0 = group.y0, y1 = group.y1;
       var w = x1 - x0 + 1, h = y1 - y0 + 1;
-      if (w < 40 || h < 16 || count < 800) continue;          // 판이라기엔 작다
-      if (count / (w * h) < 0.6) continue;                    // 속이 빈 덩어리 (색 글씨 따위)
+      if (w < 40 || h < 16 || group.count < 800) return;          // 판이라기엔 작다
+      if (group.count / (w * h) < 0.6) return;                    // 속이 빈 덩어리 (색 글씨 따위)
 
       var histogram = new Uint32Array(256);
-      for (i = 0; i < count; i++) histogram[gray[pixels[i]]]++;
+      var pixels = [];
+      group.runs.forEach(function (run) {
+        for (var px = run.x0; px <= run.x1; px++) {
+          var at = run.y * width + px;
+          pixels.push(at);
+          histogram[gray[at]]++;
+        }
+      });
+
       var plate = 0;
-      for (i = 1; i < 256; i++) if (histogram[i] > histogram[plate]) plate = i;
+      var k;
+      for (k = 1; k < 256; k++) if (histogram[k] > histogram[plate]) plate = k;
 
       var bright = 0, brightCount = 0, darkCount = 0;
-      for (i = 0; i < count; i++) {
-        var value = gray[pixels[i]];
+      var sumR = 0, sumG = 0, sumB = 0, plateCount = 0;
+      for (k = 0; k < pixels.length; k++) {
+        var value = gray[pixels[k]];
         if (value > plate + 30) { bright += value; brightCount++; }
         else if (value < plate - 30) darkCount++;
+        else {
+          sumR += red[pixels[k]]; sumG += green[pixels[k]]; sumB += blue[pixels[k]];
+          plateCount++;
+        }
       }
-      var ratio = brightCount / count;
-      if (brightCount <= darkCount || ratio < 0.03 || ratio > 0.5) continue;   // 흰 글씨 판이 아니다
+      var ratio = brightCount / pixels.length;
+      if (brightCount <= darkCount || ratio < 0.03 || ratio > 0.5) return;   // 흰 글씨 판이 아니다
 
       var cut = (plate + bright / brightCount) / 2;
-      for (i = 0; i < count; i++) {
-        gray[pixels[i]] = gray[pixels[i]] >= cut ? 0 : 255;   // 글씨는 검게, 판은 희게
+      for (k = 0; k < pixels.length; k++) {
+        gray[pixels[k]] = gray[pixels[k]] >= cut ? 0 : 255;       // 글씨는 검게, 판은 희게
       }
       plates++;
-      rects.push({ x0: x0, y0: y0, x1: x1, y1: y1 });
+      rects.push({
+        x0: x0, y0: y0, x1: x1, y1: y1,
+        tone: plateCount ? toneOf(sumR / plateCount, sumG / plateCount, sumB / plateCount) : null
+      });
       if (y0 < top0) top0 = y0;
       if (y1 > bottom0) bottom0 = y1;
       if (h > tall) tall = h;
-    }
+    });
 
     if (plates) {
       for (i = 0; i < n; i++) {
@@ -385,25 +450,151 @@
     if (!available()) return Promise.reject(new Error('이 브라우저에서는 기기 안 글자 인식을 쓸 수 없습니다.'));
 
     return toCanvas(file).then(function (prepared) {
+      var worker = null;
       return getWorker(opts.onProgress).then(function (w) {
+        worker = w;
         return w.recognize(prepared.canvas, {}, { blocks: true, text: true });
       }).then(function (result) {
         var data = result.data || {};
         var words = wordsOf(data);
-        var laid = ocrlayout.toText(words, { year: opts.year, month: opts.month });
+        return rescueChips(worker, prepared, words).then(function (rescued) {
+          return { data: data, words: words.concat(rescued) };
+        });
+      }).then(function (result) {
+        var data = result.data;
+        var words = result.words;
+        var missed = missedChips(prepared, words);
+        var laid = ocrlayout.toText(attachChips(prepared, words), { year: opts.year, month: opts.month });
         return {
           text: laid.text,
           shape: laid.shape,
           unsure: laid.unsure,
           dropped: laid.dropped,
           chips: prepared.chips.length,
-          missed: missedChips(prepared, words),
+          missed: missed,
           words: words.length,
           confidence: Math.round(data.confidence || 0),
           prepared: prepared.how
         };
       });
     });
+  }
+
+  /**
+   * 글자가 어느 판(칸) 안에서 나왔는지 이어 준다.
+   *
+   * 자리를 판의 한가운데로 바꿔 놓으면 어느 날의 근무인지 헷갈리지 않는다. 글자만
+   * 보고 자리를 잡으면, 글자가 판 한쪽에 치우쳐 읽힌 날 옆 칸으로 넘어가 버린다.
+   * 판 색(파랑·연두·회색)도 같이 달아 둔다. 글자를 잘못 읽었을 때 실마리가 된다.
+   */
+  function attachChips(prepared, words) {
+    var chips = prepared.chips || [];
+    if (!chips.length) return words;
+    var scale = prepared.crop.scale;
+    var top = prepared.crop.top;
+
+    var boxes = chips.map(function (chip) {
+      return {
+        x0: chip.x0 * scale, x1: chip.x1 * scale,
+        y0: (chip.y0 - top) * scale, y1: (chip.y1 - top) * scale,
+        tone: chip.tone
+      };
+    });
+
+    // 작고 또렷하게 잡힌 글자부터 자기 판을 고르게 한다. 인식기가 두 판을 하나로
+    // 묶어 읽는 일이 있는데(옆 칸까지 덮는 큰 네모), 그런 글자는 뒤로 미뤄 두면
+    // 남은 판, 곧 제 칸을 찾아간다.
+    var order = words.map(function (word, index) {
+      return { word: word, index: index, area: Math.max(1, (word.x1 - word.x0) * (word.y1 - word.y0)) };
+    }).sort(function (a, b) { return a.area - b.area; });
+
+    var taken = {};
+    var out = words.slice();
+
+    order.forEach(function (item) {
+      var word = item.word;
+      var best = -1, bestScore = 0;
+      for (var i = 0; i < boxes.length; i++) {
+        var box = boxes[i];
+        var overlap = Math.max(0, Math.min(word.x1, box.x1) - Math.max(word.x0, box.x0)) *
+          Math.max(0, Math.min(word.y1, box.y1) - Math.max(word.y0, box.y0));
+        if (!overlap) continue;
+        var share = overlap / Math.max(1, (box.x1 - box.x0) * (box.y1 - box.y0));
+        if (share < 0.3) continue;
+        var score = share + (taken[i] ? 0 : 1);        // 임자 없는 판을 먼저
+        if (score > bestScore) { bestScore = score; best = i; }
+      }
+      if (best < 0) return;
+      taken[best] = true;
+      var chosen = boxes[best];
+      out[item.index] = {
+        text: word.text, conf: word.conf, tone: chosen.tone,
+        x0: chosen.x0, x1: chosen.x1, y0: chosen.y0, y1: chosen.y1
+      };
+    });
+
+    return out;
+  }
+
+  /** 판의 자리를 인식에 쓴 그림의 자리로 옮긴다. */
+  function chipBox(chip, prepared) {
+    var scale = prepared.crop.scale;
+    var top = prepared.crop.top;
+    return {
+      x0: chip.x0 * scale, x1: chip.x1 * scale,
+      y0: (chip.y0 - top) * scale, y1: (chip.y1 - top) * scale,
+      tone: chip.tone
+    };
+  }
+
+  /**
+   * 글자를 못 얻은 판만 따로 크게 잘라 다시 읽는다.
+   *
+   * 한 장을 통째로 읽을 때는 작은 판 하나가 통째로 묻히곤 한다. 그런 판은 몇 개 안
+   * 되니, 네 배로 키워 낱말 하나만 찾으라고 일러 주면 대개 읽힌다. 그래도 안 읽히면
+   * 그 날은 빈칸으로 남고, 몇 개를 못 읽었는지 알려 준다.
+   */
+  function rescueChips(worker, prepared, words) {
+    var chips = (prepared.chips || []).map(function (chip) { return chipBox(chip, prepared); });
+    var missing = chips.filter(function (box) {
+      return !words.some(function (word) {
+        var cx = (word.x0 + word.x1) / 2, cy = (word.y0 + word.y1) / 2;
+        return cx >= box.x0 && cx <= box.x1 && cy >= box.y0 && cy <= box.y1;
+      });
+    });
+    if (!missing.length) return Promise.resolve([]);
+
+    var found = [];
+    var zoom = 4;
+    return missing.reduce(function (chain, box) {
+      return chain.then(function () {
+        var w = Math.round((box.x1 - box.x0)), h = Math.round((box.y1 - box.y0));
+        if (w < 8 || h < 8) return null;
+        var canvas = document.createElement('canvas');
+        canvas.width = w * zoom;
+        canvas.height = h * zoom;
+        var ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(prepared.canvas, box.x0, box.y0, w, h, 0, 0, canvas.width, canvas.height);
+        return worker.setParameters({ tessedit_pageseg_mode: '7' })      // 한 줄로 읽기
+          .then(function () { return worker.recognize(canvas, {}, { text: true }); })
+          .then(function (result) {
+            var text = String((result.data && result.data.text) || '').trim();
+            if (!text) return null;
+            text.split(/\s+/).forEach(function (piece) {
+              if (!piece) return;
+              found.push({
+                text: piece, conf: Math.round(result.data.confidence || 0), tone: box.tone,
+                x0: box.x0, x1: box.x1, y0: box.y0, y1: box.y1
+              });
+            });
+            return null;
+          });
+      });
+    }, Promise.resolve())
+      .then(function () { return worker.setParameters({ tessedit_pageseg_mode: '11' }); })
+      .then(function () { return found; });
   }
 
   /**
@@ -445,6 +636,7 @@
     scaleFor: scaleFor,
     enhance: enhance,
     unchip: unchip,
+    toneOf: toneOf,
     upscale: upscale,
     BASE: BASE
   };
