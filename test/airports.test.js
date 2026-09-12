@@ -47,3 +47,16 @@ test('취항지 목록에 중복된 공항 코드가 없다', () => {
   assert.strictEqual(airports.countryOf('NBO'), 'KE');   // 케냐. 항공사 코드 KE 와 헷갈리지 않는다
   assert.strictEqual(airports.countryOf('GUM'), 'GU');
 });
+
+test('공항 코드로도 도시 이름으로도 찾는다', () => {
+  assert.strictEqual(airports.findCode('KOJ'), 'KOJ');
+  assert.strictEqual(airports.findCode('koj'), 'KOJ');
+  assert.strictEqual(airports.findCode(' 가고시마 '), 'KOJ');
+  assert.strictEqual(airports.findCode('없는도시'), null);
+  assert.strictEqual(airports.findCode(''), null);
+
+  assert.deepStrictEqual(airports.describeAirport('가고시마'), {
+    iata: 'KOJ', city: '가고시마', country: 'JP', countryName: '일본', flag: '🇯🇵'
+  });
+  assert.strictEqual(airports.describeAirport('ZZZ'), null);
+});

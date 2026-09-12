@@ -44,10 +44,10 @@ test('replace 모드는 해당 날짜 기존 일정을 교체한다', () => {
 
 test('merge 모드는 기존에 이어 붙이되 같은 일정은 중복 저장하지 않는다', () => {
   store.addEntry({ date: '2026-09-06', code: 'DO' });
-  const parsed = parser.parse('2026-09-06 DO\n2026-09-06 LO', { year: 2026, month: 9 });
+  const parsed = parser.parse('2026-09-06 DO\n2026-09-06 STBY', { year: 2026, month: 9 });
   const res = store.applyEntries(parsed.entries, 'merge');
   assert.strictEqual(res.added, 1);
-  assert.deepStrictEqual(store.getByDate('2026-09-06').map(e => e.code), ['DO', 'LO']);
+  assert.deepStrictEqual(store.getByDate('2026-09-06').map(e => e.code), ['DO', 'STBY']);
 });
 
 test('반영 전에 덮어쓸 기존 건수를 셀 수 있다', () => {

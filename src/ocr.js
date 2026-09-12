@@ -766,8 +766,12 @@
       if (group.length < 2) return;
       var ordered = group.slice().sort(function (a, b) { return a.at - b.at; });
       var merged = ordered.map(function (word) { return word.text; }).join('');
-      if (!ocrlayout.isKnownCode || !ocrlayout.isKnownCode(merged)) return;
-      ordered[0].text = merged;
+      // 판 테두리를 괄호나 막대로 읽는 일이 잦다. 앞뒤에 붙은 것은 떼고 견줘 본다.
+      var bare = merged.replace(/^[^A-Z0-9]+/, '').replace(/[^A-Z0-9]+$/, '');
+      if (!ocrlayout.isKnownCode) return;
+      if (ocrlayout.isKnownCode(merged)) ordered[0].text = merged;
+      else if (bare && ocrlayout.isKnownCode(bare)) ordered[0].text = bare;
+      else return;
       ordered.slice(1).forEach(function (word) { dropped[words.indexOf(word)] = true; });
     });
 

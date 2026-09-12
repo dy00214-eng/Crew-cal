@@ -8,12 +8,12 @@
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
-    module.exports = factory(require('./codes.js'));
+    module.exports = factory(require('./codes.js'), require('./resolve.js'));
   } else {
     root.CrewCal = root.CrewCal || {};
-    root.CrewCal.parser = factory(root.CrewCal.codes);
+    root.CrewCal.parser = factory(root.CrewCal.codes, root.CrewCal.resolve);
   }
-})(typeof self !== 'undefined' ? self : this, function (codes) {
+})(typeof self !== 'undefined' ? self : this, function (codes, resolver) {
   'use strict';
 
   var MONTHS = codes.MONTHS;
@@ -38,6 +38,14 @@
     dayOffset: /^\+(\d)$/,
     dutyLike: /^[A-Z]{1,6}$/,
     rangeSep: /^[~]$/
+  };
+
+  /** 겹쳐 들어온 근무를 뺀 까닭. 미리보기에서 사람에게 보여 준다. */
+  var DROP_REASONS = {
+    'off-merge': '같은 날 휴무가 겹쳐',
+    'layover-without-arrival': '앞에 해외 도착 비행이 없어',
+    'off-with-layover': '체류 중인 날이라',
+    'overflow': '한 칸에 너무 많이 들어와'
   };
 
   function normalizeText(text) {
@@ -549,9 +557,25 @@
       return parseInt(a.id.slice(1), 10) - parseInt(b.id.slice(1), 10);
     });
 
+    // 같은 날에 겹쳐 들어온 근무를 정리한다(휴무 계열 하나로, 휴무와 체류는 함께 두지 않는다).
+    var dropped = [];
+    if (resolver) {
+      var cleaned = resolver.resolve(entries);
+      entries = cleaned.entries;
+      dropped = cleaned.dropped;
+      dropped.forEach(function (item) {
+        warnings.push({
+          line: 0,
+          text: item.date + ' ' + item.code,
+          message: item.date + ' 의 ' + item.code + ' 는 ' + DROP_REASONS[item.reason] + ' 빼두었습니다.'
+        });
+      });
+    }
+
     return {
       entries: entries,
       warnings: warnings,
+      dropped: dropped,
       ignoredLines: ignoredLines,
       skippedLines: skippedLines,
       stats: summarize(entries)

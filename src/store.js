@@ -3,12 +3,12 @@
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
-    module.exports = factory(require('./codes.js'), require('./schedule.js'));
+    module.exports = factory(require('./codes.js'), require('./schedule.js'), require('./resolve.js'));
   } else {
     root.CrewCal = root.CrewCal || {};
-    root.CrewCal.store = factory(root.CrewCal.codes, root.CrewCal.schedule);
+    root.CrewCal.store = factory(root.CrewCal.codes, root.CrewCal.schedule, root.CrewCal.resolve);
   }
-})(typeof self !== 'undefined' ? self : this, function (codes, schedule) {
+})(typeof self !== 'undefined' ? self : this, function (codes, schedule, resolver) {
   'use strict';
 
   var KEY = 'crew-cal.schedule.v1';
@@ -345,8 +345,36 @@
       added++;
     });
 
+    var dropped = resolveDates(data, Object.keys(dates(entries)));
+    added -= dropped.length;
+
     save(data);
-    return { added: added, removed: removed, dates: Object.keys(touched).length };
+    return { added: added, removed: removed, dates: Object.keys(touched).length, dropped: dropped };
+  }
+
+  function dates(entries) {
+    var out = {};
+    entries.forEach(function (e) { if (e && e.date) out[e.date] = true; });
+    return out;
+  }
+
+  /**
+   * 반영한 날짜만 다시 추린다. 같은 날에 휴무가 둘이거나 휴무와 체류가 함께 남지
+   * 않도록. 앞뒤 날을 봐야 하므로 저장된 전체를 넘겨 판단하게 한다.
+   */
+  function resolveDates(data, targets) {
+    if (!resolver || !targets.length) return [];
+    var cleaned = resolver.resolveByDate(data.entries);
+    var dropped = cleaned.dropped.filter(function (item) {
+      return targets.indexOf(item.date) !== -1;
+    });
+    targets.forEach(function (date) {
+      if (!data.entries[date]) return;
+      var next = cleaned.entriesByDate[date] || [];
+      if (next.length) data.entries[date] = next;
+      else delete data.entries[date];
+    });
+    return dropped;
   }
 
   function countExisting(entries) {
@@ -386,6 +414,7 @@
     applyEntries: applyEntries,
     countExisting: countExisting,
     clearAll: clearAll,
+    resolveDates: resolveDates,
     exportJson: exportJson,
     importJson: importJson,
     decorate: decorate,

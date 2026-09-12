@@ -293,6 +293,41 @@
     return CITY_NAMES[key] || key;
   }
 
+  /**
+   * 도시 이름이나 공항 코드로 공항을 찾는다. '가고시마' 도 'KOJ' 도 'koj' 도 KOJ 로.
+   * 같은 이름을 쓰는 공항이 여럿이면(도쿄 등) 목록에서 먼저 나온 것을 준다.
+   */
+  var CODE_BY_CITY = null;
+
+  function findCode(text) {
+    var raw = String(text == null ? '' : text).trim();
+    if (!raw) return null;
+    var upper = raw.toUpperCase();
+    if (AIRPORT_COUNTRY[upper]) return upper;
+    if (!CODE_BY_CITY) {
+      CODE_BY_CITY = {};
+      Object.keys(CITY_NAMES).forEach(function (iata) {
+        var name = CITY_NAMES[iata];
+        if (name && !CODE_BY_CITY[name]) CODE_BY_CITY[name] = iata;
+      });
+    }
+    return CODE_BY_CITY[raw] || CODE_BY_CITY[raw.replace(/\s+/g, '')] || null;
+  }
+
+  /** 공항 하나를 사람이 읽게: { iata, city, country, countryName, flag } */
+  function describeAirport(iata) {
+    var code = findCode(iata);
+    if (!code) return null;
+    var country = countryOf(code);
+    return {
+      iata: code,
+      city: cityOf(code),
+      country: country,
+      countryName: countryName(country),
+      flag: flagOf(code)
+    };
+  }
+
   /** 공항 코드 -> 국기. 모르는 공항이면 빈 문자열. */
   function flagOf(iata) {
     return flagOfCountry(countryOf(iata));
@@ -371,6 +406,8 @@
     COUNTRY_NAMES: COUNTRY_NAMES,
     CITY_NAMES: CITY_NAMES,
     cityOf: cityOf,
+    findCode: findCode,
+    describeAirport: describeAirport,
     outstation: outstation,
     tripPlace: tripPlace,
     countryOf: countryOf,

@@ -147,6 +147,11 @@
     return null;
   }
 
+  /** 구간을 모르는 항공편인지. 편명만 있고 어디 가는지 모르는 것들. */
+  function needsRoute(entry) {
+    return !!entry && entry.type === 'flight' && !entry.route;
+  }
+
   function nextDay(date) {
     var d = new Date(date + 'T00:00:00Z');
     if (isNaN(d)) return null;
@@ -233,6 +238,10 @@
     var selected = options.selectedDate;
     var onSelect = options.onSelect || function () {};
     var hideTimes = options.hideTimes || {};
+    // 구간을 모르는 편의 '노선 미등록' 표를 눌렀을 때. 없으면 칸 고르기로 떨어진다.
+    var onFixRoute = options.onFixRoute || null;
+    // 코드가 안 잡힌 이 달의 날은 휴무로 본다. 크루넷도 빈 칸은 쉬는 날이다.
+    var assumeOff = options.assumeOff !== false;
 
     container.innerHTML = '';
 
@@ -270,15 +279,20 @@
         if (weekday === 0) cell.classList.add('sun');
         if (weekday === 6) cell.classList.add('sat');
         if (holiday) cell.classList.add('holiday');
-        var dayKind = dayCategory(list);
+        // 코드가 없어도 이 달의 날이면 칸을 그린다. 앞뒤 달의 흐린 날과 헷갈리지 않는다.
+        var assumed = !outside && !list.length && assumeOff;
+        var dayKind = dayCategory(list) || (assumed ? 'off' : null);
         if (dayKind) cell.classList.add('day-' + dayKind);
+        if (assumed) cell.classList.add('assumed');
+        if (!outside) cell.classList.add('in-month');
         if (outside) cell.classList.add('outside');
         if (date === today) cell.classList.add('today');
         if (date === selected) cell.classList.add('selected');
         if (list.length) cell.classList.add('has-entry');
         cell.setAttribute('data-date', date);
         cell.setAttribute('aria-label', (+date.slice(5, 7)) + '월 ' + day + '일' +
-          (holiday ? ' ' + holiday : '') + ', 일정 ' + list.length + '건');
+          (holiday ? ' ' + holiday : '') +
+          (assumed ? ', 코드 없음 — 휴무로 봄' : ', 일정 ' + list.length + '건'));
 
         var num = document.createElement('span');
         num.className = 'cal-day';
@@ -326,6 +340,25 @@
               ? '\u2708\uFE0F ' + e.code
               : (e.label || e.code);
             item.appendChild(title);
+
+            // 어디 가는 편인지 모르는 비행. 눌러서 넣어 달라고 표를 남긴다.
+            if (needsRoute(e)) {
+              var badge = document.createElement(onFixRoute ? 'button' : 'span');
+              badge.className = 'cal-badge';
+              badge.textContent = '노선 미등록';
+              if (onFixRoute) {
+                badge.type = 'button';
+                (function (entry) {
+                  badge.addEventListener('click', function (event) {
+                    event.stopPropagation();
+                    onFixRoute(entry, date);
+                  });
+                })(e);
+              }
+              item.appendChild(badge);
+              item.title = e.code + ' 의 구간을 모릅니다. 칸을 눌러 넣어 주세요.';
+              cell.classList.add('needs-route');
+            }
           }
 
           var timeText = hideTimes[date + '|' + e.code] ? '' : formatTimeRange(e);
@@ -350,6 +383,17 @@
 
           chips.appendChild(item);
         });
+        // 코드가 없는 날. 휴무라고 적되 코드 자리는 비워 두어 추정임을 드러낸다.
+        if (assumed) {
+          var guess = document.createElement('span');
+          guess.className = 'cal-item assumed';
+          guess.title = '읽어 들인 코드가 없는 날입니다. 휴무로 봅니다.';
+          var guessTitle = document.createElement('span');
+          guessTitle.className = 'cal-title cat-off';
+          guessTitle.textContent = '휴무';
+          guess.appendChild(guessTitle);
+          chips.appendChild(guess);
+        }
         if (list.length > 3) {
           var more = document.createElement('span');
           more.className = 'cal-more';
@@ -714,6 +758,7 @@
     placeLabel: placeLabel,
     chipText: chipText,
     dayCategory: dayCategory,
+    needsRoute: needsRoute,
     tripPlaces: tripPlaces,
     iso: iso,
     pad2: pad2,

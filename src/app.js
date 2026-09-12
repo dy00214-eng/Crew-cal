@@ -25,6 +25,7 @@
     imageFile: null,
     view: 'calendar',
     hideTimes: {},
+    assumeOff: true,
     cleaning: false,
     cleanupAbort: null,
     backend: null,
@@ -47,6 +48,20 @@
   /* ---------------- 공통 ---------------- */
 
   var VIEW_KEY = 'crew-cal.view.v1';
+  var ASSUME_OFF_KEY = 'crew-cal.assume-off.v1';
+
+  /** 코드 없는 날을 휴무로 볼지. 기본은 켬. */
+  function loadAssumeOff() {
+    try {
+      var saved = localStorage.getItem(ASSUME_OFF_KEY);
+      if (saved === '0') return false;
+    } catch (e) { /* 저장소를 못 읽으면 켠 채로 */ }
+    return true;
+  }
+
+  function saveAssumeOff(on) {
+    try { localStorage.setItem(ASSUME_OFF_KEY, on ? '1' : '0'); } catch (e) { /* 무시 */ }
+  }
 
   function loadView() {
     try {
@@ -113,7 +128,9 @@
       entriesByDate: entriesByDate,
       selectedDate: state.selectedDate,
       hideTimes: state.hideTimes,
-      onSelect: selectDate
+      assumeOff: state.assumeOff,
+      onSelect: selectDate,
+      onFixRoute: function (entry, date) { selectDate(date); openRouteSheet(entry); }
     };
 
     var mode = state.view;
@@ -346,6 +363,17 @@
       }
       li.appendChild(main);
 
+      // 어디 가는 편인지 모르는 비행은 눌러서 넣을 수 있게 한다
+      if (calendar.needsRoute(entry)) {
+        var badge = document.createElement('button');
+        badge.type = 'button';
+        badge.className = 'entry-badge';
+        badge.textContent = '노선 미등록';
+        badge.title = entry.code + ' 의 구간·시각을 넣습니다';
+        badge.addEventListener('click', function () { openRouteSheet(entry); });
+        main.appendChild(badge);
+      }
+
       var del = document.createElement('button');
       del.type = 'button';
       del.className = 'icon-btn';
@@ -404,6 +432,19 @@
       });
     });
     syncViewButtons();
+  }
+
+  /** 코드 없는 날을 휴무로 볼지 켜고 끈다. */
+  function initAssumeOff() {
+    var box = $('assumeOff');
+    state.assumeOff = loadAssumeOff();
+    if (!box) return;
+    box.checked = state.assumeOff;
+    box.addEventListener('change', function () {
+      state.assumeOff = box.checked;
+      saveAssumeOff(state.assumeOff);
+      refresh();
+    });
   }
 
   function syncViewButtons() {
@@ -1524,7 +1565,7 @@
   /* ---------------- 동료가 보내는 의견 ---------------- */
 
   // 화면 아래와 의견 보내기에 적히는 판 번호. sw.js 의 VERSION 과 함께 올린다.
-  var APP_VERSION = 'v21';
+  var APP_VERSION = 'v22';
 
   /**
    * 의견을 받을 메일 주소. 저장소가 공개라 통짜로 적어두면 스팸 크롤러가 긁어가므로
@@ -1693,6 +1734,99 @@
     });
   }
 
+  /* ---------------- 노선 등록 ---------------- */
+
+  var routeTarget = null;
+
+  /** '0905' '9:05' '09:05' 을 'HH:MM' 으로. 시각이 아니면 null. */
+  function readTime(text) {
+    var raw = String(text == null ? '' : text).trim().replace(/[.\s]/g, '');
+    if (!raw) return null;
+    var m = raw.match(/^(\d{1,2}):?([0-5]\d)$/);
+    if (!m) return null;
+    var h = +m[1];
+    if (h > 23) return null;
+    return pad2(h) + ':' + m[2];
+  }
+
+  /** 도착 공항을 넣는 대로 어느 나라 어느 도시인지 알려 준다. */
+  function syncRouteWhere() {
+    var to = airports.describeAirport($('routeTo').value);
+    var from = airports.describeAirport($('routeFrom').value);
+    var el = $('routeWhere');
+    if (!to) {
+      el.textContent = $('routeTo').value.trim()
+        ? '모르는 공항입니다. IATA 세 글자(KOJ)나 도시 이름(가고시마)으로 넣어 주세요.'
+        : '도착 공항을 넣으면 어느 나라 어느 도시인지 여기에 뜹니다.';
+      el.className = 'muted small-note' + ($('routeTo').value.trim() ? ' warn' : '');
+      return;
+    }
+    el.className = 'muted small-note';
+    el.textContent = (from ? from.flag + ' ' + from.city + ' → ' : '') +
+      to.flag + ' ' + to.countryName + ' · ' + to.city + ' (' + to.iata + ')';
+  }
+
+  function openRouteSheet(entry) {
+    routeTarget = entry;
+    $('routeCode').textContent = entry.code;
+    var known = store.recallFlight(entry.code);
+    var parts = airports.splitRoute((known && known.route) || entry.route || '');
+    $('routeFrom').value = parts.from || 'ICN';
+    $('routeTo').value = parts.to || '';
+    $('routeStart').value = entry.start || (known && known.start) || '';
+    $('routeEnd').value = entry.end || (known && known.end) || '';
+    $('routeNextDay').checked = !!(entry.endOffset || (known && known.endOffset));
+    syncRouteWhere();
+    $('routeSheet').hidden = false;
+    $('routeTo').focus();
+  }
+
+  function closeRouteSheet() {
+    $('routeSheet').hidden = true;
+    routeTarget = null;
+  }
+
+  function saveRoute() {
+    if (!routeTarget) return closeRouteSheet();
+    var from = airports.findCode($('routeFrom').value);
+    var to = airports.findCode($('routeTo').value);
+    if (!from || !to) {
+      syncRouteWhere();
+      toast('출발·도착 공항을 알아볼 수 있게 넣어 주세요.');
+      return;
+    }
+    var start = readTime($('routeStart').value);
+    var end = readTime($('routeEnd').value);
+    if ($('routeStart').value.trim() && !start) return toast('출발 시각을 0905 처럼 넣어 주세요.');
+    if ($('routeEnd').value.trim() && !end) return toast('도착 시각을 1105 처럼 넣어 주세요.');
+
+    store.learnFlight({
+      type: 'flight',
+      code: store.normalizeCode(routeTarget.code),
+      route: from + '/' + to,
+      start: start,
+      end: end,
+      endOffset: end && $('routeNextDay').checked ? 1 : 0
+    });
+    var filled = store.enrichAll();
+    closeRouteSheet();
+    renderFlightBook();
+    refresh();
+    toast(filled > 1 ? '저장했습니다. 같은 편명 ' + filled + '건에 채웠습니다.' : '저장했습니다.');
+  }
+
+  function initRouteSheet() {
+    $('routeClose').addEventListener('click', closeRouteSheet);
+    $('routeBackdrop').addEventListener('click', closeRouteSheet);
+    $('routeCancel').addEventListener('click', closeRouteSheet);
+    $('routeSave').addEventListener('click', saveRoute);
+    $('routeTo').addEventListener('input', syncRouteWhere);
+    $('routeFrom').addEventListener('input', syncRouteWhere);
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !$('routeSheet').hidden) closeRouteSheet();
+    });
+  }
+
   /* ---------------- 처음 온 사람 · 공유 · 오프라인 ---------------- */
 
   var WELCOME_KEY = 'crew-cal.welcome.v1';
@@ -1844,6 +1978,8 @@
 
     initDownloads();
     initViewToggle();
+    initAssumeOff();
+    initRouteSheet();
     initTabs();
     initSingleForm();
     initPaste();

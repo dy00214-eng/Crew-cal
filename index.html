@@ -308,6 +308,14 @@
       <ul id="flightList" class="entry-list"></ul>
     </details>
 
+    <details id="viewSettings" class="flight-book">
+      <summary>보기 설정</summary>
+      <label class="check-field">
+        <input type="checkbox" id="assumeOff" checked>
+        <span>코드 없는 날을 휴무로 표시 <em>(크루넷에서 빈 칸으로 나오는 날입니다. 추정이라 흐리게 적습니다)</em></span>
+      </label>
+    </details>
+
     <div class="data-tools">
       <button type="button" id="imageBtn" class="ghost small">이미지로 저장</button>
       <button type="button" id="icsBtn" class="ghost small">캘린더 앱에 넣기</button>
@@ -331,6 +339,54 @@
     <span class="app-version" id="appVersion"></span>
   </p>
 </footer>
+
+<div id="routeSheet" class="sheet" hidden>
+  <div class="sheet-backdrop" id="routeBackdrop"></div>
+  <div class="sheet-panel" role="dialog" aria-modal="true" aria-labelledby="routeTitle">
+    <div class="sheet-head">
+      <h2 id="routeTitle">노선 등록</h2>
+      <button type="button" class="welcome-close" id="routeClose" aria-label="닫기">✕</button>
+    </div>
+    <p class="hint">
+      <b id="routeCode">KE0000</b> 이 어디 가는 편인지 기본 시간표에 없습니다.
+      한 번 넣어 두면 다음에 같은 편명이 들어올 때 저절로 붙습니다.
+    </p>
+    <div class="route-grid">
+      <label class="field">
+        <span>출발</span>
+        <input type="text" id="routeFrom" value="ICN" autocomplete="off" spellcheck="false"
+          placeholder="ICN 또는 인천">
+      </label>
+      <label class="field">
+        <span>도착</span>
+        <input type="text" id="routeTo" autocomplete="off" spellcheck="false"
+          placeholder="KOJ 또는 가고시마">
+      </label>
+    </div>
+    <p class="muted small-note" id="routeWhere">도착 공항을 넣으면 어느 나라 어느 도시인지 여기에 뜹니다.</p>
+    <div class="route-grid">
+      <label class="field">
+        <span>출발 시각 <em>(모르면 비워 두세요)</em></span>
+        <input type="text" id="routeStart" inputmode="numeric" autocomplete="off"
+          placeholder="0905 또는 09:05">
+      </label>
+      <label class="field">
+        <span>도착 시각</span>
+        <input type="text" id="routeEnd" inputmode="numeric" autocomplete="off"
+          placeholder="1105 또는 11:05">
+      </label>
+    </div>
+    <label class="check-field">
+      <input type="checkbox" id="routeNextDay">
+      <span>다음 날 도착</span>
+    </label>
+    <p class="muted small-note">이 기기에만 저장됩니다. 지어낸 값을 넣지 말고 실제 로스터대로 적어 주세요.</p>
+    <div class="actions">
+      <button type="button" id="routeSave" class="primary">저장하고 채우기</button>
+      <button type="button" id="routeCancel" class="ghost">취소</button>
+    </div>
+  </div>
+</div>
 
 <div id="feedbackSheet" class="sheet" hidden>
   <div class="sheet-backdrop" id="feedbackBackdrop"></div>
@@ -383,6 +439,7 @@
 <script src="src/holidays-lunar.js"></script>
 <script src="src/holidays.js"></script>
 <script src="src/schedule.js"></script>
+<script src="src/resolve.js"></script>
 <script src="src/parser.js"></script>
 <script src="src/store.js"></script>
 <script src="src/calendar.js"></script>
