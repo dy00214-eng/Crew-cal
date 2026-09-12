@@ -253,14 +253,26 @@
 
   /**
    * 날짜만 죽 늘어선 줄. 달력에서 칸의 경계를 여기서 잡는다.
-   * 달이 바뀌는 주는 "31 1 2 3 4 5 6" 처럼 한 번 꺾이므로, 꺾임 한 번은 봐준다.
+   *
+   * 일곱 칸 가운데 몇 개가 글자로 잘못 읽히는 일이 흔하다(5→S, 13→LS, 17→1/7).
+   * 그래서 "날짜가 몇 개나 되느냐" 로 재지 않고, **근무 코드가 하나도 없는 줄**인지로
+   * 가른다. 근무 판에는 늘 아는 코드나 편명이 들어 있으므로 이 둘은 섞이지 않는다.
+   * 날짜 줄 하나를 놓치면 그 주가 통째로 앞 주에 얹혀 버린다.
    */
   function isDayRow(row) {
     var days = row.words.filter(function (w) { return DAY.test(w.text); });
-    // 마지막 주는 날짜가 둘만 남기도 한다(30, 31). 대신 그 줄에 다른 글자가 섞여
-    // 있으면 날짜 줄로 보지 않는다.
-    if (days.length < 2 || days.length < row.words.length - 1) return false;
-    if (days.length === 2 && days.length !== row.words.length) return false;
+    if (days.length < 2) return false;
+
+    var duty = row.words.some(function (w) {
+      var text = w.text;
+      if (DAY.test(text)) return false;
+      if (/^[A-Z]{2}\d{2,4}$/.test(text)) return true;               // 편명
+      if (/^[A-Z가-힣]{3,}$/.test(text)) return true;                 // 세 자 이상 글자
+      return codes ? codes.knownCodeList().indexOf(text) !== -1 : false;
+    });
+    if (duty) return false;
+
+    // 달이 바뀌는 주는 "31 1 2 3" 처럼 한 번 꺾인다. 꺾임 한 번까지는 봐준다.
     var breaks = 0;
     for (var i = 1; i < days.length; i++) {
       if (+days[i].text <= +days[i - 1].text) breaks++;

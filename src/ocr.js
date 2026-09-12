@@ -692,6 +692,12 @@
     }).slice(0, 10);                                            // 너무 많으면 오래 걸린다
     if (!missing.length) return Promise.resolve([]);
 
+    // 판이 유난히 높으면 글이 두 줄이다(KE0892 아래 TVL). 그런 판은 한 줄로 읽으라고
+    // 하면 두 줄이 섞여 엉뚱한 편명이 나온다. 그래서 덩어리째 읽는 방식으로 바꾼다.
+    var heights = chips.map(function (box) { return box.y1 - box.y0; })
+      .sort(function (a, b) { return a - b; });
+    var normalHeight = heights.length ? heights[Math.floor(heights.length / 2)] : 0;
+
     var found = [];
     var zoom = 4;
     return missing.reduce(function (chain, box) {
@@ -706,7 +712,8 @@
         ctx.imageSmoothingQuality = 'high';
         ctx.drawImage(prepared.canvas, box.x0, box.y0, w, h, 0, 0, canvas.width, canvas.height);
         // 한 줄로도 읽어 보고 낱말 하나로도 읽어 본다. 아는 코드가 나오는 쪽을 쓴다.
-        var modes = ['7', '8', '13'];
+        var twoLines = normalHeight && h > normalHeight * 1.4;
+        var modes = twoLines ? ['6', '4'] : ['7', '8', '13'];
         var best = null;
         return modes.reduce(function (chain, mode) {
           return chain.then(function () {
