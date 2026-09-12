@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert');
 const ocrlayout = require('../src/ocrlayout.js');
 const parser = require('../src/parser.js');
+const codes = require('../src/codes.js');
 
 /** 네모를 손으로 적기 번거로우니, 칸 위치만 주면 글자 하나를 만들어 준다. */
 function word(text, col, row, options) {
@@ -249,4 +250,84 @@ test('휴무 코드끼리는 절대 바꿔치지 않는다', () => {
   assert.strictEqual(ocrlayout.fixCode('DO', 'green'), 'DO');
   assert.strictEqual(ocrlayout.fixCode('ATDO'), 'ATDO');
   assert.strictEqual(ocrlayout.fixCode('ADO'), 'ADO');
+});
+
+test('날짜 숫자가 옆 글자와 같은 띠로 읽혀도 그 주를 잃지 않는다', () => {
+  // 2026년 1월. 3주차 날짜 줄(11~17)이 2주차 근무와 같은 높이로 묶여 읽힌 상황.
+  // 예전에는 그 줄을 날짜 줄로 못 알아봐 11~17일 내용이 4~10일 칸에 흘러들었다.
+  const words = [];
+  const put = (text, col, y) => words.push({
+    text, conf: 95, x0: 20 + col * 160, x1: 20 + col * 160 + text.length * 12, y0: y, y1: y + 20
+  });
+
+  ['4', '5', '6', '7', '8', '9', '10'].forEach((d, i) => put(d, i, 100));
+  put('LO', 0, 140); put('KE0658', 0, 165);
+  put('KE0658', 1, 140);
+  put('ATDO', 2, 140);
+  put('KE0727', 3, 140); put('KE0728', 3, 165);
+  put('ADO', 4, 140);
+  put('KE0005', 5, 140); put('LO', 5, 165);
+  put('LO', 6, 140); put('KE0006', 6, 165);
+
+  // 3주차 날짜 줄이 2주차 마지막 글자와 같은 높이(172)에 걸쳐 읽혔다
+  ['11', '12', '13', '14', '15', '16', '17'].forEach((d, i) => put(d, i, 172));
+  put('KE0006', 0, 210);
+  put('KE0006', 1, 210);
+  put('ATDO', 2, 210);
+  put('ATDO', 3, 210);
+  put('KE2011', 4, 210); put('LO', 4, 235);
+  put('LO', 5, 210);
+  put('KE2012', 6, 210);
+
+  const out = ocrlayout.toText(words, { year: 2026, month: 1 });
+  const lines = out.text.split('\n');
+  const on = (day) => (lines.find((l) => l.indexOf('2026-01-' + day) === 0) || '').split('\t')[1] || '';
+
+  // 2주차가 3주차 내용을 삼키지 않는다
+  assert.strictEqual(on('04'), 'LO KE0658', out.text);
+  assert.strictEqual(on('08'), 'ADO', out.text);
+  assert.strictEqual(on('09'), 'KE0005 LO', out.text);
+  assert.strictEqual(on('10'), 'LO KE0006', out.text);
+  // 3주차가 자기 줄을 갖는다
+  assert.strictEqual(on('11'), 'KE0006', out.text);
+  assert.strictEqual(on('15'), 'KE2011 LO', out.text);
+  assert.strictEqual(on('17'), 'KE2012', out.text);
+  // 날짜 숫자가 내용에 섞이지 않는다
+  assert.ok(!/\t.*\b(1[1-7])\b/.test(out.text), '날짜 숫자가 내용에 섞였다: ' + out.text);
+});
+
+test('한 칸의 글자만 그 날짜에 귀속된다', () => {
+  const grid = ocrlayout.gridOf(ocrlayout.rows([
+    { text: '4', conf: 95, x0: 20, x1: 32, y0: 100, y1: 120 },
+    { text: '5', conf: 95, x0: 180, x1: 192, y0: 100, y1: 120 },
+    { text: '6', conf: 95, x0: 340, x1: 352, y0: 100, y1: 120 },
+    { text: 'ATDO', conf: 95, x0: 180, x1: 228, y0: 140, y1: 160 }
+  ].map((w) => Object.assign({}, w, { cx: (w.x0 + w.x1) / 2, cy: (w.y0 + w.y1) / 2, h: w.y1 - w.y0 }))));
+  assert.ok(grid, '칸을 잡는다');
+  assert.strictEqual(grid.columns.length, 3);
+  assert.deepStrictEqual(grid.dayRows[0].days, [4, 5, 6]);
+});
+
+test('편명 숫자 자리의 글자를 숫자로 되돌린다', () => {
+  // KE000S 때문에 9~12일 라스베이거스 비행이 통째로 사라진 일이 있었다
+  assert.strictEqual(ocrlayout.fixCode('KE000S'), 'KE0005');
+  assert.strictEqual(ocrlayout.fixCode('KEOOO5'), 'KE0005');
+  assert.strictEqual(ocrlayout.fixCode('KE2OI2'), 'KE2012');
+  assert.strictEqual(ocrlayout.fixCode('KEO6OZ'), 'KE0602');
+  assert.strictEqual(ocrlayout.toDigits('000S'), '0005');
+  assert.strictEqual(ocrlayout.toDigits('00X5'), null, '되돌릴 수 없는 글자는 포기한다');
+
+  // 숫자를 다른 숫자로 바꾸지는 않는다
+  assert.strictEqual(ocrlayout.fixCode('KE0601'), 'KE0601');
+  assert.strictEqual(ocrlayout.fixCode('KE0045'), 'KE0045');
+  // 네 자리로 못 맞추면 편명으로 인정하지 않는다
+  assert.strictEqual(ocrlayout.fixCode('KE12345'), 'KE12345');
+  assert.strictEqual(codes.isFlightCode('KE12345'), false);
+});
+
+test('못 읽은 날과 섞여 든 날짜 숫자를 알려 준다', () => {
+  const cells = [{ day: 4, tokens: ['LO'] }, { day: 5, tokens: ['ATDO', '12'] }];
+  assert.deepStrictEqual(ocrlayout.missingDays(cells, { year: 2026, month: 1 }).slice(0, 4), [1, 2, 3, 6]);
+  assert.deepStrictEqual(ocrlayout.strayDays(cells), [{ day: 5, token: '12' }]);
+  assert.deepStrictEqual(ocrlayout.strayDays([{ day: 4, tokens: ['LO', 'KE0658'] }]), []);
 });

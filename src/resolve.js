@@ -209,6 +209,19 @@
     return entriesByDate;
   }
 
+  /**
+   * 같은 칸에 TVL 이 함께 있으면 그날 비행은 손님으로 타고 가는 것이다.
+   * 크루넷 홈 목록은 편명 카드 안에 적어 주지만, 달력 캡처에서는 따로 떨어져 나온다.
+   */
+  function markDeadhead(entriesByDate) {
+    Object.keys(entriesByDate || {}).forEach(function (date) {
+      var list = entriesByDate[date] || [];
+      if (!list.some(function (e) { return codeOf(e) === 'TVL'; })) return;
+      list.forEach(function (e) { if (e.type === 'flight') e.deadhead = true; });
+    });
+    return entriesByDate;
+  }
+
   /** 덩어리 안에서 그날이 출발인지 기내인지 도착인지. 시각을 아는 날은 시각이 먼저. */
   function markLegs(entriesByDate) {
     var groups = {};
@@ -318,6 +331,7 @@
     conflictsOf: conflictsOf,
     linkSegments: linkSegments,
     markLegs: markLegs,
+    markDeadhead: markDeadhead,
     isNextDay: isNextDay,
     primaryOff: primaryOff,
     isOff: isOff,

@@ -204,3 +204,35 @@ test('근무가 있는 날은 추정 휴무로 덮이지 않는다 — 1월 11·
   assert.ok(textOf(cells['2026-01-11']).includes('KE0006'), textOf(cells['2026-01-11']));
   assert.ok(cells['2026-01-02'].classList.contains('assumed'), '빈 날은 그대로 추정 휴무');
 });
+
+test('시각을 몰라도 그날이 출발인지 기내인지 도착인지 적는다', () => {
+  const resolve = require('../src/resolve.js');
+  const routes = require('../src/routes.js');
+  const byDate = {};
+  ['2026-01-10', '2026-01-11', '2026-01-12'].forEach((d) => {
+    byDate[d] = [store.decorate({ date: d, code: 'KE0006' })];
+  });
+  byDate['2026-01-17'] = [store.decorate({ date: '2026-01-17', code: 'KE2012' })];
+  byDate['2026-01-03'] = [store.decorate({ date: '2026-01-03', code: 'KE0657' })];
+  routes.apply(byDate);
+  routes.linkDays(byDate, resolve);
+
+  assert.strictEqual(calendar.formatTimeRange(byDate['2026-01-10'][0]), '출발');
+  assert.strictEqual(calendar.formatTimeRange(byDate['2026-01-11'][0]), '', '기내인 날은 시각 줄을 비운다');
+  assert.strictEqual(calendar.formatTimeRange(byDate['2026-01-12'][0]), '한국 도착');
+  // 하루짜리는 구간이 방향을 알려 준다
+  assert.strictEqual(calendar.formatTimeRange(byDate['2026-01-17'][0]), '한국 도착');
+  assert.strictEqual(calendar.formatTimeRange(byDate['2026-01-03'][0]), '출발');
+});
+
+test('같은 칸의 TVL 은 그날 비행을 탑승 근무로 만든다', () => {
+  const resolve = require('../src/resolve.js');
+  const byDate = {
+    '2026-01-29': [store.decorate({ date: '2026-01-29', code: 'KE0601' }),
+      store.decorate({ date: '2026-01-29', code: 'TVL' })]
+  };
+  resolve.markDeadhead(byDate);
+  assert.strictEqual(byDate['2026-01-29'][0].deadhead, true, '비행이 탑승 근무가 된다');
+  assert.strictEqual(byDate['2026-01-29'][1].deadhead, false, 'TVL 자신에는 붙지 않는다');
+  assert.strictEqual(calendar.summarize(byDate, 2026, 1).flights, 0, '비행 편수에서 뺀다');
+});

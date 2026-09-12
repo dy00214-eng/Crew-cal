@@ -212,6 +212,7 @@
     if (!resolver) return entriesByDate;
     resolver.linkSegments(entriesByDate);
     resolver.markLegs(entriesByDate);
+    resolver.markDeadhead(entriesByDate);
     return entriesByDate;
   }
 

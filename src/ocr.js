@@ -513,6 +513,8 @@
           shape: laid.shape,
           unsure: laid.unsure,
           dropped: laid.dropped,
+          missingDays: laid.missingDays || [],
+          strayDays: laid.strayDays || [],
           chips: prepared.chips.length,
           missed: missed,
           words: words.length,

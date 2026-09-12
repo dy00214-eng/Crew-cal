@@ -33,6 +33,7 @@
     cleaning: false,
     cleanupAbort: null,
     backend: null,
+    ocrGaps: null,
     analyzing: false,
     abort: null
   };
@@ -805,7 +806,8 @@
     return { year: state.year, month: state.month };
   }
 
-  function runParse() {
+  function runParse(keepGaps) {
+    if (!keepGaps) state.ocrGaps = null;
     var text = $('pasteInput').value;
     if (!text.trim()) {
       hidePreview();
@@ -855,6 +857,8 @@
     } else {
       memoBox.hidden = true;
     }
+
+    showMissingDays();
 
     var gapBox = $('previewGaps');
     if (noTimeList.length) {
@@ -954,6 +958,37 @@
     }
   }
 
+  /**
+   * 읽기에 실패한 날이 있으면 알리고 반영을 막는다.
+   * 크루넷 달력은 날마다 코드가 있으니, 빈 날은 못 읽은 날이다.
+   * 조용히 반영해 버리면 그 날이 '추정 휴무' 로 덮여 잘못을 알아볼 수 없다.
+   */
+  function showMissingDays() {
+    var box = $('previewMissing');
+    var apply = $('applyBtn');
+    var gaps = state.ocrGaps;
+    if (!gaps || (!gaps.missingDays.length && !gaps.strayDays.length)) {
+      box.hidden = true;
+      apply.disabled = false;
+      apply.title = '';
+      return;
+    }
+    var parts = [];
+    if (gaps.missingDays.length) {
+      parts.push('못 읽은 날 ' + gaps.missingDays.length + '일: ' +
+        gaps.missingDays.join(', ') + '일');
+    }
+    if (gaps.strayDays.length) {
+      parts.push('칸 가르기가 어긋났습니다(' +
+        gaps.strayDays.map(function (x) { return x.day + '일 칸에 "' + x.token + '"'; }).join(', ') + ')');
+    }
+    box.textContent = parts.join(' · ') +
+      ' — 더 또렷하게 다시 찍거나, 아래 글을 직접 고친 뒤 다시 읽기를 누르세요.';
+    box.hidden = false;
+    apply.disabled = true;
+    apply.title = '못 읽은 날이 있어 반영할 수 없습니다.';
+  }
+
   function hidePreview() {
     state.preview = null;
     $('preview').hidden = true;
@@ -999,6 +1034,7 @@
     }
 
     var res = store.applyEntries(entries, mode, opts);
+    assertStoredMatchesPreview(entries, mode);
     var first = entries[0].date;
     state.year = +first.slice(0, 4);
     state.month = +first.slice(5, 7);
@@ -1221,7 +1257,8 @@
         if (result.text) {
           $('pasteInput').value = result.text;
           showTab('paste');
-          runParse();
+          state.ocrGaps = { missingDays: result.missingDays || [], strayDays: result.strayDays || [] };
+      runParse(true);
           setStatus('읽은 내용을 붙여넣기 탭의 미리보기로 넘겼습니다. 틀린 곳은 고친 뒤 반영하세요.', 'ok');
           return;
         }
@@ -1500,6 +1537,35 @@
   }
 
   /** 기억해둔 편명 목록을 그린다. */
+  /**
+   * 반영한 뒤 저장된 것이 미리보기와 같은지 확인한다.
+   * 미리보기에는 ADO 하나뿐인데 달력에는 비행이 붙어 있던 일이 있었다.
+   * 미리보기에 보인 배열이 곧 저장되는 배열이어야 한다. 어긋나면 터뜨린다.
+   */
+  function assertStoredMatchesPreview(entries, mode) {
+    if (mode !== 'replace') return;          // 이어 붙이기는 기존 것이 함께 남는다
+    var want = {};
+    entries.forEach(function (e) {
+      (want[e.date] = want[e.date] || []).push(store.normalizeCode(e.code));
+    });
+    var got = store.getRange(store.dateSpan(entries, {}).from, store.dateSpan(entries, {}).to);
+    var wrong = [];
+    Object.keys(want).forEach(function (date) {
+      var a = want[date].slice().sort().join(',');
+      var b = (got[date] || []).map(function (e) { return e.code; }).sort().join(',');
+      if (a !== b) wrong.push(date + ' 미리보기[' + a + '] 저장[' + b + ']');
+    });
+    Object.keys(got).forEach(function (date) {
+      if (!want[date] && got[date].length) {
+        wrong.push(date + ' 미리보기에 없는데 저장됨[' +
+          got[date].map(function (e) { return e.code; }).join(',') + ']');
+      }
+    });
+    if (wrong.length) {
+      throw new Error('미리보기와 저장된 일정이 다릅니다: ' + wrong.join(' / '));
+    }
+  }
+
   /** 보고 있는 달만 비운다. 꼬인 달을 한 번에 정리할 때 쓴다. */
   function clearThisMonth() {
     var month = state.year + '-' + pad2(state.month);
@@ -1680,7 +1746,7 @@
   /* ---------------- 동료가 보내는 의견 ---------------- */
 
   // 화면 아래와 의견 보내기에 적히는 판 번호. sw.js 의 VERSION 과 함께 올린다.
-  var APP_VERSION = 'v30';
+  var APP_VERSION = 'v31';
 
   /**
    * 의견을 받을 메일 주소. 저장소가 공개라 통짜로 적어두면 스팸 크롤러가 긁어가므로

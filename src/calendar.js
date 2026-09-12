@@ -97,6 +97,17 @@
     if (role === 'arrive' && entry.end) {
       return entry.end + (arrivesKorea(entry) ? ' 한국 도착' : ' 도착');
     }
+    // 시각을 모르는 편(달력 캡처)도 어느 쪽으로 가는 편인지는 구간이 알려 준다.
+    // 없는 값을 지어내는 것이 아니라 ICN/HKG 가 곧 '출발' 이라는 뜻이다.
+    if (!entry.start && !entry.end && entry.type === 'flight') {
+      // 날을 넘겨 나는 편은 그날이 출발인지 기내인지 도착인지가 먼저다
+      if (role === 'enroute') return '';
+      if (role === 'depart') return '출발';
+      if (role === 'arrive') return arrivesKorea(entry) ? '한국 도착' : '도착';
+      var korea = arrivesKorea(entry);
+      if (korea === true) return '한국 도착';
+      if (korea === false && entry.route) return '출발';
+    }
     if (full && entry.start) return entry.start + ' 출발';
     return '';
   }
@@ -441,8 +452,11 @@
 
           // 큰 글씨 밑에는 작은 글씨로 한 줄. 도시 밑에는 편명(체류면 '체류'),
           // 휴무·대기처럼 이름이 제목인 경우에는 원래 코드를 적는다.
+          // 큰 글씨가 도시면 아래에 원래 코드를 적는다. 체류도 LO 가 보여야
+          // 어떤 근무였는지 알아볼 수 있다.
           var subText = (place || enroute)
-            ? (e.type === 'flight' ? e.code : (e.label || ''))
+            ? (e.type === 'flight' ? e.code
+              : (e.label || '') + (e.code && e.code !== e.label ? ' ' + e.code : ''))
             : (e.type === 'flight' ? '' : (e.code !== e.label ? e.code : ''));
           if (subText) {
             var sub = document.createElement('span');

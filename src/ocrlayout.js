@@ -79,7 +79,7 @@
     // 편명 뒤에 판 테두리가 글자 한 자로 붙어 읽히는 일이 있다(KE1820F).
     // 떼어 낸 쪽이 시간표에 있는 편이면 떼어 낸다.
     var suffix = /^([A-Z]{2}\d{4})[A-Z]$/.exec(token);
-    if (suffix && schedule && schedule.lookup(suffix[1])) return suffix[1];
+    if (suffix && codes && codes.isFlightCode && codes.isFlightCode(suffix[1])) return suffix[1];
 
     // 앞에 글자가 한둘 붙어 읽힌 편명(IKEO703)은 뒤쪽만 떼어 본다
     if (token.length > 6 && /^[A-Z]/.test(token)) {
@@ -88,11 +88,19 @@
       if (guess && schedule && schedule.lookup(guess)) return guess;
     }
 
-    // 편명. 글자로 읽힌 것을 숫자로 되돌리기만 한다(O -> 0). 되돌릴 길이 여럿이면
-    // 손대지 않는다. 시간표를 보고 비슷한 편으로 갈아 끼우는 일은 하지 않는다.
-    // KE0601 이 KE0502 로 바뀌어 나온 일이 있었다. 읽은 숫자가 곧 편명이다.
+    // 편명. 항공사 두 글자 뒤는 숫자 자리다. 글자로 읽힌 것을 숫자로 되돌린다.
+    // (KE000S -> KE0005) 숫자를 다른 숫자로 바꾸지는 않는다. 시간표를 보고 비슷한
+    // 편으로 갈아 끼우지도 않는다. KE0601 이 KE0502 로 바뀌어 나온 일이 있었다.
     var flight = new RegExp('^([A-Z]{2})([' + DIGITISH + ']{3,7})$').exec(token);
     if (flight) {
+      var digits = toDigits(flight[2]);
+      if (digits) {
+        var trimmed = digits.replace(/^0+/, '') || '0';
+        if (trimmed.length <= 4) {
+          while (trimmed.length < 4) trimmed = '0' + trimmed;
+          return flight[1] + trimmed;
+        }
+      }
       var candidates = flightCandidates(flight[1], flight[2]);
       return candidates.length === 1 ? candidates[0] : token;
     }
@@ -136,6 +144,24 @@
    * 헷갈리는 글자를 숫자로 바꿔 가며 있을 법한 편명을 모두 만든다.
    * 앞의 0 을 떼고 네 자리로 맞추므로 KE00035 도 KE0035 가 된다.
    */
+  /**
+   * 편명 숫자 자리에 섞여 든 글자를 숫자로 되돌린다. 인식기가 자주 헷갈리는 짝만
+   * 다룬다. 되돌릴 수 없는 글자가 있으면 null 을 준다(편명으로 인정하지 않는다).
+   */
+  var AS_DIGIT = { S: '5', O: '0', Q: '0', D: '0', I: '1', L: '1', J: '1', B: '8', Z: '2', G: '6', T: '7' };
+
+  function toDigits(text) {
+    var out = '';
+    for (var i = 0; i < text.length; i++) {
+      var ch = text[i];
+      if (ch >= '0' && ch <= '9') { out += ch; continue; }
+      var swap = AS_DIGIT[ch.toUpperCase()];
+      if (!swap) return null;
+      out += swap;
+    }
+    return out;
+  }
+
   function flightCandidates(prefix, digits) {
     var out = [''];
     for (var i = 0; i < digits.length; i++) {
@@ -445,49 +471,112 @@
    * 칸은 달력 전체에서 잡은 세로줄로 나누고, 글자는 가장 가까운 세로줄에 담는다.
    * 숫자를 왼쪽에 붙여 쓰는 달력도, 가운데에 놓는 달력도 이 기준이면 같이 맞는다.
    */
-  function fromCalendar(rowList) {
-    var out = [];
-    var dayRows = [];
-    rowList.forEach(function (row, index) { if (isDayRow(row)) dayRows.push(index); });
-    if (!dayRows.length) return out;
+  /**
+   * 달력을 2차원 칸으로 먼저 가른다.
+   *
+   * 예전에는 글자 줄을 위에서 아래로 훑다가 "날짜 줄"을 만나면 한 주를 끊었다.
+   * 그런데 날짜 숫자가 옆 칸 글자와 같은 띠로 묶여 읽히면 그 줄을 날짜 줄로
+   * 알아보지 못했고, 그 주가 통째로 앞 주에 흘러들었다. (1월 11~17일 내용이
+   * 4~10일 칸에 열까지 그대로 맞춰 들어간 일이 있었다.)
+   *
+   * 그래서 이제 날짜 숫자만 따로 모아 그 자리로 가로줄을 잡는다. 숫자가 무엇과
+   * 같은 띠에 묶여 읽혔든 상관없다. 세로줄은 그 날짜 숫자들의 x 로 잡는다.
+   * 글자는 자기가 든 (가로줄, 세로줄) 칸에만 귀속된다.
+   */
+  function gridOf(rowList) {
+    var words = [];
+    rowList.forEach(function (row) { row.words.forEach(function (w) { words.push(w); }); });
+    if (!words.length) return null;
+    var tall = median(words.map(function (w) { return w.h; })) || 10;
 
-    // 한 주가 차지하는 높이. 마지막 주 아래의 딴 글(메뉴 따위)을 끊는 데 쓴다.
-    var heights = [];
-    for (var d = 1; d < dayRows.length; d++) {
-      heights.push(rowList[dayRows[d]].cy - rowList[dayRows[d - 1]].cy);
-    }
-    var weekHeight = heights.length ? median(heights) : Infinity;
+    // 1) 날짜 숫자처럼 생긴 글자만 모은다
+    var marks = words.filter(function (w) { return DAY.test(w.text); });
+    if (marks.length < 3) return null;
 
-    var columns = columnsOf(dayRows.map(function (index) { return rowList[index]; }));
-    if (!columns.length) return out;
-
-    // 칸에 근무를 붙이는 기준은 오직 '그 칸에서 실제로 읽은 날짜 숫자' 다.
-    // 예전에는 첫 주가 안 읽히면 다음 주에서 이레를 빼 자리로 날짜를 지어냈다.
-    // 그러다 1월 1일(목)처럼 앞이 빈 달에서 엉뚱한 날의 근무가 복제됐다.
-    // 날짜를 못 읽은 칸은 지어내지 않고 버린다.
-
-    dayRows.forEach(function (index, which) {
-      var row = rowList[index];
-      var days = daysOfWeekRow(row, columns);
-      var cells = days.map(function (day) { return { day: day, tokens: [] }; });
-      var stopBelow = which === dayRows.length - 1 ? row.cy + weekHeight : Infinity;
-
-      for (var i = index + 1; i < rowList.length; i++) {
-        if (isDayRow(rowList[i])) break;                    // 다음 주
-        if (rowList[i].cy > stopBelow) break;               // 달력 아래의 딴 글
-        rowList[i].words.forEach(function (word) {
-          var col = columnOf(word.cx, columns);
-          if (col == null) return;             // 어느 칸에도 들지 않는 글자는 버린다
-          cells[col].tokens.push(word.text);
-        });
+    // 2) y 로 묶어 가로줄 후보를 만든다
+    var bands = [];
+    marks.slice().sort(function (a, b) { return a.cy - b.cy; }).forEach(function (w) {
+      var band = bands[bands.length - 1];
+      if (!band || Math.abs(w.cy - band.cy) > tall * 0.8) {
+        bands.push({ cy: w.cy, marks: [w] });
+        return;
       }
+      band.marks.push(w);
+      band.cy = band.marks.reduce(function (sum, m) { return sum + m.cy; }, 0) / band.marks.length;
+    });
 
-      cells.forEach(function (cell) {
+    // 3) 달력 날짜 줄처럼 생긴 것만 남긴다: 둘 이상이 서로 다른 자리에서 커져 간다.
+    //    첫 주·마지막 주는 날짜가 몇 개 안 읽히는 일이 잦아 둘까지 받아 준다.
+    var dayRows = bands.filter(function (band) {
+      if (band.marks.length < 2) return false;
+      var sorted = band.marks.slice().sort(function (a, b) { return a.cx - b.cx; });
+      var breaks = 0;
+      for (var i = 1; i < sorted.length; i++) {
+        if (+sorted[i].text <= +sorted[i - 1].text) breaks++;
+      }
+      return breaks <= 1;            // 달이 바뀌는 주는 한 번 꺾인다
+    });
+    if (!dayRows.length) return null;
+
+    var columns = columnsOf(dayRows.map(function (band) { return { words: band.marks }; }));
+    if (!columns.length) return null;
+
+    // 4) 가로줄마다 위아래 경계를 정한다. 마지막 줄 아래는 한 주 높이까지만.
+    var gaps = [];
+    for (var d = 1; d < dayRows.length; d++) gaps.push(dayRows[d].cy - dayRows[d - 1].cy);
+    // 한 주뿐이면 아래 글자까지 다 그 주의 것으로 본다
+    var lowest = words.reduce(function (max, w) { return Math.max(max, w.cy); }, 0);
+    var weekHeight = gaps.length ? median(gaps) : (lowest - dayRows[0].cy) + tall;
+    dayRows.forEach(function (band) {
+      band.days = daysOfWeekRow({ words: band.marks }, columns);
+      band.markSet = {};
+      band.marks.forEach(function (m) { band.markSet[m.x0 + '|' + m.y0 + '|' + m.text] = true; });
+    });
+
+    return { dayRows: dayRows, columns: columns, words: words, weekHeight: weekHeight, tall: tall };
+  }
+
+  /** 2차원 칸으로 가른 뒤 칸마다 글자를 담는다. 날짜 숫자는 내용에서 뺀다. */
+  function fromCalendar(rowList) {
+    var grid = gridOf(rowList);
+    if (!grid) return [];
+
+    var cells = [];
+    grid.dayRows.forEach(function (band) {
+      band.cells = band.days.map(function (day) { return { day: day, tokens: [] }; });
+    });
+
+    // 글자는 자기 바로 위의 날짜 줄에 딸린다. 날짜 숫자가 아래 주의 글자와 같은
+    // 높이로 읽혀도, 그 글자는 여전히 위쪽 날짜 줄의 것이다.
+    var lastBand = grid.dayRows[grid.dayRows.length - 1];
+    grid.words.forEach(function (word) {
+      var band = null;
+      for (var i = 0; i < grid.dayRows.length; i++) {
+        if (grid.dayRows[i].cy <= word.cy + grid.tall * 0.3) band = grid.dayRows[i];
+        else break;
+      }
+      if (!band) return;                                            // 첫 날짜 줄보다 위
+      if (word.cy > lastBand.cy + grid.weekHeight) return;          // 달력 아래의 딴 글
+      if (band.markSet[word.x0 + '|' + word.y0 + '|' + word.text]) return;   // 날짜 숫자 자신
+      var col = columnOf(word.cx, grid.columns);
+      if (col == null) return;                                      // 어느 칸에도 안 든다
+      band.cells[col].tokens.push(word);
+    });
+
+    grid.dayRows.forEach(function (band) {
+      band.cells.forEach(function (cell) {
         if (cell.day == null || !cell.tokens.length) return;
-        out.push({ day: cell.day, tokens: splitCodes(joinTimes(cell.tokens)) });
+        // 칸 안에서는 위에서 아래로, 같은 높이면 왼쪽부터
+        cell.tokens.sort(function (a, b) {
+          return Math.abs(a.cy - b.cy) > 4 ? a.cy - b.cy : a.x0 - b.x0;
+        });
+        cells.push({
+          day: cell.day,
+          tokens: splitCodes(joinTimes(cell.tokens.map(function (w) { return w.text; })))
+        });
       });
     });
-    return out;
+    return cells;
   }
 
   /**
@@ -532,6 +621,36 @@
    * 달력 칸을 글줄로 옮긴다. 몇 년 몇 월인지 알면 날짜를 또렷이 적는다. 날짜만 적어
    * 두면 파서가 달이 넘어갔다고 잘못 볼 수 있어서다.
    */
+  /**
+   * 그 달에서 아무것도 못 읽은 날. 크루넷 달력은 날마다 코드가 있으니
+   * 빈 날이 있으면 읽기에 실패한 것이다.
+   */
+  function missingDays(cells, opts) {
+    if (!opts || !opts.year || !opts.month) return [];
+    var last = new Date(Date.UTC(opts.year, opts.month, 0)).getUTCDate();
+    var seen = {};
+    cells.forEach(function (cell) {
+      if (cell.day >= 1 && cell.day <= last && cell.tokens.length) seen[cell.day] = true;
+    });
+    var out = [];
+    for (var d = 1; d <= last; d++) if (!seen[d]) out.push(d);
+    return out;
+  }
+
+  /**
+   * 칸 안에 홀로 남은 1~31 숫자. 칸 가르기가 어긋나 옆 날의 날짜 숫자가
+   * 딸려 들어왔다는 표다. 조용히 넘기지 않고 알린다.
+   */
+  function strayDays(cells) {
+    var out = [];
+    cells.forEach(function (cell) {
+      cell.tokens.forEach(function (token) {
+        if (DAY.test(token)) out.push({ day: cell.day, token: token });
+      });
+    });
+    return out;
+  }
+
   function cellLines(cells, opts) {
     var seen = {};
     var out = [];
@@ -586,7 +705,9 @@
         }).join('\n'),
         shape: 'list',
         unsure: unsure,
-        dropped: 0
+        dropped: 0,
+        missingDays: [],
+        strayDays: []
       };
     }
 
@@ -595,6 +716,8 @@
       var trimmed = trimOtherMonths(cells);
       return {
         text: cellLines(trimmed.cells, opts).join('\n'),
+        missingDays: missingDays(trimmed.cells, opts),
+        strayDays: strayDays(trimmed.cells),
         shape: 'calendar',
         unsure: unsure,
         dropped: trimmed.dropped
@@ -615,9 +738,14 @@
   return {
     toText: toText,
     cellLines: cellLines,
+    missingDays: missingDays,
+    strayDays: strayDays,
+    gridOf: gridOf,
     columnOf: columnOf,
     fixCode: fixCode,
     flightDigits: flightDigits,
+    toDigits: toDigits,
+    AS_DIGIT: AS_DIGIT,
     keepFlightNumber: keepFlightNumber,
     snapToKnownCode: snapToKnownCode,
     columnsOf: columnsOf,
