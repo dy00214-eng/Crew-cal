@@ -632,10 +632,13 @@
    */
   function readMonth(worker, prepared) {
     var full = prepared.full;
-    var height = Math.min(full.height, prepared.crop.top + 120);
+    // 달 표시는 달력 위 어딘가에 있다. 판이 시작되는 자리 위쪽을 넉넉히 훑는다.
+    // 좁게 보다가 못 찾아 엉뚱한 달(그 달 대신 이번 달)로 넣는 일이 있었다.
+    var height = Math.min(full.height, Math.max(prepared.crop.top + 160, full.height * 0.4));
     if (height < 60) return Promise.resolve(null);
 
-    var zoom = 2;
+    // 글자가 작으면 2배로는 안 읽힌다. 너무 크면 느리니 한 변 3000 안쪽으로.
+    var zoom = Math.max(2, Math.min(4, Math.floor(3000 / Math.max(full.width, 1))));
     var canvas = document.createElement('canvas');
     canvas.width = full.width * zoom;
     canvas.height = height * zoom;

@@ -721,7 +721,18 @@
       hidePreview();
     });
 
-    $('parseBtn').addEventListener('click', runParse);
+    $('parseBtn').addEventListener('click', function () { runParse(); });
+
+    // 기준 연·월을 고치면 읽어 온 글의 날짜도 그 달로 옮긴다.
+    // 1월 캡처가 9월로 들어갔을 때 연·월만 고쳐서는 아무것도 안 바뀌던 것.
+    $('pasteBase').addEventListener('change', function () {
+      var moved = retargetMonth($('pasteInput').value, $('pasteBase').value);
+      if (moved.changed) {
+        $('pasteInput').value = moved.text;
+        toast(moved.from + ' 로 읽힌 날짜를 ' + $('pasteBase').value + ' 로 옮겼습니다.');
+      }
+      if ($('pasteInput').value.trim()) runParse();
+    });
     $('cleanupBtn').addEventListener('click', runCleanup);
 
     // 텍스트 정리는 Claude 를 부를 수 있는 화면에서만 쓸 수 있다
@@ -804,6 +815,26 @@
       return { year: +raw.slice(0, 4), month: +raw.slice(5, 7) };
     }
     return { year: state.year, month: state.month };
+  }
+
+  /**
+   * 읽어 온 글의 'YYYY-MM-' 을 기준 연·월로 바꾼다.
+   * 달이 한 가지로만 읽혔을 때만 손댄다. 여러 달이 섞였으면 그대로 둔다.
+   */
+  function retargetMonth(text, base) {
+    if (!/^\d{4}-\d{2}$/.test(base || '')) return { text: text, changed: false };
+    var months = {};
+    String(text || '').replace(/\b(\d{4}-\d{2})-\d{2}\b/g, function (all, ym) {
+      months[ym] = true;
+      return all;
+    });
+    var list = Object.keys(months);
+    if (list.length !== 1 || list[0] === base) return { text: text, changed: false };
+    return {
+      text: text.replace(new RegExp('\\b' + list[0] + '-', 'g'), base + '-'),
+      changed: true,
+      from: list[0]
+    };
   }
 
   function runParse(keepGaps) {
@@ -965,15 +996,18 @@
    */
   function showMissingDays() {
     var box = $('previewMissing');
-    var apply = $('applyBtn');
     var gaps = state.ocrGaps;
-    if (!gaps || (!gaps.missingDays.length && !gaps.strayDays.length)) {
+    if (!hasBlockingGaps()) {
       box.hidden = true;
-      apply.disabled = false;
-      apply.title = '';
+      updateApplyButton();
       return;
     }
+    updateApplyButton();
     var parts = [];
+    if (gaps.noMonth) {
+      parts.push('화면에서 몇 월인지 못 읽었습니다. 아래 "기준 연·월" 이 ' +
+        $('pasteBase').value + ' 로 맞는지 꼭 확인하세요');
+    }
     if (gaps.missingDays.length) {
       parts.push('못 읽은 날 ' + gaps.missingDays.length + '일: ' +
         gaps.missingDays.join(', ') + '일');
@@ -983,10 +1017,8 @@
         gaps.strayDays.map(function (x) { return x.day + '일 칸에 "' + x.token + '"'; }).join(', ') + ')');
     }
     box.textContent = parts.join(' · ') +
-      ' — 더 또렷하게 다시 찍거나, 아래 글을 직접 고친 뒤 다시 읽기를 누르세요.';
+      ' — 고친 뒤 "다시 읽기" 를 누르면 반영할 수 있습니다.';
     box.hidden = false;
-    apply.disabled = true;
-    apply.title = '못 읽은 날이 있어 반영할 수 없습니다.';
   }
 
   function hidePreview() {
@@ -1006,10 +1038,18 @@
     return state.preview.entries.filter(function (e) { return checked[e.id]; });
   }
 
+  /** 읽기에 실패한 데가 있으면 반영을 막는다. 버튼 상태는 여기 한 군데서 정한다. */
+  function hasBlockingGaps() {
+    var gaps = state.ocrGaps;
+    return !!gaps && !!(gaps.missingDays.length || gaps.strayDays.length || gaps.noMonth);
+  }
+
   function updateApplyButton() {
     var n = selectedPreviewEntries().length;
+    var blocked = hasBlockingGaps();
     var btn = $('applyBtn');
-    btn.disabled = n === 0;
+    btn.disabled = n === 0 || blocked;
+    btn.title = blocked ? '읽기에 실패한 데가 있어 반영할 수 없습니다. 위 안내를 보세요.' : '';
     btn.textContent = n ? '캘린더에 반영 (' + n + '건)' : '캘린더에 반영';
   }
 
@@ -1257,8 +1297,12 @@
         if (result.text) {
           $('pasteInput').value = result.text;
           showTab('paste');
-          state.ocrGaps = { missingDays: result.missingDays || [], strayDays: result.strayDays || [] };
-      runParse(true);
+          state.ocrGaps = {
+            missingDays: result.missingDays || [],
+            strayDays: result.strayDays || [],
+            noMonth: false
+          };
+          runParse(true);
           setStatus('읽은 내용을 붙여넣기 탭의 미리보기로 넘겼습니다. 틀린 곳은 고친 뒤 반영하세요.', 'ok');
           return;
         }
@@ -1331,7 +1375,13 @@
 
       $('pasteInput').value = result.text;
       showTab('paste');
-      runParse();
+      state.ocrGaps = {
+        missingDays: result.missingDays || [],
+        strayDays: result.strayDays || [],
+        // 화면에서 연·월을 못 읽었으면 엉뚱한 달에 들어갈 수 있다. 그냥 넘기지 않는다.
+        noMonth: !result.month
+      };
+      runParse(true);
 
       var notes = [];
       if (result.month) {
@@ -1746,7 +1796,7 @@
   /* ---------------- 동료가 보내는 의견 ---------------- */
 
   // 화면 아래와 의견 보내기에 적히는 판 번호. sw.js 의 VERSION 과 함께 올린다.
-  var APP_VERSION = 'v32';
+  var APP_VERSION = 'v33';
 
   /**
    * 의견을 받을 메일 주소. 저장소가 공개라 통짜로 적어두면 스팸 크롤러가 긁어가므로
