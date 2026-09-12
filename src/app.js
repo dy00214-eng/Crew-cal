@@ -983,10 +983,8 @@
     if (!entries.length) return;
 
     var mode = document.querySelector('input[name=applyMode]:checked').value;
-    var opts = {};
-    if ($('clearMonth') && $('clearMonth').checked) {
-      opts.clearMonth = entries[0].date.slice(0, 7);
-    }
+    // 덮어쓰기는 그 달을 읽은 대로 새로 맞춘다. 예전에 잘못 들어간 날이 남지 않도록.
+    var opts = mode === 'replace' ? { clearMonth: entries[0].date.slice(0, 7) } : {};
     if (mode === 'replace') {
       var span = store.dateSpan(entries, opts);
       var existing = store.countInRange(span);
@@ -995,7 +993,7 @@
           ? opts.clearMonth.replace('-', '년 ') + '월 전체'
           : span.from + ' ~ ' + span.to;
         var ok = window.confirm(what + ' 의 기존 일정 ' + existing + '건을 지우고 ' +
-          entries.length + '건을 반영합니다. 계속할까요?');
+          entries.length + '건으로 새로 맞춥니다. 계속할까요?');
         if (!ok) return;
       }
     }
@@ -1502,7 +1500,21 @@
   }
 
   /** 기억해둔 편명 목록을 그린다. */
+  /** 보고 있는 달만 비운다. 꼬인 달을 한 번에 정리할 때 쓴다. */
+  function clearThisMonth() {
+    var month = state.year + '-' + pad2(state.month);
+    var label = monthLabel(state.year, state.month);
+    var count = store.countInRange(store.dateSpan([], { clearMonth: month }));
+    if (!count) return toast(label + ' 에는 일정이 없습니다.');
+    if (!window.confirm(label + ' 일정 ' + count + '건을 지웁니다. 계속할까요?')) return;
+    store.applyEntries([], 'replace', { clearMonth: month });
+    refresh();
+    toast(count + '건을 지웠습니다. 다시 읽어 넣으세요.');
+  }
+
   function initDataTools() {
+    $('clearMonthBtn').addEventListener('click', clearThisMonth);
+
 
 
     $('exportBtn').addEventListener('click', exportBackup);
@@ -1668,7 +1680,7 @@
   /* ---------------- 동료가 보내는 의견 ---------------- */
 
   // 화면 아래와 의견 보내기에 적히는 판 번호. sw.js 의 VERSION 과 함께 올린다.
-  var APP_VERSION = 'v29';
+  var APP_VERSION = 'v30';
 
   /**
    * 의견을 받을 메일 주소. 저장소가 공개라 통짜로 적어두면 스팸 크롤러가 긁어가므로

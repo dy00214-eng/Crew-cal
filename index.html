@@ -206,9 +206,8 @@
         </div>
         <fieldset class="apply-mode">
           <legend>기존 일정 처리</legend>
-          <label><input type="radio" name="applyMode" value="replace" checked> 해당 날짜 기존 일정을 덮어쓰기</label>
+          <label><input type="radio" name="applyMode" value="replace" checked> 이 달을 읽은 대로 새로 맞추기 <em>(예전에 잘못 들어간 날도 정리됩니다)</em></label>
           <label><input type="radio" name="applyMode" value="merge"> 기존 일정에 이어 붙이기</label>
-          <label><input type="checkbox" id="clearMonth"> 이 달에 있던 일정을 먼저 전부 지우기 <em>(예전에 잘못 들어간 날까지 정리됩니다)</em></label>
         </fieldset>
         <div class="actions">
           <button type="button" id="applyBtn" class="primary">캘린더에 반영</button>
@@ -349,6 +348,7 @@
       <button type="button" id="exportBtn" class="ghost small">백업 내보내기</button>
       <button type="button" id="importBtn" class="ghost small">백업 불러오기</button>
       <input type="file" id="importInput" accept="application/json" hidden>
+      <button type="button" id="clearMonthBtn" class="ghost small danger">이 달 지우기</button>
       <button type="button" id="clearAllBtn" class="ghost small danger">전체 삭제</button>
       <a id="mapLink" class="ghost small map-link" href="map/" hidden>가본 도시 지도</a>
       <button type="button" id="shareBtn" class="ghost small" hidden>동료에게 링크 보내기</button>

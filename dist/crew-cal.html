@@ -1564,9 +1564,8 @@ button.ghost.danger { color: var(--danger); }
         </div>
         <fieldset class="apply-mode">
           <legend>기존 일정 처리</legend>
-          <label><input type="radio" name="applyMode" value="replace" checked> 해당 날짜 기존 일정을 덮어쓰기</label>
+          <label><input type="radio" name="applyMode" value="replace" checked> 이 달을 읽은 대로 새로 맞추기 <em>(예전에 잘못 들어간 날도 정리됩니다)</em></label>
           <label><input type="radio" name="applyMode" value="merge"> 기존 일정에 이어 붙이기</label>
-          <label><input type="checkbox" id="clearMonth"> 이 달에 있던 일정을 먼저 전부 지우기 <em>(예전에 잘못 들어간 날까지 정리됩니다)</em></label>
         </fieldset>
         <div class="actions">
           <button type="button" id="applyBtn" class="primary">캘린더에 반영</button>
@@ -1707,6 +1706,7 @@ button.ghost.danger { color: var(--danger); }
       <button type="button" id="exportBtn" class="ghost small">백업 내보내기</button>
       <button type="button" id="importBtn" class="ghost small">백업 불러오기</button>
       <input type="file" id="importInput" accept="application/json" hidden>
+      <button type="button" id="clearMonthBtn" class="ghost small danger">이 달 지우기</button>
       <button type="button" id="clearAllBtn" class="ghost small danger">전체 삭제</button>
       <a id="mapLink" class="ghost small map-link" href="map/" hidden>가본 도시 지도</a>
       <button type="button" id="shareBtn" class="ghost small" hidden>동료에게 링크 보내기</button>
@@ -14657,10 +14657,8 @@ button.ghost.danger { color: var(--danger); }
     if (!entries.length) return;
 
     var mode = document.querySelector('input[name=applyMode]:checked').value;
-    var opts = {};
-    if ($('clearMonth') && $('clearMonth').checked) {
-      opts.clearMonth = entries[0].date.slice(0, 7);
-    }
+    // 덮어쓰기는 그 달을 읽은 대로 새로 맞춘다. 예전에 잘못 들어간 날이 남지 않도록.
+    var opts = mode === 'replace' ? { clearMonth: entries[0].date.slice(0, 7) } : {};
     if (mode === 'replace') {
       var span = store.dateSpan(entries, opts);
       var existing = store.countInRange(span);
@@ -14669,7 +14667,7 @@ button.ghost.danger { color: var(--danger); }
           ? opts.clearMonth.replace('-', '년 ') + '월 전체'
           : span.from + ' ~ ' + span.to;
         var ok = window.confirm(what + ' 의 기존 일정 ' + existing + '건을 지우고 ' +
-          entries.length + '건을 반영합니다. 계속할까요?');
+          entries.length + '건으로 새로 맞춥니다. 계속할까요?');
         if (!ok) return;
       }
     }
@@ -15176,7 +15174,21 @@ button.ghost.danger { color: var(--danger); }
   }
 
   /** 기억해둔 편명 목록을 그린다. */
+  /** 보고 있는 달만 비운다. 꼬인 달을 한 번에 정리할 때 쓴다. */
+  function clearThisMonth() {
+    var month = state.year + '-' + pad2(state.month);
+    var label = monthLabel(state.year, state.month);
+    var count = store.countInRange(store.dateSpan([], { clearMonth: month }));
+    if (!count) return toast(label + ' 에는 일정이 없습니다.');
+    if (!window.confirm(label + ' 일정 ' + count + '건을 지웁니다. 계속할까요?')) return;
+    store.applyEntries([], 'replace', { clearMonth: month });
+    refresh();
+    toast(count + '건을 지웠습니다. 다시 읽어 넣으세요.');
+  }
+
   function initDataTools() {
+    $('clearMonthBtn').addEventListener('click', clearThisMonth);
+
 
 
     $('exportBtn').addEventListener('click', exportBackup);
@@ -15342,7 +15354,7 @@ button.ghost.danger { color: var(--danger); }
   /* ---------------- 동료가 보내는 의견 ---------------- */
 
   // 화면 아래와 의견 보내기에 적히는 판 번호. sw.js 의 VERSION 과 함께 올린다.
-  var APP_VERSION = 'v29';
+  var APP_VERSION = 'v30';
 
   /**
    * 의견을 받을 메일 주소. 저장소가 공개라 통짜로 적어두면 스팸 크롤러가 긁어가므로
