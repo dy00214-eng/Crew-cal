@@ -207,10 +207,20 @@ test('모르는 코드는 버리지 않고 미확인으로 표시하고 경고�
   assert.strictEqual(r.warnings.length, 1);
 });
 
-test('날짜를 못 찾은 코드 줄은 경고로 남는다', () => {
+test('날짜를 못 찾은 코드 줄은 고칠 수 있게 못 읽은 줄로 남는다', () => {
+  // 경고에 묻어 두면 못 보고 지나친다. 사유를 달아 '읽지 못한 줄' 에 올려
+  // 그 자리에서 날짜를 적어 다시 읽을 수 있게 한다.
   const r = parse('KE0035\nLO');
   assert.strictEqual(r.entries.length, 0);
-  assert.strictEqual(r.warnings.length, 2);
+  assert.strictEqual(r.skippedLines.length, 2);
+  assert.deepStrictEqual(r.skippedLines.map((x) => x.text), ['KE0035', 'LO']);
+  assert.ok(r.skippedLines.every((x) => x.reason === '날짜 없음'), JSON.stringify(r.skippedLines));
+});
+
+test('못 읽은 줄에는 언제나 사유가 붙는다', () => {
+  const r = parse(['소속 : 객실승무본부', '2026-09-05 KE0035', 'LO'].join('\n'));
+  assert.ok(r.skippedLines.length >= 1);
+  assert.ok(r.skippedLines.every((x) => x.reason), JSON.stringify(r.skippedLines));
 });
 
 test('같은 날짜·코드 중복은 한 번만 담는다', () => {

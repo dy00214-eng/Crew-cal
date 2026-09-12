@@ -1061,6 +1061,8 @@
 
   function showPreview(result) {
     state.preview = result;
+    // 새로 읽었으면 '그래도 반영' 승인은 없던 일이 된다. 결과가 달라졌기 때문이다.
+    if (skipOverride !== result) skipOverride = null;
 
     if (!result.entries.length) {
       hidePreview();
@@ -1199,16 +1201,28 @@
   // 읽은 줄 대비 이만큼 넘게 놓치면 형식을 못 알아본 것으로 본다.
   var SKIP_LIMIT = 0.10;
 
-  /** 못 읽은 줄이 너무 많은가. 많으면 반영을 막는다 — 버린 채로 저장되면 안 된다. */
+  /**
+   * 못 읽은 줄이 너무 많은가. 많으면 반영을 막는다 — 버린 채로 저장되면 안 된다.
+   * 붙여넣은 글의 빈 줄을 뺀 전체 줄 수로 잰다. 읽어낸 건수로 나누면
+   * 한 줄에 코드가 여럿인 글에서 비율이 실제보다 낮게 나온다.
+   */
   function skipRatio(result) {
     if (!result) return 0;
     var skipped = (result.skippedLines || []).length;
-    var read = result.entries.length;
     if (!skipped) return 0;
-    return skipped / (skipped + read);
+    var total = String($('pasteInput').value || '')
+      .split('\n')
+      .filter(function (line) { return line.trim(); }).length;
+    if (!total) return 0;
+    return skipped / total;
   }
 
+  /* 사용자가 '그래도 반영' 을 고른 미리보기. 같은 결과에는 다시 묻지 않는다. */
+  var skipOverride = null;
+
   function tooManySkipped(result) {
+    if (!result) return false;
+    if (skipOverride && skipOverride === result) return false;
     return skipRatio(result) > SKIP_LIMIT;
   }
 
@@ -1254,11 +1268,31 @@
     var blocked = $('previewBlocked');
     if (tooManySkipped(result)) {
       box.open = true;
-      blocked.textContent = '입력 형식을 인식하지 못했습니다. ' +
-        skipped.length + '줄을 읽지 못했습니다(읽은 ' + result.entries.length + '건 대비 ' +
+      blocked.innerHTML = '';
+      var say = document.createElement('span');
+      say.textContent = '입력 형식을 인식하지 못했습니다. ' +
+        skipped.length + '줄을 읽지 못했습니다(붙여넣은 줄의 ' +
         Math.round(skipRatio(result) * 100) + '%). ' +
         '이대로 반영하면 그만큼이 빠진 채 저장됩니다. ' +
         '위 목록에서 고쳐 다시 읽거나, 크루넷 홈 화면(목록) 글을 붙여넣어 보세요.';
+      blocked.appendChild(say);
+      // 못 읽은 줄이 머리글·안내문뿐이라 읽은 것이 맞다면 그대로 넣을 수 있어야 한다.
+      // 막기만 하고 길을 안 주면 멀쩡한 일정도 못 넣는다.
+      var anyway = document.createElement('button');
+      anyway.type = 'button';
+      anyway.className = 'ghost small';
+      anyway.id = 'applyAnyway';
+      anyway.textContent = '읽은 ' + result.entries.length + '건만 그대로 반영하기';
+      anyway.addEventListener('click', function () {
+        skipOverride = result;
+        blocked.hidden = true;
+        updateApplyButton();
+        toast('못 읽은 ' + skipped.length + '줄은 빼고 반영합니다.');
+      });
+      var wrap = document.createElement('span');
+      wrap.className = 'actions';
+      wrap.appendChild(anyway);
+      blocked.appendChild(wrap);
       blocked.hidden = false;
     } else {
       blocked.hidden = true;
@@ -2092,7 +2126,7 @@
   /* ---------------- 동료가 보내는 의견 ---------------- */
 
   // 화면 아래와 의견 보내기에 적히는 판 번호. sw.js 의 VERSION 과 함께 올린다.
-  var APP_VERSION = 'v36';
+  var APP_VERSION = 'v37';
 
   /**
    * 의견을 받을 메일 주소. 저장소가 공개라 통짜로 적어두면 스팸 크롤러가 긁어가므로

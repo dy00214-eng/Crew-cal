@@ -868,17 +868,26 @@
       var lineHasItems = segments.some(function (x) { return x.items.length; });
 
       if (!lineHasItems) {
-        // 날짜도 근무도 못 읽어낸 줄. 왜 빠졌는지 볼 수 있게 남긴다.
-        if (!lineHasDate) skippedLines.push({ line: lineIndex + 1, text: trimmed });
-        else currentDates = segments[segments.length - 1].dates;
+        // 날짜도 근무도 못 읽어낸 줄. 왜 빠졌는지 볼 수 있게 사유와 함께 남긴다.
+        if (!lineHasDate) {
+          skippedLines.push({
+            line: lineIndex + 1,
+            text: trimmed,
+            // 코드처럼 생긴 글자가 있었는데 못 알아본 것과, 아예 날짜도 코드도
+            // 없는 줄(머리글·안내문)은 사용자가 할 일이 다르다.
+            reason: unknownTokens.length ? '코드 인식 불가' : '날짜 없음'
+          });
+        } else currentDates = segments[segments.length - 1].dates;
         return;
       }
 
       if (!lineHasDate && !currentDates.length) {
-        warnings.push({
+        // 코드는 읽혔는데 붙일 날짜가 없는 줄. 경고에 묻어 두면 못 보고 지나친다.
+        // 고쳐서 다시 읽을 수 있도록 '못 읽은 줄' 쪽에 사유와 함께 올린다.
+        skippedLines.push({
           line: lineIndex + 1,
           text: trimmed,
-          message: '날짜를 찾지 못해 건너뛴 줄입니다.'
+          reason: '날짜 없음'
         });
         return;
       }
