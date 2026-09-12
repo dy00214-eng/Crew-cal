@@ -679,6 +679,16 @@
   function rescueChips(worker, prepared, words) {
     var chips = (prepared.chips || []).map(function (chip) { return chipBox(chip, prepared); });
 
+    /** 그 판에서 읽은 글자들의 가장 낮은 자신감. 글자가 없으면 0. */
+    function confIn(box) {
+      var list = words.filter(function (word) {
+        var cx = (word.x0 + word.x1) / 2, cy = (word.y0 + word.y1) / 2;
+        return cx >= box.x0 && cx <= box.x1 && cy >= box.y0 && cy <= box.y1;
+      });
+      if (!list.length) return 0;
+      return list.reduce(function (low, w) { return Math.min(low, w.conf || 0); }, 100);
+    }
+
     function textIn(box) {
       return words.filter(function (word) {
         var cx = (word.x0 + word.x1) / 2, cy = (word.y0 + word.y1) / 2;
@@ -686,13 +696,24 @@
       }).map(function (word) { return String(word.text).replace(/[^0-9A-Za-z]/g, ''); }).join('');
     }
 
-    // 아무것도 못 읽었거나, 읽은 것이 아는 코드도 편명도 아닌 판은 잘못 읽은 것이다.
-    // (KE0438 이 AL 로 읽히면 연차 휴가가 되어 버리고, E047 은 아무 근무도 아니다)
-    var missing = chips.filter(function (box) {
+    // 한 번 더 크게 읽어 볼 판을 고른다.
+    //  급한 것: 아무것도 못 읽었거나 아는 코드도 편명도 아닌 판
+    //           (KE0438 이 AL 로 읽히면 연차 휴가가 되어 버린다)
+    //  다음:    편명 꼴이긴 한데 노선표에 없는 판. 숫자를 하나 잘못 읽었을 수 있다.
+    //           (KE0891 을 KE0691 로 읽어도 편명 꼴이라 그냥 지나가던 것)
+    // 비슷한 편명으로 갈아 끼우는 것이 아니다. 같은 자리를 더 크게 다시 읽을 뿐이다.
+    var urgent = [];
+    var suspect = [];
+    chips.forEach(function (box) {
       var text = textIn(box);
-      return !text || !ocrlayout.isKnownCode(text);
-    }).slice(0, 10);                                            // 너무 많으면 오래 걸린다
+      if (!text || !ocrlayout.isKnownCode(text)) { urgent.push(box); return; }
+      if (!ocrlayout.isSettledCode(text)) { suspect.push(box); return; }
+      // 자리는 잡혔지만 흐리게 읽힌 판도 한 번 더 본다
+      if (confIn(box) < 80) suspect.push(box);
+    });
+    var missing = urgent.concat(suspect).slice(0, 18);           // 너무 많으면 오래 걸린다
     if (!missing.length) return Promise.resolve([]);
+    var urgentCount = Math.min(urgent.length, missing.length);
 
     // 판이 유난히 높으면 글이 두 줄이다(KE0892 아래 TVL). 그런 판은 한 줄로 읽으라고
     // 하면 두 줄이 섞여 엉뚱한 편명이 나온다. 그래서 덩어리째 읽는 방식으로 바꾼다.
@@ -702,8 +723,9 @@
 
     var found = [];
     var zoom = 4;
-    return missing.reduce(function (chain, box) {
+    return missing.reduce(function (chain, box, at) {
       return chain.then(function () {
+        var wasSettled = at >= urgentCount;                      // 편명 꼴은 읽혔던 판
         var w = Math.round((box.x1 - box.x0)), h = Math.round((box.y1 - box.y0));
         if (w < 8 || h < 8) return null;
         var canvas = document.createElement('canvas');
@@ -715,27 +737,32 @@
         ctx.drawImage(prepared.canvas, box.x0, box.y0, w, h, 0, 0, canvas.width, canvas.height);
         // 한 줄로도 읽어 보고 낱말 하나로도 읽어 본다. 아는 코드가 나오는 쪽을 쓴다.
         var twoLines = normalHeight && h > normalHeight * 1.4;
-        var modes = twoLines ? ['6', '4'] : ['7', '8', '13'];
+        var modes = twoLines ? ['6', '4'] : (wasSettled ? ['7', '8'] : ['7', '8', '13']);
         var best = null;
         return modes.reduce(function (chain, mode) {
           return chain.then(function () {
-            if (best && best.known) return null;
+            if (best && best.settled) return null;
             return worker.setParameters({ tessedit_pageseg_mode: mode })
               .then(function () { return worker.recognize(canvas, {}, { text: true }); })
               .then(function (result) {
                 var text = String((result.data && result.data.text) || '').trim();
                 if (!text) return null;
-                var known = ocrlayout.isKnownCode(text.replace(/\s+/g, ''));
+                var flat = text.replace(/\s+/g, '');
+                var known = ocrlayout.isKnownCode(flat);
+                var settled = ocrlayout.isSettledCode(flat);
                 var conf = Math.round((result.data && result.data.confidence) || 0);
                 // 아는 코드로 읽힌 것을 모르는 글자로 덮지 않는다
-                var better = !best || (known && !best.known) ||
-                  (known === best.known && conf > best.conf);
-                if (better) best = { text: text, conf: conf, known: known };
+                var better = !best || (settled && !best.settled) || (known && !best.known) ||
+                  (settled === best.settled && known === best.known && conf > best.conf);
+                if (better) best = { text: text, conf: conf, known: known, settled: settled };
                 return null;
               });
           });
         }, Promise.resolve()).then(function () {
           if (!best) return null;
+          // 이미 편명 꼴로 읽혀 있던 판은, 다시 읽어 노선표에 있는 편이 나올 때만 바꾼다.
+          // 더 흐린 결과로 멀쩡한 값을 덮지 않기 위해서다.
+          if (wasSettled && !best.settled) return null;
           best.text.split(/\s+/).forEach(function (piece) {
             if (!piece) return;
             found.push({

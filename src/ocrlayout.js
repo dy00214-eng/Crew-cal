@@ -12,15 +12,15 @@
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
-    module.exports = factory(require('./codes.js'));
+    module.exports = factory(require('./codes.js'), require('./routedata.js'));
   } else {
     root.CrewCal = root.CrewCal || {};
-    root.CrewCal.ocrlayout = factory(root.CrewCal.codes);
+    root.CrewCal.ocrlayout = factory(root.CrewCal.codes, root.CrewCal.routedata);
   }
-})(typeof self !== 'undefined' ? self : this, function (codes) {
+})(typeof self !== 'undefined' ? self : this, function (codes, routedata) {
   'use strict';
 
-  var schedule = null;   // 시간표는 더 쓰지 않는다. 구간은 원본에 적혀 있다.
+  var SEED = (routedata && routedata.SEED && routedata.SEED.routes) || {};
 
   var DAY = /^([1-9]|[12][0-9]|3[01])$/;
   var DATE_HEAD = /^(\d{4}-\d{1,2}-\d{1,2}|\d{1,2}[./]\d{1,2}|\d{1,2}[A-Z]{3}\d{2})$/;
@@ -85,7 +85,7 @@
     if (token.length > 6 && /^[A-Z]/.test(token)) {
       var trimmed = token.slice(token.length - 6);
       var guess = new RegExp('^[A-Z]{2}[' + DIGITISH + ']{4}$').test(trimmed) ? fixCodeRaw(trimmed) : null;
-      if (guess && schedule && schedule.lookup(guess)) return guess;
+      if (guess && isSeedFlight(guess)) return guess;
     }
 
     // 편명. 항공사 두 글자 뒤는 숫자 자리다. 글자로 읽힌 것을 숫자로 되돌린다.
@@ -112,10 +112,10 @@
     // 앞 글자가 떨어져 나간 편명(E0805, 0703)에 항공사만 도로 붙인다.
     // 숫자는 읽은 그대로 두고, 두 글자가 온전히 읽힌 편명은 건드리지 않는다.
     var lost = /^([A-Z]?)(\d{4})$/.exec(token);
-    if (lost && schedule) {
+    if (lost) {
       // 숫자만 남은 것은 시각일 수도 있어, 판 위의 글자일 때만 고친다
       var readable = lost[1].length === 1 || tone === 'blue';
-      if (readable && schedule.lookup('KE' + lost[2])) return 'KE' + lost[2];
+      if (readable && isSeedFlight('KE' + lost[2])) return 'KE' + lost[2];
     }
     // 날짜(01SEP26). 자릿수가 하나 늘거나 0 이 O 로 읽힌 것을 되돌린다
     var date = /^([O0-9]{1,3})([A-Z]{3})([O0-9]{2,3})$/.exec(token);
@@ -222,16 +222,38 @@
     return candidates.length === 1 ? candidates[0] : token;
   }
 
-  /** 아는 근무 코드이거나 기본 시간표에 있는 편명인지. 잘못 읽은 판을 가려내는 데 쓴다. */
+  /** 아는 근무 코드이거나 아는 항공사의 편명 꼴인지. 잘못 읽은 판을 가려내는 데 쓴다. */
   function isKnownCode(token) {
     var text = String(token || '').toUpperCase();
     if (!text) return false;
     var fixed = fixCode(text);
     if (codes && codes.knownCodeList().indexOf(fixed) !== -1) return true;
-    if (schedule && schedule.lookup(fixed)) return true;
-    // 시간표에 없어도 아는 항공사의 편명 꼴이면 그대로 믿는다.
     // 모르는 항공사(AS0016)는 잘못 읽은 것으로 보고 다시 읽게 둔다.
     return !!(codes && codes.isFlightCode && codes.isFlightCode(fixed));
+  }
+
+  /** 노선표에 있는 편명인지. 숫자를 하나 잘못 읽은 편을 가려낼 때 쓴다. */
+  function isSeedFlight(token) {
+    var fixed = fixCode(String(token || '').toUpperCase());
+    var parts = codes && codes.splitFlight ? codes.splitFlight(fixed) : null;
+    if (!parts) return false;
+    var digits = parts.number;
+    while (digits.length < 4) digits = '0' + digits;
+    return !!SEED[parts.airline + digits];
+  }
+
+  /**
+   * 더 볼 것 없이 자리 잡은 글자인지.
+   *   아는 근무 코드(ATDO, LO …) 이거나 노선표에 있는 편명.
+   * 이것이 아니면 한 번 더 크게 읽어 볼 값어치가 있다. KE0891 을 KE0691 로 읽어도
+   * 편명 꼴이라 그냥 통과해 버리던 것을 막는다.
+   */
+  function isSettledCode(token) {
+    var text = String(token || '').toUpperCase();
+    if (!text) return false;
+    var fixed = fixCode(text);
+    if (codes && codes.knownCodeList().indexOf(fixed) !== -1) return true;
+    return isSeedFlight(fixed);
   }
 
   /** 한 글자를 바꾸거나 넣거나 빼면 같아지는지. */
@@ -756,6 +778,8 @@
     joinTimes: joinTimes,
     splitCodes: splitCodes,
     splitJunk: splitJunk,
-    isKnownCode: isKnownCode
+    isKnownCode: isKnownCode,
+    isSeedFlight: isSeedFlight,
+    isSettledCode: isSettledCode
   };
 });

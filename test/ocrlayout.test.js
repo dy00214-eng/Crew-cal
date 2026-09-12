@@ -331,3 +331,14 @@ test('못 읽은 날과 섞여 든 날짜 숫자를 알려 준다', () => {
   assert.deepStrictEqual(ocrlayout.strayDays(cells), [{ day: 5, token: '12' }]);
   assert.deepStrictEqual(ocrlayout.strayDays([{ day: 4, tokens: ['LO', 'KE0658'] }]), []);
 });
+
+test('노선표에 없는 편명 꼴은 다시 읽어 볼 값어치가 있다고 본다', () => {
+  // KE0891 을 KE0691 로 읽어도 편명 꼴이라 그냥 지나가던 것을 막는다.
+  // 비슷한 편명으로 갈아 끼우는 것이 아니라, 그 판을 더 크게 다시 읽으라는 표다.
+  assert.strictEqual(ocrlayout.isKnownCode('KE0691'), true, '편명 꼴이긴 하다');
+  assert.strictEqual(ocrlayout.isSettledCode('KE0691'), false, '노선표에 없으니 다시 본다');
+  assert.strictEqual(ocrlayout.isSettledCode('KE0891'), true);
+  assert.strictEqual(ocrlayout.isSettledCode('ATDO'), true, '아는 근무 코드');
+  assert.strictEqual(ocrlayout.isSettledCode('AS0016'), false);
+  assert.strictEqual(ocrlayout.isSeedFlight('KE891'), true, '자릿수가 달라도 같은 편');
+});
