@@ -7,6 +7,7 @@
   var store = CrewCal.store;
   var calendar = CrewCal.calendar;
   var vision = CrewCal.vision;
+  var ocr = CrewCal.ocr;
   var feedback = CrewCal.feedback;
   var ics = CrewCal.ics;
   var poster = CrewCal.poster;
@@ -864,6 +865,11 @@
   function refreshBackend() {
     setStatus('이미지 인식을 쓸 수 있는지 확인하는 중…', '');
     vision.resolveBackend().then(function (backend) {
+      // 부를 곳이 없으면 기기 안에서 읽는다. 서버도 키도 없이 되는 마지막 길이다.
+      // 인식기 파일은 주소가 있는 웹 버전에만 딸려 있으므로 거기서만 쓴다.
+      if (backend.kind === 'none' && ocr && ocr.available() && isWebBuild()) {
+        backend = { kind: 'ocr' };
+      }
       state.backend = backend;
       updateAnalyzeButton();
       $('imageFallback').hidden = true;
@@ -871,6 +877,8 @@
         setStatus('Claude 가 이미지를 바로 읽습니다. 스케줄 화면을 올려보세요.', 'ok');
       } else if (backend.kind === 'endpoint') {
         setStatus('설정해 둔 인식 서버로 보냅니다.', 'ok');
+      } else if (backend.kind === 'ocr') {
+        setStatus('이 기기 안에서 글자를 읽습니다. 사진은 어디로도 보내지 않습니다.', 'ok');
       } else {
         setStatus(unavailableMessage(backend.reason), 'error');
         showFallbackGuide();
@@ -907,7 +915,9 @@
   }
 
   function setImageFile(file) {
-    var invalid = vision.validateFile(file, state.backend);
+    var invalid = state.backend && state.backend.kind === 'ocr'
+      ? validateForOcr(file)
+      : vision.validateFile(file, state.backend);
     if (invalid) {
       setStatus(invalid, 'error');
       return;
@@ -920,6 +930,14 @@
     });
     setStatus('', '');
     updateAnalyzeButton();
+  }
+
+  /** 기기 안에서 읽을 때의 검사. 보내는 게 아니라 용량은 넉넉히 받는다. */
+  function validateForOcr(file) {
+    if (!file) return '이미지를 선택하세요.';
+    if (file.type.indexOf('image/') !== 0) return '이미지 파일만 올릴 수 있습니다.';
+    if (file.size > 25 * 1024 * 1024) return '25MB 이하 이미지만 읽을 수 있습니다.';
+    return null;
   }
 
   function clearImage() {
@@ -972,6 +990,12 @@
     state.abort = typeof AbortController === 'function' ? new AbortController() : null;
     state.analyzing = true;
     updateAnalyzeButton();
+
+    if (state.backend && state.backend.kind === 'ocr') {
+      runOcr(base);
+      return;
+    }
+
     setStatus('이미지를 읽는 중… 10~60초쯤 걸립니다.', '');
 
     vision.analyze(state.imageFile, {
@@ -1029,6 +1053,54 @@
         state.abort = null;
         updateAnalyzeButton();
       });
+  }
+
+  /**
+   * 기기 안에서 읽기. 처음 한 번은 인식기를 내려받느라 좀 걸리고, 그 뒤로는 빠르다.
+   * 읽은 글은 붙여넣기 미리보기로 넘겨, 사람이 확인하고 고친 뒤 반영한다.
+   */
+  function runOcr(base) {
+    setStatus('글자 인식기를 준비하는 중…', '');
+
+    ocr.read(state.imageFile, {
+      year: base.year,
+      month: base.month,
+      onProgress: function (step) {
+        var percent = Math.round((step.ratio || 0) * 100);
+        setStatus(step.phase === 'load'
+          ? '글자 인식기를 준비하는 중… ' + percent + '% (처음 한 번만 받습니다)'
+          : '캡처를 읽는 중… ' + percent + '%', '');
+      }
+    }).then(function (result) {
+      if (!result.text.trim()) {
+        setStatus('글자를 찾지 못했습니다. 더 또렷한 캡처로 다시 해보거나, 아래 방법으로 옮겨 주세요.', 'error');
+        showFallbackGuide();
+        return;
+      }
+
+      $('pasteInput').value = result.text;
+      showTab('paste');
+      runParse();
+
+      var notes = [];
+      notes.push(result.shape === 'calendar' ? '달력 모양으로 읽었습니다.'
+        : result.shape === 'list' ? '목록 모양으로 읽었습니다.' : '글줄로 읽었습니다.');
+      if (result.unsure.length) {
+        notes.push('자신 없는 글자: ' + result.unsure.slice(0, 6).join(', ') +
+          (result.unsure.length > 6 ? ' 외 ' + (result.unsure.length - 6) + '개' : ''));
+      }
+      if (result.dropped) notes.push('앞뒤 달 칸 ' + result.dropped + '개는 건너뛰었습니다.');
+      notes.push('미리보기에서 확인하고 고친 뒤 반영하세요.');
+      setStatus(notes.join(' '), result.unsure.length ? '' : 'ok');
+      setPasteStatus('캡처에서 읽었습니다. 틀린 칸은 고치고, 아닌 줄은 체크를 풀어 주세요.', '');
+    }).catch(function (err) {
+      setStatus(err.message || '읽지 못했습니다.', 'error');
+      showFallbackGuide();
+    }).then(function () {
+      state.analyzing = false;
+      state.abort = null;
+      updateAnalyzeButton();
+    });
   }
 
   function statsOf(entries) {

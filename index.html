@@ -220,8 +220,13 @@
     <div class="panel" id="panel-image" role="tabpanel">
       <p class="hint">
         스케줄 화면을 캡처해서 올리면 날짜 · 코드 · 구간 · 출발/도착 시각을 읽어옵니다.
-        달력 형태든 목록 형태든 됩니다. 읽은 결과는 바로 반영하지 않고
-        <strong>미리보기로 넘겨서</strong> 확인·수정한 뒤 반영합니다.
+        달력 형태든 목록 형태든 됩니다. 글자 인식은 <b>이 기기 안에서</b> 이뤄지니
+        사진은 어디로도 보내지 않습니다. (인식기는 처음 한 번만 내려받습니다. 6MB 남짓)
+        읽은 결과는 바로 반영하지 않고 <strong>미리보기로 넘겨서</strong> 확인·수정한 뒤 반영합니다.
+      </p>
+      <p class="hint muted">
+        또렷하게 캡처할수록 잘 읽습니다. 화면을 키워서 찍거나, 스케줄 부분만 잘라 올리면 좋습니다.
+        한글로 적힌 칸(휴무·체류 같은 말)은 못 읽어 알 수 없는 코드로 뜨는데, 미리보기에서 체크를 풀면 됩니다.
       </p>
 
       <div id="dropZone" class="drop-zone" tabindex="0" role="button" aria-label="스크린샷 업로드">
@@ -244,7 +249,7 @@
       <p id="imageStatus" class="status" role="status"></p>
 
       <div id="imageFallback" class="fallback" hidden>
-        <h4>스크린샷의 글자를 옮기는 두 가지 방법</h4>
+        <h4>잘 안 읽힐 때, 글자를 옮기는 두 가지 방법</h4>
         <ol>
           <li>
             <b>사진 앱에서 글자 복사 (아이폰)</b><br>
@@ -373,6 +378,8 @@
 <script src="src/calendar.js"></script>
 <script src="src/poster.js"></script>
 <script src="src/ics.js"></script>
+<script src="src/ocrlayout.js"></script>
+<script src="src/ocr.js"></script>
 <script src="src/vision.js"></script>
 <script src="src/feedback.js"></script>
 <script src="src/app.js"></script>
