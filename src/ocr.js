@@ -150,15 +150,42 @@
     }
 
     // 판 안의 흰 글씨는 색이 없다. 가로로 좁은 틈은 메워 판 하나로 잇는다.
+    //
+    // 다만 옆 칸의 판까지 이어 붙이면 안 된다. 글자 사이의 틈은 위아래로 판 색이
+    // 이어지지만, 판과 판 사이의 틈은 위아래가 흰 종이다. 그래서 위아래로도 색이
+    // 가까이 있는 자리만 메운다.
     var gap = Math.max(8, Math.round(width * 0.022));
+    var near = new Uint8Array(n);       // 위아래로 gap 안에 판 색이 있는 자리
+    var reach = new Int32Array(n);
+    var far = gap + 1;
+    var x, y;
+    for (x = 0; x < width; x++) {
+      var seen = far;
+      for (y = 0; y < height; y++) {
+        i = y * width + x;
+        seen = colored[i] ? 0 : Math.min(far, seen + 1);
+        reach[i] = seen;
+      }
+      seen = far;
+      for (y = height - 1; y >= 0; y--) {
+        i = y * width + x;
+        seen = colored[i] ? 0 : Math.min(far, seen + 1);
+        near[i] = reach[i] <= gap && seen <= gap ? 1 : 0;
+      }
+    }
+
     var region = colored.slice();
-    for (var y = 0; y < height; y++) {
+    for (y = 0; y < height; y++) {
       var last = -1;
-      for (var x = 0; x < width; x++) {
+      for (x = 0; x < width; x++) {
         i = y * width + x;
         if (!colored[i]) continue;
         if (last >= 0 && x - last <= gap) {
-          for (var k = last + 1; k < x; k++) region[y * width + k] = 1;
+          var fillable = true;
+          for (var k = last + 1; k < x; k++) {
+            if (!near[y * width + k]) { fillable = false; break; }
+          }
+          if (fillable) for (k = last + 1; k < x; k++) region[y * width + k] = 1;
         }
         last = x;
       }

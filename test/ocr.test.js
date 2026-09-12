@@ -31,36 +31,62 @@ test('작은 글씨는 키우고, 캔버스가 감당하는 선은 넘지 않는
   assert.strictEqual(ocr.scaleFor(0, 0), 1);
 });
 
-/** 색 판 위에 흰 글씨가 적힌 그림. 크루넷 스케줄이 이렇게 생겼다. */
-function chipImage(width, height, plate, ink) {
+/**
+ * 색 판 위에 흰 글씨가 적힌 그림. 크루넷 스케줄이 이렇게 생겼다.
+ * 폰 캡처와 비슷한 크기로 만든다. 판·글씨의 크기 비율이 실제와 같아야 의미가 있다.
+ */
+function chipImage(plate, ink) {
+  const width = 1200, height = 200;
   const data = new Uint8ClampedArray(width * height * 4);
   for (let i = 0; i < width * height; i++) {
     data[i * 4] = data[i * 4 + 1] = data[i * 4 + 2] = 255;      // 흰 종이
     data[i * 4 + 3] = 255;
   }
-  // 가운데에 색 판 하나, 그 안에 흰 글씨 몇 획
-  for (let y = 10; y < height - 10; y++) {
-    for (let x = 10; x < width - 10; x++) {
+  // 가운데에 색 판 하나(100~1100 × 40~140), 그 안에 흰 글씨 획 (위아래로 판 색이 남는다)
+  for (let y = 40; y < 140; y++) {
+    for (let x = 100; x < 1100; x++) {
       const i = (y * width + x) * 4;
-      const stroke = x % 17 < 4 && y > 18 && y < height - 18;
+      const stroke = x % 60 < 12 && y > 75 && y < 95;   // 글씨 높이는 판 높이의 5분의 1쯤
       const color = stroke ? ink : plate;
       data[i] = color[0]; data[i + 1] = color[1]; data[i + 2] = color[2];
     }
   }
-  return data;
+  return { data, width, height };
 }
 
 test('색 판 위의 흰 글씨를 흰 바탕 검은 글씨로 되돌린다', () => {
-  const width = 120, height = 60;
-  const data = chipImage(width, height, [30, 155, 232], [255, 255, 255]);
+  const { data, width, height } = chipImage([30, 155, 232], [255, 255, 255]);
   const found = ocr.unchip(data, width, height);
 
   assert.strictEqual(found.plates, 1, '판을 하나 찾는다');
+  assert.strictEqual(found.rects[0].tone, 'blue', '판 색도 알려준다');
   const at = (x, y) => data[(y * width + x) * 4];
-  assert.strictEqual(at(18, 30), 0, '흰 글씨였던 자리가 검게');   // x % 17 < 4 인 곳이 획
-  assert.strictEqual(at(25, 30), 255, '판 바탕이 희게');
+  assert.strictEqual(at(125, 85), 0, '흰 글씨였던 자리가 검게');   // x % 60 < 12 인 곳이 획
+  assert.strictEqual(at(150, 85), 255, '판 바탕이 희게');
   assert.strictEqual(at(2, 2), 255, '판 밖은 그대로');
-  assert.ok(found.top < 10 && found.bottom > height - 10, '판 자리를 알려준다');
+  assert.ok(found.top < 40 && found.bottom > 140, '판 자리를 알려준다');
+});
+
+test('옆 칸의 판까지 이어 붙이지 않는다', () => {
+  // 판 두 개를 글자 사이 틈보다도 가깝게(20픽셀) 나란히 둔다. 그래도 틈의 위아래가
+  // 흰 종이면 서로 다른 판이다. 이어 붙이면 옆 날 근무가 한 칸에 뭉친다.
+  const width = 1200, height = 240;
+  const data = new Uint8ClampedArray(width * height * 4).fill(255);
+  [[80, 520], [540, 980]].forEach(([from, to]) => {
+    for (let y = 60; y < 180; y++) {
+      for (let x = from; x < to; x++) {
+        const i = (y * width + x) * 4;
+        const stroke = x % 60 < 12 && y > 100 && y < 120;
+        data[i] = stroke ? 255 : 30;
+        data[i + 1] = stroke ? 255 : 155;
+        data[i + 2] = stroke ? 255 : 232;
+      }
+    }
+  });
+  const found = ocr.unchip(data, width, height);
+  assert.strictEqual(found.plates, 2, '판 두 개로 센다');
+  assert.ok(found.rects[0].x1 < found.rects[1].x0 || found.rects[1].x1 < found.rects[0].x0,
+    '두 판이 겹치지 않는다');
 });
 
 test('색이 옅은 글자는 판으로 보지 않는다', () => {

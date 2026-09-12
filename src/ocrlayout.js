@@ -40,9 +40,17 @@
    * 앞의 0 을 떼고 네 자리로 맞춘다. 편명 아닌 글자는 건드리지 않는다.
    */
   function fixCode(token, tone) {
-    // 코드 뒤에 붙어 읽힌 칸 선(ATDO-)을 떼어 낸다. 시각은 뒤의 - 가 뜻이 있어 그대로 둔다.
-    var trailing = /^([A-Z]{2,})[-.]+$/.exec(token);
+    // 코드 뒤에 붙어 읽힌 칸 선(ATDO-, KE2193.)을 떼어 낸다.
+    // 시각(0945-)은 뒤의 - 가 뜻이 있어 그대로 둔다.
+    var trailing = /^([A-Z][A-Z0-9]+)[-.]+$/.exec(token);
     if (trailing) token = trailing[1];
+
+    // 앞에 글자가 한둘 붙어 읽힌 편명(IKEO703)은 뒤쪽만 떼어 본다
+    if (token.length > 6 && /^[A-Z]/.test(token)) {
+      var trimmed = token.slice(token.length - 6);
+      var guess = new RegExp('^[A-Z]{2}[' + DIGITISH + ']{4}$').test(trimmed) ? fixCode(trimmed) : null;
+      if (guess && schedule && schedule.lookup(guess)) return guess;
+    }
 
     var flight = new RegExp('^([A-Z]{2})([' + DIGITISH + ']{3,7})$').exec(token);
     if (flight) {
@@ -50,6 +58,13 @@
       if (!candidates.length) return token;
       var known = candidates.filter(function (code) { return schedule && schedule.lookup(code); });
       if (known.length === 1) return known[0];             // 시간표에 있는 편이 하나뿐이면 그것
+      if (known.length) return candidates[0];
+
+      // 아는 편이 하나도 없다. 앞 두 글자를 잘못 읽었을 수 있다(BC0075 → KE0075).
+      // 아는 항공사 코드가 아니고, 시간표에 KE 편이 있을 때만 바로잡는다.
+      var airline = ['KE', 'OZ', 'LJ', 'TW', 'BX', 'ZE', 'RS', 'RF'].indexOf(flight[1]) !== -1;
+      var digits = candidates[0].slice(2);
+      if (!airline && schedule && schedule.lookup('KE' + digits)) return 'KE' + digits;
       return candidates[0];
     }
 
@@ -57,14 +72,15 @@
     var tail = /^[A-Z]{1,3}([A-Z]{2}\d{4})$/.exec(token);
     if (tail) return tail[1];
 
-    // 앞 글자가 떨어져 나간 편명(E0805). 숫자만 남은 것은 시각일 수 있으니 손대지 않고,
-    // 글자 한 자가 남아 있고 시간표에 그런 편이 하나뿐일 때만 되살린다.
-    var lost = /^([A-Z])(\d{4})$/.exec(token);
+    // 앞 글자가 잘못 읽히거나(BC0075) 떨어져 나간(E0805, 0703) 편명을 되살린다.
+    // 시간표에 그런 편이 있을 때만, 그리고 아는 항공사 코드가 아닐 때만 손댄다.
+    var lost = /^([A-Z]{0,2})(\d{4})$/.exec(token);
     if (lost && schedule) {
-      var guesses = ['KE', 'OZ', 'LJ', 'TW', 'BX'].filter(function (prefix) {
-        return prefix.charAt(1) === lost[1] && schedule.lookup(prefix + lost[2]);
-      });
-      if (guesses.length === 1) return guesses[0] + lost[2];
+      var prefix = lost[1];
+      var known = ['KE', 'OZ', 'LJ', 'TW', 'BX', 'ZE', 'RS', 'RF'].indexOf(prefix) !== -1;
+      // 숫자만 남은 것은 시각일 수도 있어, 판 위의 글자일 때만 고친다
+      var readable = prefix.length === 2 ? !known : (prefix.length === 1 || tone === 'blue');
+      if (readable && schedule.lookup('KE' + lost[2])) return 'KE' + lost[2];
     }
     // 날짜(01SEP26). 자릿수가 하나 늘거나 0 이 O 로 읽힌 것을 되돌린다
     var date = /^([O0-9]{1,3})([A-Z]{3})([O0-9]{2,3})$/.exec(token);
@@ -166,7 +182,15 @@
     return true;
   }
 
-  /** 인식기가 흘린 기호를 떼고, 남을 글자만 남긴다. */
+  /**
+   * 인식기가 흘린 기호를 떼고, 남을 글자만 남긴다.
+   * 글자 사이에 낀 이상한 기호(ATDO._-—«KE0843)는 거기서 토막을 낸다. 판 두 개를
+   * 한 낱말로 읽은 자국이라, 가르지 않으면 둘 다 알 수 없는 코드가 된다.
+   */
+  function splitJunk(text) {
+    return String(text).split(/[^0-9A-Za-z가-힣+\-/:.]+/).filter(Boolean);
+  }
+
   function clean(word) {
     var text = String((word && word.text) || '').trim();
     text = text.replace(/^[^0-9A-Za-z가-힣]+/, '').replace(/[^0-9A-Za-z가-힣+\-/:.]+$/, '');
@@ -222,7 +246,10 @@
    */
   function isDayRow(row) {
     var days = row.words.filter(function (w) { return DAY.test(w.text); });
-    if (days.length < 3 || days.length < row.words.length - 1) return false;
+    // 마지막 주는 날짜가 둘만 남기도 한다(30, 31). 대신 그 줄에 다른 글자가 섞여
+    // 있으면 날짜 줄로 보지 않는다.
+    if (days.length < 2 || days.length < row.words.length - 1) return false;
+    if (days.length === 2 && days.length !== row.words.length) return false;
     var breaks = 0;
     for (var i = 1; i < days.length; i++) {
       if (+days[i].text <= +days[i - 1].text) breaks++;
@@ -348,6 +375,27 @@
     var columns = columnsOf(dayRows.map(function (index) { return rowList[index]; }));
     if (!columns.length) return out;
 
+    // 첫 주의 날짜 줄이 안 읽히는 일이 있다. 앞 달 날짜가 흐린 회색이라 통째로
+    // 묻히기 때문이다. 그 줄 바로 아래 근무가 있으면, 다음 주에서 이레를 빼 날짜를 센다.
+    var firstRow = rowList[dayRows[0]];
+    var above = daysOfWeekRow(firstRow, columns).map(function (day) {
+      return day == null ? null : day - 7;
+    });
+    if (above.some(function (day) { return day >= 1; })) {
+      var cellsAbove = above.map(function (day) { return { day: day, tokens: [] }; });
+      for (var back = dayRows[0] - 1; back >= 0; back--) {
+        if (firstRow.cy - rowList[back].cy > weekHeight * 0.8) break;
+        if (isDayRow(rowList[back])) break;
+        rowList[back].words.forEach(function (word) {
+          cellsAbove[nearestColumn(word.cx, columns)].tokens.push(word.text);
+        });
+      }
+      cellsAbove.forEach(function (cell) {
+        if (cell.day == null || cell.day < 1 || !cell.tokens.length) return;
+        out.push({ day: cell.day, tokens: splitCodes(joinTimes(cell.tokens)) });
+      });
+    }
+
     dayRows.forEach(function (index, which) {
       var row = rowList[index];
       var days = daysOfWeekRow(row, columns);
@@ -427,7 +475,19 @@
    */
   function toText(words, options) {
     var opts = options || {};
-    var clean_ = (words || []).map(clean).filter(Boolean);
+    // 한 낱말 안에 두 코드가 붙어 읽힌 것은 먼저 토막 낸다
+    var pieces = [];
+    (words || []).forEach(function (word) {
+      var parts = splitJunk(word.text);
+      if (parts.length <= 1) { pieces.push(word); return; }
+      parts.forEach(function (part) {
+        pieces.push({
+          text: part, conf: word.conf, tone: word.tone,
+          x0: word.x0, x1: word.x1, y0: word.y0, y1: word.y1
+        });
+      });
+    });
+    var clean_ = pieces.map(clean).filter(Boolean);
     if (!clean_.length) return { text: '', shape: 'plain', unsure: [], dropped: 0 };
 
     var rowList = rows(clean_);
