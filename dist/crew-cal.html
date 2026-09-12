@@ -13374,9 +13374,7 @@ button.ghost.danger { color: var(--danger); }
   function askForRoutes(codes) {
     if (!state.autoLookup || lookupRunning || !codes || !codes.length) return;
     lookupRunning = true;
-    var touched = 0;
     routelookup.run(codes, function (code, found) {
-      if (found) touched++;
       refreshRouteCache();
       if (found) refresh();
     }).then(function (out) {
@@ -13984,7 +13982,12 @@ button.ghost.danger { color: var(--danger); }
     }
     var base = baseYearMonth();
     var result = parser.parse(text, base);
-    result.entries.forEach(function (entry) { store.enrich(entry); });
+    // 미리보기에도 노선을 채워 보여준다. 1·2단계만 — 조회(3단계)는 달력에 반영한 뒤에 돈다.
+    var byDate = {};
+    result.entries.forEach(function (entry) {
+      (byDate[entry.date] = byDate[entry.date] || []).push(entry);
+    });
+    routes.apply(byDate);
     showPreview(result);
   }
 
@@ -13997,7 +14000,8 @@ button.ghost.danger { color: var(--danger); }
       return;
     }
 
-    var autoFilled = result.entries.filter(function (e) { return e.autoFilled; }).length;
+    // 원본에 구간이 없어 시드·대역으로 채운 건수. 점선을 그어 구분해 준다.
+    var autoFilled = result.entries.filter(function (e) { return e.routeSource === 'db'; }).length;
     var s = result.stats;
     $('previewSummary').innerHTML =
       '<b>' + s.dateCount + '일</b> · <b>' + s.entryCount + '건</b>' +
@@ -14013,7 +14017,7 @@ button.ghost.danger { color: var(--danger); }
 
     var memoBox = $('previewMemo');
     if (autoFilled) {
-      memoBox.textContent = '편명으로 구간·시각을 ' + autoFilled + '건 채웠습니다(기본 시간표와 등록해둔 값). ' +
+      memoBox.textContent = '원본에 구간이 없어 ' + autoFilled + '건을 편명으로 채웠습니다(노선표와 등록해둔 값). ' +
         '점선 친 칸이 채워 넣은 값이니 확인하고, 다르면 텍스트에 직접 적어주세요.';
       memoBox.hidden = false;
     } else {
@@ -14106,12 +14110,13 @@ button.ghost.danger { color: var(--danger); }
       return td;
     }
 
-    /** 기억해둔 값으로 채운 칸은 점선을 그어 직접 넣은 값과 구분한다. */
+    /** 원본이 아니라 노선표로 채운 칸은 점선을 그어 구분한다. */
     function autoCell(text, entry, field) {
       var td = cell(text);
-      if (entry.autoFilled && entry.autoFilled.indexOf(field) !== -1) {
+      if (field === 'route' && entry.routeSource && entry.routeSource !== 'original') {
         td.className = 'auto-filled';
-        td.title = '기억해둔 ' + entry.code + ' 정보로 채웠습니다.';
+        td.title = entry.code + ' 의 구간을 ' +
+          (entry.routeSource === 'lookup' ? '자동으로 찾아' : '노선표에서') + ' 채웠습니다.';
       }
       return td;
     }
@@ -14822,7 +14827,7 @@ button.ghost.danger { color: var(--danger); }
   /* ---------------- 동료가 보내는 의견 ---------------- */
 
   // 화면 아래와 의견 보내기에 적히는 판 번호. sw.js 의 VERSION 과 함께 올린다.
-  var APP_VERSION = 'v27';
+  var APP_VERSION = 'v28';
 
   /**
    * 의견을 받을 메일 주소. 저장소가 공개라 통짜로 적어두면 스팸 크롤러가 긁어가므로
