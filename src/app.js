@@ -15,6 +15,8 @@
   var holidays = CrewCal.holidays;
   var clock = CrewCal.clock;
   var verify = CrewCal.verify;
+  var routes = CrewCal.routes;
+  var routelookup = CrewCal.routelookup;
 
   var $ = function (id) { return document.getElementById(id); };
 
@@ -27,6 +29,7 @@
     view: 'calendar',
     hideTimes: {},
     assumeOff: true,
+    autoLookup: true,
     cleaning: false,
     cleanupAbort: null,
     backend: null,
@@ -134,6 +137,9 @@
 
   function refresh() {
     var entriesByDate = store.getAll();
+    // 편명 -> 노선 세 단계. 1·2단계로 안 풀린 편명만 모아 3단계로 넘긴다.
+    var unresolved = routes.apply(entriesByDate);
+    markPending(entriesByDate);
     $('monthLabel').textContent = monthLabel(state.year, state.month);
 
     state.hideTimes = calendar.suppressedTimes(entriesByDate);
@@ -156,6 +162,8 @@
     else if (mode === 'year') calendar.renderYear($('yearView'), { year: state.year, entriesByDate: entriesByDate, onSelect: goToDate });
     else calendar.render($('calendar'), viewOptions);
 
+    askForRoutes(unresolved);
+
     // 연간 화면에서는 달 이름 대신 해를 보여준다
     if (mode === 'year') $('monthLabel').textContent = state.year + '년';
     renderYearSummary(mode === 'year' ? entriesByDate : null);
@@ -163,6 +171,133 @@
     renderMonthSummary(entriesByDate);
     renderNextDuty(entriesByDate);
     renderDayDetail();
+  }
+
+  /* ---------------- 편명 노선 자동 조회 (3단계) ---------------- */
+
+  var LOOKUP_KEY = 'crew-cal.auto-lookup.v1';
+
+  function loadAutoLookup() {
+    try {
+      if (localStorage.getItem(LOOKUP_KEY) === '0') return false;
+    } catch (e) { /* 못 읽으면 켠 채로 */ }
+    return true;
+  }
+
+  function saveAutoLookup(on) {
+    try { localStorage.setItem(LOOKUP_KEY, on ? '1' : '0'); } catch (e) { /* 무시 */ }
+  }
+
+  /** 지금 물어보고 있는 편은 그 칸만 '조회 중' 으로 둔다. 달력은 막지 않는다. */
+  function markPending(entriesByDate) {
+    Object.keys(entriesByDate).forEach(function (date) {
+      entriesByDate[date].forEach(function (entry) {
+        entry.routePending = !entry.routeSource && entry.type === 'flight' &&
+          !entry.strange && routelookup.pending(entry.code);
+      });
+    });
+  }
+
+  var lookupRunning = false;
+
+  /** 못 푼 편명을 한꺼번에 물어본다. 결과가 오는 대로 다시 그린다. */
+  function askForRoutes(codes) {
+    if (!state.autoLookup || lookupRunning || !codes || !codes.length) return;
+    lookupRunning = true;
+    var touched = 0;
+    routelookup.run(codes, function (code, found) {
+      if (found) touched++;
+      refreshRouteCache();
+      if (found) refresh();
+    }).then(function (out) {
+      lookupRunning = false;
+      if (out.filled) toast('노선을 못 찾던 편 ' + out.filled + '개를 찾아 채웠습니다.');
+      refresh();
+    }).catch(function () {
+      lookupRunning = false;
+    });
+  }
+
+  /** 캐시에 든 노선 목록. 직접 고칠 수 있다. */
+  function refreshRouteCache() {
+    var list = routes.cacheList();
+    $('routeCacheCount').textContent = list.length;
+    var box = $('routeCacheList');
+    box.innerHTML = '';
+    if (!list.length) {
+      var empty = document.createElement('p');
+      empty.className = 'muted';
+      empty.textContent = '아직 없습니다.';
+      box.appendChild(empty);
+      return;
+    }
+    list.forEach(function (item) {
+      var row = document.createElement('div');
+      row.className = 'route-row';
+
+      var code = document.createElement('span');
+      code.className = 'code';
+      code.textContent = item.code;
+      row.appendChild(code);
+
+      var input = document.createElement('input');
+      input.type = 'text';
+      input.autocomplete = 'off';
+      input.spellcheck = false;
+      input.placeholder = 'ICN/KIX';
+      input.value = item.from && item.to ? item.from + '/' + item.to : '';
+      input.addEventListener('change', function () {
+        var parts = airports.splitRoute(input.value.replace(/\s+/g, ''));
+        var from = airports.findCode(parts.from);
+        var to = airports.findCode(parts.to);
+        if (!from || !to) return toast('ICN/KIX 처럼 넣어 주세요.');
+        routes.remember(item.code, from, to, 'user');
+        refreshRouteCache();
+        refresh();
+        toast(item.code + ' 노선을 ' + from + '/' + to + ' 로 바꿨습니다.');
+      });
+      row.appendChild(input);
+
+      var tag = document.createElement('span');
+      tag.className = 'tag' + (item.fail ? ' fail' : '');
+      tag.textContent = item.fail ? '못 찾음' : (item.source === 'user' ? '직접' : '조회');
+      row.appendChild(tag);
+
+      var del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'icon-btn';
+      del.title = '지우기';
+      del.setAttribute('aria-label', item.code + ' 지우기');
+      del.textContent = '\u00D7';
+      del.addEventListener('click', function () {
+        routes.forget(item.code);
+        refreshRouteCache();
+        refresh();
+      });
+      row.appendChild(del);
+
+      box.appendChild(row);
+    });
+  }
+
+  function initRouteLookup() {
+    var box = $('autoLookup');
+    state.autoLookup = loadAutoLookup();
+    if (box) {
+      box.checked = state.autoLookup;
+      box.addEventListener('change', function () {
+        state.autoLookup = box.checked;
+        saveAutoLookup(state.autoLookup);
+        if (state.autoLookup) refresh();
+      });
+    }
+    $('routeCacheClear').addEventListener('click', function () {
+      routes.forgetAll();
+      refreshRouteCache();
+      refresh();
+      toast('저장해 둔 노선을 지웠습니다.');
+    });
+    refreshRouteCache();
   }
 
   function renderMonthSummary(entriesByDate) {
@@ -1517,7 +1652,7 @@
   /* ---------------- 동료가 보내는 의견 ---------------- */
 
   // 화면 아래와 의견 보내기에 적히는 판 번호. sw.js 의 VERSION 과 함께 올린다.
-  var APP_VERSION = 'v26';
+  var APP_VERSION = 'v27';
 
   /**
    * 의견을 받을 메일 주소. 저장소가 공개라 통짜로 적어두면 스팸 크롤러가 긁어가므로
@@ -1910,6 +2045,7 @@
     initViewToggle();
     initAssumeOff();
     initAirlines();
+    initRouteLookup();
     initVerify();
     initTabs();
     initSingleForm();

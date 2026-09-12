@@ -299,6 +299,20 @@
         <span>편명으로 읽을 항공사 <em>(쉼표로 구분. 비우면 KE 만)</em></span>
         <input type="text" id="airlineList" autocomplete="off" spellcheck="false" placeholder="KE, OZ, 7C">
       </label>
+      <label class="check-field">
+        <input type="checkbox" id="autoLookup" checked>
+        <span>모르는 편명 자동 조회 <em>(원본에도 시드에도 없는 편만 물어봅니다. 찾은 값에는 '조회' 표가 붙습니다)</em></span>
+      </label>
+      <details id="routeCacheBox" class="flight-book">
+        <summary>자동 조회·직접 입력한 노선 <span id="routeCacheCount">0</span>편</summary>
+        <p class="muted small-note">
+          직접 고친 값은 조회 결과보다 언제나 우선합니다. 공항은 코드(KIX)로도 도시 이름(오사카)으로도 넣을 수 있습니다.
+        </p>
+        <div id="routeCacheList" class="route-cache"></div>
+        <div class="actions">
+          <button type="button" id="routeCacheClear" class="ghost small danger">전부 지우기</button>
+        </div>
+      </details>
       <p class="actions">
         <button type="button" id="verifyOpen" class="ghost small">파싱 검증 (개발용)</button>
       </p>
@@ -405,6 +419,8 @@
 <script src="src/holidays.js"></script>
 <script src="src/resolve.js"></script>
 <script src="src/verify.js"></script>
+<script src="src/routes.js"></script>
+<script src="src/routelookup.js"></script>
 <script src="src/crewnet.js"></script>
 <script src="src/parser.js"></script>
 <script src="src/store.js"></script>

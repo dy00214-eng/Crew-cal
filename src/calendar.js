@@ -40,10 +40,12 @@
    */
   function legRole(entry) {
     if (!entry) return null;
-    if (entry.legRole) return entry.legRole;
+    if (entry.legRole) return entry.legRole;      // 크루넷 원본이 적어 준 것이 먼저
     if (entry.start) return 'depart';
     if (entry.end) return 'arrive';
-    return entry.type === 'flight' ? 'enroute' : null;
+    // 시각을 모르는 편은 '기내' 가 아니라 그냥 시각을 모르는 것이다.
+    // 기내는 크루넷이 시각 칸을 "-" 로 적어 준 날에만 쓴다.
+    return null;
   }
 
   /** 도착지가 한국인가. 구간을 알 때만 참·거짓, 모르면 null. */
@@ -411,6 +413,21 @@
             time.className = 'cal-time';
             time.textContent = timeText;
             item.appendChild(time);
+          }
+
+          // 자동으로 물어 채운 노선만 표를 단다. 원본·시드로 푼 것은 아무 표시도 않는다.
+          if (e.routeSource === 'lookup') {
+            var found = document.createElement('span');
+            found.className = 'cal-lookup';
+            found.textContent = '조회';
+            found.title = e.code + ' 의 노선을 자동으로 찾아 채웠습니다. 실제 로스터를 따르세요.';
+            item.appendChild(found);
+          }
+          if (e.routePending) {
+            var waiting = document.createElement('span');
+            waiting.className = 'cal-lookup pending';
+            waiting.textContent = '조회 중';
+            item.appendChild(waiting);
           }
 
           // 손님으로 타고 가는 편(TVL)은 실제 승무가 아니므로 표를 남긴다

@@ -1344,3 +1344,29 @@ button.ghost.danger { color: var(--danger); }
   background: var(--fill-strong);
   white-space: nowrap;
 }
+
+/* 자동으로 찾아 채운 노선 */
+.cal-lookup {
+  align-self: center;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.2;
+  padding: 0 4px;
+  border-radius: 999px;
+  color: var(--cat-training);
+  background: color-mix(in srgb, var(--cat-training) 18%, transparent);
+  white-space: nowrap;
+}
+.cal-lookup.pending { color: var(--muted); background: var(--fill); }
+.entry-lookup { font-size: 10px; font-weight: 700; color: var(--cat-training); margin-left: 5px; }
+
+/* 노선 캐시 목록 */
+.route-cache { display: flex; flex-direction: column; gap: 6px; }
+.route-row { display: grid; grid-template-columns: 74px 1fr auto auto; gap: 6px; align-items: center; }
+.route-row .code { font-weight: 700; font-size: 13px; }
+.route-row input {
+  font: inherit; font-size: 13px; padding: 5px 7px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--card); color: var(--text); min-width: 0;
+}
+.route-row .tag { font-size: 10px; font-weight: 700; color: var(--muted); white-space: nowrap; }
+.route-row .tag.fail { color: var(--cat-unknown); }
