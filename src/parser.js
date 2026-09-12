@@ -369,6 +369,9 @@
       });
     });
 
+    var span = splitOutOfMonth(checked.entries, options && options.year, options && options.month);
+    if (span.outside.length) warnings.push(outOfMonthNote(span.outside, span.prefix));
+
     return {
       entries: checked.entries,
       warnings: warnings,
@@ -376,8 +379,298 @@
       conflicts: checked.conflicts,
       ignoredLines: 0,
       skippedLines: [],
+      outOfMonth: span.outside,
       shape: 'crewnet',
       stats: summarize(checked.entries)
+    };
+  }
+
+  /**
+   * 기준 달을 벗어난 날짜는 조용히 만들어 두지 않는다.
+   * 기준 연·월을 잘못 잡아 엉뚱한 달에 저장되는 일을 막는 마지막 관문이다.
+   * 지우는 것이 아니라 따로 담아 두고 알린다 — 미리보기에서 되돌릴 수 있다.
+   */
+  function splitOutOfMonth(entries, year, month) {
+    if (!year || !month) return { kept: entries, outside: [] };
+    var prefix = year + '-' + pad2(month);
+    var kept = [];
+    var outside = [];
+    entries.forEach(function (entry) {
+      if (entry.date && entry.date.slice(0, 7) === prefix) kept.push(entry);
+      else outside.push(entry);
+    });
+    return { kept: kept, outside: outside, prefix: prefix };
+  }
+
+  /** 적힌 날짜는 그대로 두되 기준 달 밖이라는 것만 알린다. */
+  function outOfMonthNote(outside, prefix) {
+    return {
+      line: 0,
+      text: prefix + ' 밖',
+      message: '기준 달(' + prefix + ') 밖의 날짜가 ' + outside.length + '건 있습니다: ' +
+        outside.slice(0, 6).map(function (x) { return x.date + ' ' + x.code; }).join(', ') +
+        (outside.length > 6 ? ' 외' : '') +
+        '. 글에 그렇게 적혀 있어 그대로 두었습니다 — 기준 연·월이 맞는지 확인해 주세요.'
+    };
+  }
+
+  function outOfMonthWarning(outside, prefix) {
+    return {
+      line: 0,
+      text: prefix + ' 밖',
+      message: '기준 달(' + prefix + ') 밖의 날짜 ' + outside.length + '건은 넣지 않았습니다: ' +
+        outside.slice(0, 6).map(function (x) { return x.date + ' ' + x.code; }).join(', ') +
+        (outside.length > 6 ? ' 외' : '') + '. 기준 연·월을 확인해 주세요.'
+    };
+  }
+
+  /* ======================================================================
+   * 월별 달력 화면을 복사해 붙여넣은 글
+   *
+   * 크루넷 월별 화면을 복사하면 한 주가 한 덩이로 나온다.
+   *
+   *     4   5   6   7   8   9   10
+   *     LO  KE0658  ATDO  KE0727  ADO  KE0005  LO
+   *
+   * 줄을 공백으로만 쪼개면 칸(열) 자리가 사라져 한 주치 코드가 그 주 첫날에
+   * 몽땅 얹힌다. 날짜가 7일 간격으로 찍히던 것이 이것이었다.
+   * 그래서 날짜 줄의 열 자리를 기억해 두고, 아래 줄의 코드를 그 열에 맞춰 나눈다.
+   * 열을 못 맞추는 덩이는 아무 날에나 얹지 않고 못 읽은 줄로 돌려준다.
+   * ====================================================================== */
+
+  /** 탭이 있으면 탭이 곧 칸이다. 없으면 글자 자리로 칸을 가늠한다. */
+  function cellsOf(line) {
+    var out = [];
+    if (line.indexOf('\t') >= 0) {
+      line.split('\t').forEach(function (part, col) {
+        var text = part.trim();
+        if (text) out.push({ text: text, col: col });
+      });
+      return { cells: out, mode: 'tab' };
+    }
+    // 두 칸 이상 띄면 칸이 갈린 것으로 본다. 한 칸 띄어쓰기는 한 칸 안의 두 코드다.
+    var re = /\S+(?:[ ]\S+)*/g;
+    var m;
+    while ((m = re.exec(line)) !== null) out.push({ text: m[0], col: m.index });
+    return { cells: out, mode: 'space' };
+  }
+
+  /**
+   * 날짜 줄인가. 1~31 사이 숫자만 셋 이상 일곱 이하, 커지는 차례로 늘어선 줄.
+   * '4 5 6 7 8 9 10' 은 날짜 줄이고 'KE0727 KE0728' 은 아니다.
+   */
+  function readDayRow(line) {
+    var got = cellsOf(line);
+    var cells = got.cells;
+    if (cells.length < 3 || cells.length > 7) return null;
+    var days = [];
+    for (var i = 0; i < cells.length; i++) {
+      var text = cells[i].text.trim();
+      if (!/^\d{1,2}$/.test(text)) return null;
+      var day = +text;
+      if (day < 1 || day > 31) return null;
+      days.push({ day: day, col: cells[i].col });
+    }
+    // 달이 바뀌면 31 다음에 1 이 온다. 그 한 번만 빼고는 늘 커져야 한다.
+    var drops = 0;
+    for (var j = 1; j < days.length; j++) {
+      if (days[j].day <= days[j - 1].day) drops++;
+    }
+    if (drops > 1) return null;
+    return { days: days, mode: got.mode };
+  }
+
+  /** 붙여넣은 글이 월별 달력 모양인가. 날짜 줄이 둘 이상이면 그렇게 본다. */
+  function looksLikeGrid(text) {
+    var lines = normalizeText(text).split('\n');
+    var rows = 0;
+    for (var i = 0; i < lines.length; i++) {
+      if (readDayRow(lines[i]) && ++rows >= 2) return true;
+    }
+    return false;
+  }
+
+  /** 코드 한 덩이가 어느 날짜 칸의 것인지. 자신할 수 없으면 null. */
+  function columnFor(col, days, mode) {
+    var i;
+    if (mode === 'tab') {
+      for (i = 0; i < days.length; i++) {
+        if (days[i].col === col) return i;
+      }
+      return null;
+    }
+    var width = days.length > 1
+      ? Math.max(4, (days[days.length - 1].col - days[0].col) / (days.length - 1))
+      : 8;
+    var best = null;
+    var bestGap = Infinity;
+    for (i = 0; i < days.length; i++) {
+      var gap = Math.abs(days[i].col - col);
+      if (gap < bestGap) { bestGap = gap; best = i; }
+    }
+    // 칸 너비의 4분의 3보다 멀면 어느 칸인지 자신할 수 없다. 짐작해서 얹지 않는다.
+    return bestGap <= width * 0.75 ? best : null;
+  }
+
+  /**
+   * 달력 모양 글을 읽는다. 날짜는 글에 적힌 날짜 줄에서만 온다.
+   * 줄 번호나 몇 번째 주인지로 날짜를 만들지 않는다.
+   */
+  function parseGrid(text, options) {
+    options = options || {};
+    var baseYear = options.year || new Date().getFullYear();
+    var baseMonth = options.month || (new Date().getMonth() + 1);
+
+    var entries = [];
+    var warnings = [];
+    var skippedLines = [];
+    var outOfMonth = [];
+    var seq = 0;
+    var row = null;
+    var cursor = { year: baseYear, month: baseMonth, prevDay: 0 };
+
+    function dateOfDay(day) {
+      // 31 다음에 1 이 나오면 달이 넘어간 것이다. 그 외에는 기준 달을 그대로 쓴다.
+      if (cursor.prevDay && day < cursor.prevDay - 15) {
+        cursor.month += 1;
+        if (cursor.month > 12) { cursor.month = 1; cursor.year += 1; }
+      }
+      cursor.prevDay = day;
+      if (!isValidDate(cursor.year, cursor.month, day)) return null;
+      return isoDate(cursor.year, cursor.month, day);
+    }
+
+    function itemsOf(text) {
+      var out = [];
+      var lost = [];
+      var tokens = tokenize(preprocessLine(text));
+      for (var i = 0; i < tokens.length; i++) {
+        var upper = tokens[i].toUpperCase();
+        var fl = upper.match(RE.flight);
+        if (fl && !codes.lookup(upper)) {
+          out.push(codes.isAirline(fl[1])
+            ? makeFlightItem(fl[1], fl[2], fl[3])
+            : makeStrangeItem(upper));
+          continue;
+        }
+        if (RE.airline.test(upper) && codes.isAirline(upper) && !codes.lookup(upper) &&
+            i + 1 < tokens.length && RE.digits.test(tokens[i + 1])) {
+          out.push(makeFlightItem(upper, tokens[i + 1]));
+          i++;
+          continue;
+        }
+        var slashed = splitSlashCodes(upper);
+        if (slashed) {
+          slashed.forEach(function (p) { out.push(makeDutyItem(p)); });
+          continue;
+        }
+        if (codes.lookup(upper)) { out.push(makeDutyItem(upper)); continue; }
+        // 달력 칸에 딸려 오는 순수한 숫자(칸 번호 등)는 조용히 넘긴다
+        if (codes.IGNORED_TOKENS[upper] || /^\d+$/.test(upper)) continue;
+        if (RE.dutyLike.test(upper) && upper.length >= 2) { out.push(makeDutyItem(upper)); continue; }
+        lost.push(tokens[i]);
+      }
+      return { items: out, lost: lost };
+    }
+
+    normalizeText(text).split('\n').forEach(function (rawLine, lineIndex) {
+      var trimmed = rawLine.trim();
+      if (!trimmed) return;
+
+      var dayRow = readDayRow(rawLine);
+      if (dayRow) {
+        row = { days: [], mode: dayRow.mode };
+        dayRow.days.forEach(function (d) {
+          row.days.push({ col: d.col, date: dateOfDay(d.day) });
+        });
+        return;
+      }
+
+      // 달력 맨 위의 '2026년 1월' · '2026-01' 머리글. 기준 달을 여기서 맞춘다.
+      var header = /^(\d{4})\s*[년\-./]\s*(\d{1,2})\s*월?$/.exec(trimmed);
+      if (header && +header[2] >= 1 && +header[2] <= 12) {
+        cursor.year = +header[1];
+        cursor.month = +header[2];
+        cursor.prevDay = 0;
+        return;
+      }
+
+      if (isNoiseLine(trimmed)) return;
+      // 요일 머리글(일 월 화 …)은 날짜가 아니다
+      if (/^[일월화수목금토\s]+$/.test(trimmed) && trimmed.length <= 20) return;
+
+      if (!row) {
+        skippedLines.push({ line: lineIndex + 1, text: trimmed, reason: '날짜 없음' });
+        return;
+      }
+
+      var got = cellsOf(rawLine);
+      var lost = [];
+      got.cells.forEach(function (cell) {
+        var index = columnFor(cell.col, row.days, got.mode);
+        var slot = index === null ? null : row.days[index];
+        var read = itemsOf(cell.text);
+        read.lost.forEach(function (t) { lost.push(t); });
+        if (!slot || !slot.date) {
+          read.items.forEach(function (item) { lost.push(item.code); });
+          return;
+        }
+        read.items.forEach(function (item) {
+          entries.push({
+            id: 'g' + (++seq),
+            date: slot.date,
+            code: item.code,
+            type: item.type,
+            category: item.category,
+            label: item.label,
+            known: item.known,
+            route: item.route || null,
+            start: null,
+            end: null,
+            endOffset: 0,
+            strange: !!item.strange,
+            source: trimmed
+          });
+        });
+      });
+      if (lost.length) {
+        skippedLines.push({
+          line: lineIndex + 1,
+          text: lost.join(' '),
+          reason: row ? '열을 맞출 수 없음' : '코드 인식 불가'
+        });
+      }
+    });
+
+    var split = splitOutOfMonth(entries, baseYear, baseMonth);
+    var kept = split.kept;
+    outOfMonth = split.outside;
+    if (outOfMonth.length) warnings.push(outOfMonthWarning(outOfMonth, split.prefix));
+
+    kept.sort(function (a, b) {
+      if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+      return parseInt(a.id.slice(1), 10) - parseInt(b.id.slice(1), 10);
+    });
+
+    var dropped = [];
+    var conflicts = [];
+    if (resolver) {
+      var checked = resolver.resolve(kept);
+      kept = checked.entries;
+      dropped = checked.dropped;
+      conflicts = checked.conflicts;
+    }
+
+    return {
+      entries: kept,
+      warnings: warnings,
+      dropped: dropped,
+      conflicts: conflicts,
+      ignoredLines: [],
+      skippedLines: skippedLines,
+      outOfMonth: outOfMonth,
+      shape: 'grid',
+      stats: summarize(kept)
     };
   }
 
@@ -385,6 +678,8 @@
     // 크루넷 홈 목록은 전용 읽기로 보낸다. 날짜 블록(달/일/요일)과 구간이 있어
     // 줄 단위로 훑는 이 파서보다 훨씬 또렷하게 읽힌다.
     if (crewnet && crewnet.looksLikeCrewnet(text)) return fromCrewnet(text, options);
+    // 월별 달력 화면은 열 자리가 곧 날짜다. 줄 단위로 훑으면 한 주가 한 날에 얹힌다.
+    if (looksLikeGrid(text)) return parseGrid(text, options);
     return parseLines(text, options);
   }
 
@@ -659,6 +954,12 @@
       });
     }
 
+    // 이 길로 들어온 날짜는 글에 그대로 적혀 있던 값이다(2026-02-01, 2/1, 2월 1일).
+    // 달을 넘겨 이어지는 비행이 실제로 있으므로 지우지 않고, 기준 달 밖이라는 것만 알린다.
+    // 날짜를 자리에서 유추하는 달력 격자(parseGrid)는 그 자리에서 막는다.
+    var span = splitOutOfMonth(entries, options.year, options.month);
+    if (span.outside.length) warnings.push(outOfMonthNote(span.outside, span.prefix));
+
     return {
       entries: entries,
       warnings: warnings,
@@ -666,6 +967,8 @@
       conflicts: conflicts,
       ignoredLines: ignoredLines,
       skippedLines: skippedLines,
+      outOfMonth: span.outside,
+      shape: 'lines',
       stats: summarize(entries)
     };
 
@@ -755,6 +1058,10 @@
   return {
     parse: parse,
     parseLines: parseLines,
+    parseGrid: parseGrid,
+    looksLikeGrid: looksLikeGrid,
+    readDayRow: readDayRow,
+    cellsOf: cellsOf,
     fromCrewnet: fromCrewnet,
     normalizeText: normalizeText,
     preprocessLine: preprocessLine,

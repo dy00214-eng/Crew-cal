@@ -1745,6 +1745,55 @@ body { padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
   background: hsl(var(--band-hue, 220) 30% 32%);
   box-shadow: inset 0 0 0 1px hsl(var(--band-hue, 220) 40% 46%);
 }
+
+/* 못 읽은 줄을 그 자리에서 고쳐 다시 읽는다 */
+.skipped-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.skipped-row { display: grid; grid-template-columns: 40px 1fr; gap: 6px; align-items: center; }
+.skipped-row .line-no { font-size: 11px; font-weight: 700; color: var(--muted); text-align: right; }
+.skipped-row input {
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--input-bg);
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+}
+.skipped-why {
+  grid-column: 2;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--warn-text);
+  margin-top: -2px;
+}
+/* 자동으로 채워 넣은 값. 점선만으로는 잘 안 보여 배경과 배지를 함께 준다. */
+td.auto-filled {
+  background: color-mix(in srgb, var(--cat-standby) 16%, transparent);
+  border-bottom: 1px dashed var(--cat-standby);
+}
+.auto-badge {
+  display: inline-block;
+  margin-left: 5px;
+  padding: 0 5px;
+  border-radius: 999px;
+  font-size: 9.5px;
+  font-weight: 800;
+  line-height: 1.6;
+  color: #fff;
+  background: var(--cat-standby);
+  vertical-align: middle;
+}
+.fill-note {
+  margin: 8px 0 0;
+  padding: 9px 11px;
+  border-radius: 10px;
+  background: var(--fill);
+  font-size: 13px;
+  color: var(--text);
+}
+.fill-note b { font-weight: 700; }
+.fill-note .auto-badge { margin-left: 0; margin-right: 4px; }
 </style>
 <header class="app-header">
   <h1>Crew-cal</h1>
@@ -1935,9 +1984,18 @@ body { padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
         <p id="previewGaps" class="warnings" hidden></p>
         <p id="previewMissing" class="warnings danger-note" hidden></p>
         <div id="previewWarnings" class="warnings" hidden></div>
+        <p id="previewFill" class="fill-note" hidden></p>
+        <p id="previewBlocked" class="warnings danger-note" hidden></p>
         <details id="previewSkipped" class="skipped" hidden>
           <summary>읽지 못한 줄 <span id="skippedCount">0</span>개 보기</summary>
-          <ul id="skippedList"></ul>
+          <p class="muted small-note">
+            고쳐 넣고 <b>고친 줄 다시 읽기</b>를 누르면 그 줄만 다시 읽습니다.
+            원본 글은 그대로 두고 고친 줄만 덧붙습니다.
+          </p>
+          <ul id="skippedList" class="skipped-list"></ul>
+          <div class="actions">
+            <button type="button" id="reparseSkipped" class="ghost small">고친 줄 다시 읽기</button>
+          </div>
         </details>
         <div class="preview-table-wrap">
           <table class="preview-table">
@@ -10747,6 +10805,9 @@ body { padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
       });
     });
 
+    var span = splitOutOfMonth(checked.entries, options && options.year, options && options.month);
+    if (span.outside.length) warnings.push(outOfMonthNote(span.outside, span.prefix));
+
     return {
       entries: checked.entries,
       warnings: warnings,
@@ -10754,8 +10815,298 @@ body { padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
       conflicts: checked.conflicts,
       ignoredLines: 0,
       skippedLines: [],
+      outOfMonth: span.outside,
       shape: 'crewnet',
       stats: summarize(checked.entries)
+    };
+  }
+
+  /**
+   * 기준 달을 벗어난 날짜는 조용히 만들어 두지 않는다.
+   * 기준 연·월을 잘못 잡아 엉뚱한 달에 저장되는 일을 막는 마지막 관문이다.
+   * 지우는 것이 아니라 따로 담아 두고 알린다 — 미리보기에서 되돌릴 수 있다.
+   */
+  function splitOutOfMonth(entries, year, month) {
+    if (!year || !month) return { kept: entries, outside: [] };
+    var prefix = year + '-' + pad2(month);
+    var kept = [];
+    var outside = [];
+    entries.forEach(function (entry) {
+      if (entry.date && entry.date.slice(0, 7) === prefix) kept.push(entry);
+      else outside.push(entry);
+    });
+    return { kept: kept, outside: outside, prefix: prefix };
+  }
+
+  /** 적힌 날짜는 그대로 두되 기준 달 밖이라는 것만 알린다. */
+  function outOfMonthNote(outside, prefix) {
+    return {
+      line: 0,
+      text: prefix + ' 밖',
+      message: '기준 달(' + prefix + ') 밖의 날짜가 ' + outside.length + '건 있습니다: ' +
+        outside.slice(0, 6).map(function (x) { return x.date + ' ' + x.code; }).join(', ') +
+        (outside.length > 6 ? ' 외' : '') +
+        '. 글에 그렇게 적혀 있어 그대로 두었습니다 — 기준 연·월이 맞는지 확인해 주세요.'
+    };
+  }
+
+  function outOfMonthWarning(outside, prefix) {
+    return {
+      line: 0,
+      text: prefix + ' 밖',
+      message: '기준 달(' + prefix + ') 밖의 날짜 ' + outside.length + '건은 넣지 않았습니다: ' +
+        outside.slice(0, 6).map(function (x) { return x.date + ' ' + x.code; }).join(', ') +
+        (outside.length > 6 ? ' 외' : '') + '. 기준 연·월을 확인해 주세요.'
+    };
+  }
+
+  /* ======================================================================
+   * 월별 달력 화면을 복사해 붙여넣은 글
+   *
+   * 크루넷 월별 화면을 복사하면 한 주가 한 덩이로 나온다.
+   *
+   *     4   5   6   7   8   9   10
+   *     LO  KE0658  ATDO  KE0727  ADO  KE0005  LO
+   *
+   * 줄을 공백으로만 쪼개면 칸(열) 자리가 사라져 한 주치 코드가 그 주 첫날에
+   * 몽땅 얹힌다. 날짜가 7일 간격으로 찍히던 것이 이것이었다.
+   * 그래서 날짜 줄의 열 자리를 기억해 두고, 아래 줄의 코드를 그 열에 맞춰 나눈다.
+   * 열을 못 맞추는 덩이는 아무 날에나 얹지 않고 못 읽은 줄로 돌려준다.
+   * ====================================================================== */
+
+  /** 탭이 있으면 탭이 곧 칸이다. 없으면 글자 자리로 칸을 가늠한다. */
+  function cellsOf(line) {
+    var out = [];
+    if (line.indexOf('\t') >= 0) {
+      line.split('\t').forEach(function (part, col) {
+        var text = part.trim();
+        if (text) out.push({ text: text, col: col });
+      });
+      return { cells: out, mode: 'tab' };
+    }
+    // 두 칸 이상 띄면 칸이 갈린 것으로 본다. 한 칸 띄어쓰기는 한 칸 안의 두 코드다.
+    var re = /\S+(?:[ ]\S+)*/g;
+    var m;
+    while ((m = re.exec(line)) !== null) out.push({ text: m[0], col: m.index });
+    return { cells: out, mode: 'space' };
+  }
+
+  /**
+   * 날짜 줄인가. 1~31 사이 숫자만 셋 이상 일곱 이하, 커지는 차례로 늘어선 줄.
+   * '4 5 6 7 8 9 10' 은 날짜 줄이고 'KE0727 KE0728' 은 아니다.
+   */
+  function readDayRow(line) {
+    var got = cellsOf(line);
+    var cells = got.cells;
+    if (cells.length < 3 || cells.length > 7) return null;
+    var days = [];
+    for (var i = 0; i < cells.length; i++) {
+      var text = cells[i].text.trim();
+      if (!/^\d{1,2}$/.test(text)) return null;
+      var day = +text;
+      if (day < 1 || day > 31) return null;
+      days.push({ day: day, col: cells[i].col });
+    }
+    // 달이 바뀌면 31 다음에 1 이 온다. 그 한 번만 빼고는 늘 커져야 한다.
+    var drops = 0;
+    for (var j = 1; j < days.length; j++) {
+      if (days[j].day <= days[j - 1].day) drops++;
+    }
+    if (drops > 1) return null;
+    return { days: days, mode: got.mode };
+  }
+
+  /** 붙여넣은 글이 월별 달력 모양인가. 날짜 줄이 둘 이상이면 그렇게 본다. */
+  function looksLikeGrid(text) {
+    var lines = normalizeText(text).split('\n');
+    var rows = 0;
+    for (var i = 0; i < lines.length; i++) {
+      if (readDayRow(lines[i]) && ++rows >= 2) return true;
+    }
+    return false;
+  }
+
+  /** 코드 한 덩이가 어느 날짜 칸의 것인지. 자신할 수 없으면 null. */
+  function columnFor(col, days, mode) {
+    var i;
+    if (mode === 'tab') {
+      for (i = 0; i < days.length; i++) {
+        if (days[i].col === col) return i;
+      }
+      return null;
+    }
+    var width = days.length > 1
+      ? Math.max(4, (days[days.length - 1].col - days[0].col) / (days.length - 1))
+      : 8;
+    var best = null;
+    var bestGap = Infinity;
+    for (i = 0; i < days.length; i++) {
+      var gap = Math.abs(days[i].col - col);
+      if (gap < bestGap) { bestGap = gap; best = i; }
+    }
+    // 칸 너비의 4분의 3보다 멀면 어느 칸인지 자신할 수 없다. 짐작해서 얹지 않는다.
+    return bestGap <= width * 0.75 ? best : null;
+  }
+
+  /**
+   * 달력 모양 글을 읽는다. 날짜는 글에 적힌 날짜 줄에서만 온다.
+   * 줄 번호나 몇 번째 주인지로 날짜를 만들지 않는다.
+   */
+  function parseGrid(text, options) {
+    options = options || {};
+    var baseYear = options.year || new Date().getFullYear();
+    var baseMonth = options.month || (new Date().getMonth() + 1);
+
+    var entries = [];
+    var warnings = [];
+    var skippedLines = [];
+    var outOfMonth = [];
+    var seq = 0;
+    var row = null;
+    var cursor = { year: baseYear, month: baseMonth, prevDay: 0 };
+
+    function dateOfDay(day) {
+      // 31 다음에 1 이 나오면 달이 넘어간 것이다. 그 외에는 기준 달을 그대로 쓴다.
+      if (cursor.prevDay && day < cursor.prevDay - 15) {
+        cursor.month += 1;
+        if (cursor.month > 12) { cursor.month = 1; cursor.year += 1; }
+      }
+      cursor.prevDay = day;
+      if (!isValidDate(cursor.year, cursor.month, day)) return null;
+      return isoDate(cursor.year, cursor.month, day);
+    }
+
+    function itemsOf(text) {
+      var out = [];
+      var lost = [];
+      var tokens = tokenize(preprocessLine(text));
+      for (var i = 0; i < tokens.length; i++) {
+        var upper = tokens[i].toUpperCase();
+        var fl = upper.match(RE.flight);
+        if (fl && !codes.lookup(upper)) {
+          out.push(codes.isAirline(fl[1])
+            ? makeFlightItem(fl[1], fl[2], fl[3])
+            : makeStrangeItem(upper));
+          continue;
+        }
+        if (RE.airline.test(upper) && codes.isAirline(upper) && !codes.lookup(upper) &&
+            i + 1 < tokens.length && RE.digits.test(tokens[i + 1])) {
+          out.push(makeFlightItem(upper, tokens[i + 1]));
+          i++;
+          continue;
+        }
+        var slashed = splitSlashCodes(upper);
+        if (slashed) {
+          slashed.forEach(function (p) { out.push(makeDutyItem(p)); });
+          continue;
+        }
+        if (codes.lookup(upper)) { out.push(makeDutyItem(upper)); continue; }
+        // 달력 칸에 딸려 오는 순수한 숫자(칸 번호 등)는 조용히 넘긴다
+        if (codes.IGNORED_TOKENS[upper] || /^\d+$/.test(upper)) continue;
+        if (RE.dutyLike.test(upper) && upper.length >= 2) { out.push(makeDutyItem(upper)); continue; }
+        lost.push(tokens[i]);
+      }
+      return { items: out, lost: lost };
+    }
+
+    normalizeText(text).split('\n').forEach(function (rawLine, lineIndex) {
+      var trimmed = rawLine.trim();
+      if (!trimmed) return;
+
+      var dayRow = readDayRow(rawLine);
+      if (dayRow) {
+        row = { days: [], mode: dayRow.mode };
+        dayRow.days.forEach(function (d) {
+          row.days.push({ col: d.col, date: dateOfDay(d.day) });
+        });
+        return;
+      }
+
+      // 달력 맨 위의 '2026년 1월' · '2026-01' 머리글. 기준 달을 여기서 맞춘다.
+      var header = /^(\d{4})\s*[년\-./]\s*(\d{1,2})\s*월?$/.exec(trimmed);
+      if (header && +header[2] >= 1 && +header[2] <= 12) {
+        cursor.year = +header[1];
+        cursor.month = +header[2];
+        cursor.prevDay = 0;
+        return;
+      }
+
+      if (isNoiseLine(trimmed)) return;
+      // 요일 머리글(일 월 화 …)은 날짜가 아니다
+      if (/^[일월화수목금토\s]+$/.test(trimmed) && trimmed.length <= 20) return;
+
+      if (!row) {
+        skippedLines.push({ line: lineIndex + 1, text: trimmed, reason: '날짜 없음' });
+        return;
+      }
+
+      var got = cellsOf(rawLine);
+      var lost = [];
+      got.cells.forEach(function (cell) {
+        var index = columnFor(cell.col, row.days, got.mode);
+        var slot = index === null ? null : row.days[index];
+        var read = itemsOf(cell.text);
+        read.lost.forEach(function (t) { lost.push(t); });
+        if (!slot || !slot.date) {
+          read.items.forEach(function (item) { lost.push(item.code); });
+          return;
+        }
+        read.items.forEach(function (item) {
+          entries.push({
+            id: 'g' + (++seq),
+            date: slot.date,
+            code: item.code,
+            type: item.type,
+            category: item.category,
+            label: item.label,
+            known: item.known,
+            route: item.route || null,
+            start: null,
+            end: null,
+            endOffset: 0,
+            strange: !!item.strange,
+            source: trimmed
+          });
+        });
+      });
+      if (lost.length) {
+        skippedLines.push({
+          line: lineIndex + 1,
+          text: lost.join(' '),
+          reason: row ? '열을 맞출 수 없음' : '코드 인식 불가'
+        });
+      }
+    });
+
+    var split = splitOutOfMonth(entries, baseYear, baseMonth);
+    var kept = split.kept;
+    outOfMonth = split.outside;
+    if (outOfMonth.length) warnings.push(outOfMonthWarning(outOfMonth, split.prefix));
+
+    kept.sort(function (a, b) {
+      if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+      return parseInt(a.id.slice(1), 10) - parseInt(b.id.slice(1), 10);
+    });
+
+    var dropped = [];
+    var conflicts = [];
+    if (resolver) {
+      var checked = resolver.resolve(kept);
+      kept = checked.entries;
+      dropped = checked.dropped;
+      conflicts = checked.conflicts;
+    }
+
+    return {
+      entries: kept,
+      warnings: warnings,
+      dropped: dropped,
+      conflicts: conflicts,
+      ignoredLines: [],
+      skippedLines: skippedLines,
+      outOfMonth: outOfMonth,
+      shape: 'grid',
+      stats: summarize(kept)
     };
   }
 
@@ -10763,6 +11114,8 @@ body { padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
     // 크루넷 홈 목록은 전용 읽기로 보낸다. 날짜 블록(달/일/요일)과 구간이 있어
     // 줄 단위로 훑는 이 파서보다 훨씬 또렷하게 읽힌다.
     if (crewnet && crewnet.looksLikeCrewnet(text)) return fromCrewnet(text, options);
+    // 월별 달력 화면은 열 자리가 곧 날짜다. 줄 단위로 훑으면 한 주가 한 날에 얹힌다.
+    if (looksLikeGrid(text)) return parseGrid(text, options);
     return parseLines(text, options);
   }
 
@@ -11037,6 +11390,12 @@ body { padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
       });
     }
 
+    // 이 길로 들어온 날짜는 글에 그대로 적혀 있던 값이다(2026-02-01, 2/1, 2월 1일).
+    // 달을 넘겨 이어지는 비행이 실제로 있으므로 지우지 않고, 기준 달 밖이라는 것만 알린다.
+    // 날짜를 자리에서 유추하는 달력 격자(parseGrid)는 그 자리에서 막는다.
+    var span = splitOutOfMonth(entries, options.year, options.month);
+    if (span.outside.length) warnings.push(outOfMonthNote(span.outside, span.prefix));
+
     return {
       entries: entries,
       warnings: warnings,
@@ -11044,6 +11403,8 @@ body { padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
       conflicts: conflicts,
       ignoredLines: ignoredLines,
       skippedLines: skippedLines,
+      outOfMonth: span.outside,
+      shape: 'lines',
       stats: summarize(entries)
     };
 
@@ -11133,6 +11494,10 @@ body { padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
   return {
     parse: parse,
     parseLines: parseLines,
+    parseGrid: parseGrid,
+    looksLikeGrid: looksLikeGrid,
+    readDayRow: readDayRow,
+    cellsOf: cellsOf,
     fromCrewnet: fromCrewnet,
     normalizeText: normalizeText,
     preprocessLine: preprocessLine,
@@ -11995,14 +12360,30 @@ body { padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
   }
 
   /**
+   * 구간이 안 적힌 체류(LO)가 어디서 한 것인지. 그날 비행이 닿은 곳이 곧 체류지다.
+   * 붙여넣은 글에 'LO' 만 있어도 같은 날 비행이 있으면 도시를 알 수 있다.
+   * 지어내는 것이 아니라 그날 비행이 이미 알려 준 값을 쓰는 것이다.
+   */
+  function stayPlaceOf(list) {
+    if (!airports) return null;
+    var found = null;
+    (list || []).forEach(function (e) {
+      if (found || e.strange || e.type !== 'flight') return;
+      found = airports.tripPlace(e);
+    });
+    return found;
+  }
+
+  /**
    * 칸에 그릴 덩이들. 도시가 같으면 한 덩이로 묶고, 도시가 없는 근무(휴무·대기)는
    * 저마다 한 덩이가 된다. 원본 엔트리는 모두 어느 덩이엔가 들어간다 — 버리지 않는다.
    */
   function cellGroups(list, date, staying, localOnly) {
     var groups = [];
     var byKey = {};
+    var stayPlace = stayPlaceOf(list) || staying || null;
     (list || []).forEach(function (entry) {
-      var place = placeOf(entry, staying);
+      var place = placeOf(entry, stayPlace);
       var key = place ? 'place:' + place.iata : 'code:' + groups.length + ':' + (entry.code || '');
       var group = byKey[key];
       if (!group) {
@@ -12154,7 +12535,7 @@ body { padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
       var shown = cellItems(list);
       var dayHasFlight = shown.some(function (e) { return e.type === 'flight'; });
       var staying = places[date] || null;
-      var groups = cellGroups(shown, date, dayHasFlight ? null : staying, localOnly);
+      var groups = cellGroups(shown, date, staying, localOnly);
       var alerts = [];
 
       groups.slice(0, CELL_LIMIT).forEach(function (group) {
@@ -12218,15 +12599,20 @@ body { padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
             time.title = point.text;
             item.appendChild(time);
           });
-        } else if (group.enroute) {
-          var air = document.createElement('span');
-          air.className = 'cal-time stay';
-          air.textContent = '기내';
-          item.appendChild(air);
-        } else if (group.layover) {
+        } else if (place && (group.enroute || group.layover)) {
+          // 도시가 제목일 때만 덧붙인다. 구간을 몰라 제목이 이미 '체류' 인 칸에
+          // 또 적으면 '체류 체류 LO' 처럼 두 번 찍힌다.
+          // 원래 코드는 같은 줄에 붙여 '체류 LO' 한 줄로 만든다.
+          var dutyCodes = [];
+          group.entries.forEach(function (e) {
+            if (e.type === 'flight') return;
+            var code = e.code || '';
+            if (code && code !== (e.label || '') && dutyCodes.indexOf(code) < 0) dutyCodes.push(code);
+          });
           var stay = document.createElement('span');
           stay.className = 'cal-time stay';
-          stay.textContent = '체류';
+          stay.textContent = (group.enroute ? '기내' : '체류') +
+            (dutyCodes.length ? ' ' + dutyCodes.join(' · ') : '');
           item.appendChild(stay);
         }
 
@@ -12775,6 +13161,7 @@ body { padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
     tripBands: tripBands,
     awayCountryOf: awayCountryOf,
     cellGroups: cellGroups,
+    stayPlaceOf: stayPlaceOf,
     groupLines: groupLines,
     entryTimes: entryTimes,
     timePoint: timePoint,
@@ -16429,6 +16816,7 @@ body { padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
     });
 
     $('parseBtn').addEventListener('click', function () { runParse(); });
+    $('reparseSkipped').addEventListener('click', reparseSkipped);
 
     // 기준 연·월을 고치면 읽어 온 글의 날짜도 그 달로 옮긴다.
     // 1월 캡처가 9월로 들어갔을 때 연·월만 고쳐서는 아무것도 안 바뀌던 것.
@@ -16590,10 +16978,21 @@ body { padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
     var memoBox = $('previewMemo');
     if (autoFilled) {
       memoBox.textContent = '원본에 구간이 없어 ' + autoFilled + '건을 편명으로 채웠습니다(노선표와 등록해둔 값). ' +
-        '점선 친 칸이 채워 넣은 값이니 확인하고, 다르면 텍스트에 직접 적어주세요.';
+        '다르면 텍스트에 직접 적어주세요.';
       memoBox.hidden = false;
     } else {
       memoBox.hidden = true;
+    }
+
+    // 어디까지가 원본이고 어디부터가 채워 넣은 값인지 한눈에.
+    var fillBox = $('previewFill');
+    var fromSource = result.entries.length - autoFilled;
+    if (autoFilled) {
+      fillBox.innerHTML = '<b>자동 채움 ' + autoFilled + '건</b> / 원본 확인 ' + fromSource + '건' +
+        ' — 표에서 <span class="auto-badge">자동</span> 배지가 붙은 칸이 채워 넣은 값입니다.';
+      fillBox.hidden = false;
+    } else {
+      fillBox.hidden = true;
     }
 
     showMissingDays();
@@ -16620,21 +17019,7 @@ body { padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
       warnBox.innerHTML = '';
     }
 
-    var skipped = result.skippedLines || [];
-    $('previewSkipped').hidden = skipped.length === 0;
-    $('skippedCount').textContent = skipped.length;
-    var skippedList = $('skippedList');
-    skippedList.innerHTML = '';
-    skipped.slice(0, 40).forEach(function (item) {
-      var li = document.createElement('li');
-      li.textContent = item.line + '행: ' + item.text;
-      skippedList.appendChild(li);
-    });
-    if (skipped.length > 40) {
-      var more = document.createElement('li');
-      more.textContent = '… 외 ' + (skipped.length - 40) + '줄';
-      skippedList.appendChild(more);
-    }
+    renderSkipped(result);
 
     var tbody = $('previewBody');
     tbody.innerHTML = '';
@@ -16691,9 +17076,103 @@ body { padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
         td.className = 'auto-filled';
         td.title = entry.code + ' 의 구간을 ' +
           (entry.routeSource === 'lookup' ? '자동으로 찾아' : '노선표에서') + ' 채웠습니다.';
+        // 점선만으로는 잘 안 보인다는 이야기가 있었다. 배지를 같이 단다.
+        var tag = document.createElement('span');
+        tag.className = 'auto-badge';
+        tag.textContent = '자동';
+        td.appendChild(tag);
       }
       return td;
     }
+  }
+
+  /* ---------------- 못 읽은 줄 ---------------- */
+
+  // 읽은 줄 대비 이만큼 넘게 놓치면 형식을 못 알아본 것으로 본다.
+  var SKIP_LIMIT = 0.10;
+
+  /** 못 읽은 줄이 너무 많은가. 많으면 반영을 막는다 — 버린 채로 저장되면 안 된다. */
+  function skipRatio(result) {
+    if (!result) return 0;
+    var skipped = (result.skippedLines || []).length;
+    var read = result.entries.length;
+    if (!skipped) return 0;
+    return skipped / (skipped + read);
+  }
+
+  function tooManySkipped(result) {
+    return skipRatio(result) > SKIP_LIMIT;
+  }
+
+  /**
+   * 못 읽은 줄을 사유와 함께 보여 주고, 그 자리에서 고쳐 다시 읽게 한다.
+   * 원본 글은 건드리지 않고 고친 줄만 덧붙여 다시 읽는다.
+   */
+  function renderSkipped(result) {
+    var skipped = result.skippedLines || [];
+    var box = $('previewSkipped');
+    box.hidden = skipped.length === 0;
+    $('skippedCount').textContent = skipped.length;
+
+    var list = $('skippedList');
+    list.innerHTML = '';
+    skipped.slice(0, 40).forEach(function (item) {
+      var li = document.createElement('li');
+      li.className = 'skipped-row';
+      var no = document.createElement('span');
+      no.className = 'line-no';
+      no.textContent = (item.line || '?') + '행';
+      var input = document.createElement('input');
+      input.type = 'text';
+      input.value = item.text || '';
+      input.spellcheck = false;
+      input.setAttribute('data-original', item.text || '');
+      input.setAttribute('aria-label', (item.line || '') + '행 고쳐 쓰기');
+      var why = document.createElement('span');
+      why.className = 'skipped-why';
+      why.textContent = item.reason || '형식 불일치';
+      li.appendChild(no);
+      li.appendChild(input);
+      li.appendChild(why);
+      list.appendChild(li);
+    });
+    if (skipped.length > 40) {
+      var more = document.createElement('li');
+      more.className = 'skipped-why';
+      more.textContent = '… 외 ' + (skipped.length - 40) + '줄';
+      list.appendChild(more);
+    }
+
+    var blocked = $('previewBlocked');
+    if (tooManySkipped(result)) {
+      box.open = true;
+      blocked.textContent = '입력 형식을 인식하지 못했습니다. ' +
+        skipped.length + '줄을 읽지 못했습니다(읽은 ' + result.entries.length + '건 대비 ' +
+        Math.round(skipRatio(result) * 100) + '%). ' +
+        '이대로 반영하면 그만큼이 빠진 채 저장됩니다. ' +
+        '위 목록에서 고쳐 다시 읽거나, 크루넷 홈 화면(목록) 글을 붙여넣어 보세요.';
+      blocked.hidden = false;
+    } else {
+      blocked.hidden = true;
+    }
+  }
+
+  /** 고쳐 쓴 줄만 모아 다시 읽는다. 원본 글은 그대로 둔다. */
+  function reparseSkipped() {
+    var rows = [];
+    var inputs = $('skippedList').querySelectorAll('input');
+    for (var i = 0; i < inputs.length; i++) {
+      var text = inputs[i].value.trim();
+      if (text && text !== inputs[i].getAttribute('data-original')) rows.push(text);
+    }
+    if (!rows.length) {
+      toast('고쳐 쓴 줄이 없습니다.');
+      return;
+    }
+    var merged = $('pasteInput').value.replace(/\s*$/, '') + '\n' + rows.join('\n');
+    $('pasteInput').value = merged;
+    runParse();
+    toast(rows.length + '줄을 고쳐 다시 읽었습니다.');
   }
 
   /**
@@ -16753,10 +17232,12 @@ body { padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
 
   function updateApplyButton() {
     var n = selectedPreviewEntries().length;
-    var blocked = hasBlockingGaps();
+    var lost = tooManySkipped(state.preview);
+    var blocked = hasBlockingGaps() || lost;
     var btn = $('applyBtn');
     btn.disabled = n === 0 || blocked;
-    btn.title = blocked ? '읽기에 실패한 데가 있어 반영할 수 없습니다. 위 안내를 보세요.' : '';
+    btn.title = lost ? '입력 형식을 인식하지 못했습니다. 못 읽은 줄을 고쳐 주세요.'
+      : blocked ? '읽기에 실패한 데가 있어 반영할 수 없습니다. 위 안내를 보세요.' : '';
     btn.textContent = n ? '캘린더에 반영 (' + n + '건)' : '캘린더에 반영';
   }
 
@@ -17503,7 +17984,7 @@ body { padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
   /* ---------------- 동료가 보내는 의견 ---------------- */
 
   // 화면 아래와 의견 보내기에 적히는 판 번호. sw.js 의 VERSION 과 함께 올린다.
-  var APP_VERSION = 'v35';
+  var APP_VERSION = 'v36';
 
   /**
    * 의견을 받을 메일 주소. 저장소가 공개라 통짜로 적어두면 스팸 크롤러가 긁어가므로

@@ -206,9 +206,18 @@
         <p id="previewGaps" class="warnings" hidden></p>
         <p id="previewMissing" class="warnings danger-note" hidden></p>
         <div id="previewWarnings" class="warnings" hidden></div>
+        <p id="previewFill" class="fill-note" hidden></p>
+        <p id="previewBlocked" class="warnings danger-note" hidden></p>
         <details id="previewSkipped" class="skipped" hidden>
           <summary>읽지 못한 줄 <span id="skippedCount">0</span>개 보기</summary>
-          <ul id="skippedList"></ul>
+          <p class="muted small-note">
+            고쳐 넣고 <b>고친 줄 다시 읽기</b>를 누르면 그 줄만 다시 읽습니다.
+            원본 글은 그대로 두고 고친 줄만 덧붙습니다.
+          </p>
+          <ul id="skippedList" class="skipped-list"></ul>
+          <div class="actions">
+            <button type="button" id="reparseSkipped" class="ghost small">고친 줄 다시 읽기</button>
+          </div>
         </details>
         <div class="preview-table-wrap">
           <table class="preview-table">

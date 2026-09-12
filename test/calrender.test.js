@@ -336,3 +336,42 @@ test('TVL 은 배지 하나로만 나오고 제 칸을 따로 만들지 않는�
   const badges = walk(cells['2026-01-29']).filter((n) => n.classList.contains('cal-deadhead'));
   assert.strictEqual(badges.length, 1, '탑승 근무 배지는 한 번만');
 });
+
+test('구간을 모르는 체류는 체류를 한 번만 적는다', () => {
+  // route 가 없으면 제목이 이미 '체류' 다. 여기에 또 붙여 '체류 체류 LO' 가 되던 일이 있었다.
+  const list = [store.decorate({ date: '2026-01-04', code: 'LO' })];
+  const cells = draw({ year: 2026, month: 1, entriesByDate: { '2026-01-04': list } });
+  const text = textOf(cells['2026-01-04']);
+  const hits = text.split('체류').length - 1;
+  assert.strictEqual(hits, 1, '체류는 한 번만: ' + text);
+  assert.ok(text.includes('LO'), '원래 코드는 남는다: ' + text);
+});
+
+test('시각이 있는 엔트리는 칸에 반드시 시각을 적는다', () => {
+  const list = [store.decorate({
+    date: '2026-01-03', code: 'KE0657', route: 'ICN/BKK',
+    start: '19:30', end: '23:20', legRole: 'depart'
+  }), store.decorate({ date: '2026-01-03', code: 'LO', route: 'BKK' })];
+  const cells = draw({ year: 2026, month: 1, entriesByDate: { '2026-01-03': list } });
+  const text = textOf(cells['2026-01-03']);
+  assert.ok(text.includes('ICN출발') && text.includes('19:30'), text);
+  assert.ok((text.split('체류').length - 1) <= 1, '체류 중복 없음: ' + text);
+});
+
+test('구간이 없는 체류도 그날 비행이 닿은 도시로 묶인다', () => {
+  // 붙여넣은 글에 'LO' 만 있어도 같은 날 비행이 체류지를 알려 준다.
+  const list = [
+    store.decorate({ date: '2026-01-03', code: 'KE0657', route: 'ICN/BKK' }),
+    store.decorate({ date: '2026-01-03', code: 'LO' })
+  ];
+  const groups = calendar.cellGroups(list, '2026-01-03', null, false);
+  assert.strictEqual(groups.length, 1, '한 덩이로 묶인다: ' + JSON.stringify(groups.map(g => g.key)));
+  assert.strictEqual(groups[0].entries.length, 2);
+  assert.strictEqual(groups[0].place.city, '방콕');
+
+  const cells = draw({ year: 2026, month: 1, entriesByDate: { '2026-01-03': list } });
+  const text = textOf(cells['2026-01-03']);
+  assert.strictEqual(text.split('체류').length - 1, 1, '체류는 한 번만: ' + text);
+  assert.ok(text.includes('방콕'), text);
+  assert.ok(/체류 LO/.test(text), "'체류 LO' 한 줄로 적는다: " + text);
+});

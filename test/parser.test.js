@@ -278,14 +278,14 @@ test('크루넷 표 형태 전체 흐름', () => {
 });
 
 test('TVL 은 비행 근무로 읽는다', () => {
-  const r = parse('2026-07-04 KE0038 TVL');
+  const r = parse('2026-09-04 KE0038 TVL');
   assert.deepStrictEqual(r.entries.map(e => [e.code, e.category]), [['KE0038', 'flight'], ['TVL', 'flight']]);
   assert.strictEqual(r.warnings.length, 0);
 });
 
 test('화면 조작용 줄은 조용히 건너뛴다', () => {
   const text = ['MY SKD', 'Actual (Current Month)', 'Extra (Current Month)', 'prev', 'next',
-    'clear 오늘', '2026-07-06 ATDO'].join('\n');
+    'clear 오늘', '2026-09-06 ATDO'].join('\n');
   const r = parse(text);
   assert.strictEqual(r.entries.length, 1);
   assert.strictEqual(r.warnings.length, 0);
@@ -334,7 +334,7 @@ test('구간과 시각은 줄 중간에 날짜가 끼어도 제 날짜에 붙는
 });
 
 test('YVS 는 휴가, TFRS 는 교육으로 읽는다', () => {
-  const r = parse('2026-06-10 YVS\n2026-06-29 TFRS\n2026-06-09 PDO');
+  const r = parse('2026-09-10 YVS\n2026-09-29 TFRS\n2026-09-09 PDO');
   assert.deepStrictEqual(
     r.entries.map(e => [e.code, e.category, e.label]),
     [['PDO', 'off', '휴무'], ['YVS', 'vacation', '휴가'], ['TFRS', 'training', '교육']]
@@ -403,4 +403,84 @@ test('공항 대기 코드를 읽는다', () => {
   );
   assert.ok(r.entries.every(e => e.category === 'standby'));
   assert.strictEqual(r.warnings.length, 0);
+});
+
+/* ---------------- 월별 달력 화면 붙여넣기 ---------------- */
+
+const GRID = [
+  '2026년 1월',
+  '일\t월\t화\t수\t목\t금\t토',
+  '\t\t\t\t1\t2\t3',
+  '\t\t\t\tATDO\t\tKE0657',
+  '4\t5\t6\t7\t8\t9\t10',
+  'LO\tKE0658\tATDO\tKE0727\tADO\tKE0005\tLO',
+  '11\t12\t13\t14\t15\t16\t17',
+  'KE0006\tKE0006\tATDO\tATDO\tKE2011\tLO\tKE2012',
+  '18\t19\t20\t21\t22\t23\t24',
+  'KE2179 KE2180\tKE0457\tKE0458\tATDO\t\t\t'
+].join('\n');
+
+test('달력 격자는 열 자리로 날짜를 가른다 — 한 주가 첫날에 몰리지 않는다', () => {
+  assert.ok(parser.looksLikeGrid(GRID));
+  const r = parser.parse(GRID, { year: 2026, month: 1 });
+  assert.strictEqual(r.shape, 'grid');
+  const on = (d) => codesOn(r, d);
+  assert.deepStrictEqual(on('2026-01-01'), ['ATDO']);
+  assert.deepStrictEqual(on('2026-01-03'), ['KE0657']);
+  assert.deepStrictEqual(on('2026-01-04'), ['LO']);
+  assert.deepStrictEqual(on('2026-01-05'), ['KE0658']);
+  assert.deepStrictEqual(on('2026-01-07'), ['KE0727']);
+  assert.deepStrictEqual(on('2026-01-09'), ['KE0005']);
+  assert.deepStrictEqual(on('2026-01-17'), ['KE2012']);
+  // 한 칸 안에 두 편이 붙어 있으면 둘 다 그 날로 간다
+  assert.deepStrictEqual(on('2026-01-18'), ['KE2179', 'KE2180']);
+  assert.deepStrictEqual(on('2026-01-20'), ['KE0458']);
+});
+
+test('달력 격자는 요일이 고루 퍼진다 — 7일 간격으로 몰리지 않는다', () => {
+  const r = parser.parse(GRID, { year: 2026, month: 1 });
+  const weekdays = new Set(r.entries.map((e) => new Date(e.date + 'T00:00:00Z').getUTCDay()));
+  assert.ok(weekdays.size >= 5, '요일이 ' + weekdays.size + '가지뿐입니다');
+  const sundays = r.entries.filter((e) => new Date(e.date + 'T00:00:00Z').getUTCDay() === 0).length;
+  assert.ok(sundays < r.entries.length / 2, '일요일에 몰렸습니다: ' + sundays + '/' + r.entries.length);
+});
+
+test('달력 격자는 기준 달 밖의 날짜를 만들지 않는다', () => {
+  const r = parser.parse(GRID, { year: 2026, month: 1 });
+  const outside = r.entries.filter((e) => e.date.slice(0, 7) !== '2026-01');
+  assert.strictEqual(outside.length, 0, JSON.stringify(outside));
+});
+
+test('달력 격자에서 열을 못 맞춘 덩이는 아무 날에나 얹지 않고 돌려준다', () => {
+  // 날짜 줄보다 열이 더 많은 줄. 어느 칸인지 자신할 수 없으면 못 읽은 줄로 남긴다.
+  const bad = ['4\t5\t6', 'LO\tATDO\tDO\tKE9999\tKE8888'].join('\n');
+  const r = parser.parseGrid(bad, { year: 2026, month: 1 });
+  assert.deepStrictEqual(codesOn(r, '2026-01-04'), ['LO']);
+  assert.deepStrictEqual(codesOn(r, '2026-01-06'), ['DO']);
+  assert.ok(r.skippedLines.length >= 1, '못 읽은 줄을 남긴다');
+  assert.ok(r.skippedLines.every((x) => x.reason), '사유가 붙는다');
+});
+
+test('날짜가 적힌 글은 격자로 오해하지 않는다', () => {
+  const plain = ['2026-01-01  ATDO', '2026-01-03  KE0657 LO', '2026-01-31  KE0401'].join('\n');
+  assert.strictEqual(parser.looksLikeGrid(plain), false);
+  const r = parser.parse(plain, { year: 2026, month: 1 });
+  assert.strictEqual(r.shape, 'lines');
+  assert.strictEqual(r.skippedLines.length, 0);
+  assert.deepStrictEqual(r.entries.map((e) => e.date), [
+    '2026-01-01', '2026-01-03', '2026-01-03', '2026-01-31'
+  ]);
+});
+
+test('편명 두 개가 붙은 줄은 날짜 줄이 아니다', () => {
+  assert.strictEqual(parser.readDayRow('KE0727\tKE0728\tKE0729'), null);
+  assert.strictEqual(parser.readDayRow('4\t5\t6\t7\t8\t9\t10') === null, false);
+  assert.strictEqual(parser.readDayRow('4\t5'), null, '셋 미만은 날짜 줄로 보지 않는다');
+});
+
+test('기준 달 밖의 날짜가 적혀 있으면 알리되 지우지는 않는다', () => {
+  const r = parser.parse('2026-01-31 KE0401\n2026-02-01 LO', { year: 2026, month: 1 });
+  assert.strictEqual(r.entries.length, 2, '적힌 날짜는 그대로 둔다');
+  assert.strictEqual(r.outOfMonth.length, 1);
+  assert.ok(r.warnings.some((w) => /기준 달/.test(w.message)), JSON.stringify(r.warnings));
 });

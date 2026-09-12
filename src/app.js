@@ -924,6 +924,7 @@
     });
 
     $('parseBtn').addEventListener('click', function () { runParse(); });
+    $('reparseSkipped').addEventListener('click', reparseSkipped);
 
     // 기준 연·월을 고치면 읽어 온 글의 날짜도 그 달로 옮긴다.
     // 1월 캡처가 9월로 들어갔을 때 연·월만 고쳐서는 아무것도 안 바뀌던 것.
@@ -1085,10 +1086,21 @@
     var memoBox = $('previewMemo');
     if (autoFilled) {
       memoBox.textContent = '원본에 구간이 없어 ' + autoFilled + '건을 편명으로 채웠습니다(노선표와 등록해둔 값). ' +
-        '점선 친 칸이 채워 넣은 값이니 확인하고, 다르면 텍스트에 직접 적어주세요.';
+        '다르면 텍스트에 직접 적어주세요.';
       memoBox.hidden = false;
     } else {
       memoBox.hidden = true;
+    }
+
+    // 어디까지가 원본이고 어디부터가 채워 넣은 값인지 한눈에.
+    var fillBox = $('previewFill');
+    var fromSource = result.entries.length - autoFilled;
+    if (autoFilled) {
+      fillBox.innerHTML = '<b>자동 채움 ' + autoFilled + '건</b> / 원본 확인 ' + fromSource + '건' +
+        ' — 표에서 <span class="auto-badge">자동</span> 배지가 붙은 칸이 채워 넣은 값입니다.';
+      fillBox.hidden = false;
+    } else {
+      fillBox.hidden = true;
     }
 
     showMissingDays();
@@ -1115,21 +1127,7 @@
       warnBox.innerHTML = '';
     }
 
-    var skipped = result.skippedLines || [];
-    $('previewSkipped').hidden = skipped.length === 0;
-    $('skippedCount').textContent = skipped.length;
-    var skippedList = $('skippedList');
-    skippedList.innerHTML = '';
-    skipped.slice(0, 40).forEach(function (item) {
-      var li = document.createElement('li');
-      li.textContent = item.line + '행: ' + item.text;
-      skippedList.appendChild(li);
-    });
-    if (skipped.length > 40) {
-      var more = document.createElement('li');
-      more.textContent = '… 외 ' + (skipped.length - 40) + '줄';
-      skippedList.appendChild(more);
-    }
+    renderSkipped(result);
 
     var tbody = $('previewBody');
     tbody.innerHTML = '';
@@ -1186,9 +1184,103 @@
         td.className = 'auto-filled';
         td.title = entry.code + ' 의 구간을 ' +
           (entry.routeSource === 'lookup' ? '자동으로 찾아' : '노선표에서') + ' 채웠습니다.';
+        // 점선만으로는 잘 안 보인다는 이야기가 있었다. 배지를 같이 단다.
+        var tag = document.createElement('span');
+        tag.className = 'auto-badge';
+        tag.textContent = '자동';
+        td.appendChild(tag);
       }
       return td;
     }
+  }
+
+  /* ---------------- 못 읽은 줄 ---------------- */
+
+  // 읽은 줄 대비 이만큼 넘게 놓치면 형식을 못 알아본 것으로 본다.
+  var SKIP_LIMIT = 0.10;
+
+  /** 못 읽은 줄이 너무 많은가. 많으면 반영을 막는다 — 버린 채로 저장되면 안 된다. */
+  function skipRatio(result) {
+    if (!result) return 0;
+    var skipped = (result.skippedLines || []).length;
+    var read = result.entries.length;
+    if (!skipped) return 0;
+    return skipped / (skipped + read);
+  }
+
+  function tooManySkipped(result) {
+    return skipRatio(result) > SKIP_LIMIT;
+  }
+
+  /**
+   * 못 읽은 줄을 사유와 함께 보여 주고, 그 자리에서 고쳐 다시 읽게 한다.
+   * 원본 글은 건드리지 않고 고친 줄만 덧붙여 다시 읽는다.
+   */
+  function renderSkipped(result) {
+    var skipped = result.skippedLines || [];
+    var box = $('previewSkipped');
+    box.hidden = skipped.length === 0;
+    $('skippedCount').textContent = skipped.length;
+
+    var list = $('skippedList');
+    list.innerHTML = '';
+    skipped.slice(0, 40).forEach(function (item) {
+      var li = document.createElement('li');
+      li.className = 'skipped-row';
+      var no = document.createElement('span');
+      no.className = 'line-no';
+      no.textContent = (item.line || '?') + '행';
+      var input = document.createElement('input');
+      input.type = 'text';
+      input.value = item.text || '';
+      input.spellcheck = false;
+      input.setAttribute('data-original', item.text || '');
+      input.setAttribute('aria-label', (item.line || '') + '행 고쳐 쓰기');
+      var why = document.createElement('span');
+      why.className = 'skipped-why';
+      why.textContent = item.reason || '형식 불일치';
+      li.appendChild(no);
+      li.appendChild(input);
+      li.appendChild(why);
+      list.appendChild(li);
+    });
+    if (skipped.length > 40) {
+      var more = document.createElement('li');
+      more.className = 'skipped-why';
+      more.textContent = '… 외 ' + (skipped.length - 40) + '줄';
+      list.appendChild(more);
+    }
+
+    var blocked = $('previewBlocked');
+    if (tooManySkipped(result)) {
+      box.open = true;
+      blocked.textContent = '입력 형식을 인식하지 못했습니다. ' +
+        skipped.length + '줄을 읽지 못했습니다(읽은 ' + result.entries.length + '건 대비 ' +
+        Math.round(skipRatio(result) * 100) + '%). ' +
+        '이대로 반영하면 그만큼이 빠진 채 저장됩니다. ' +
+        '위 목록에서 고쳐 다시 읽거나, 크루넷 홈 화면(목록) 글을 붙여넣어 보세요.';
+      blocked.hidden = false;
+    } else {
+      blocked.hidden = true;
+    }
+  }
+
+  /** 고쳐 쓴 줄만 모아 다시 읽는다. 원본 글은 그대로 둔다. */
+  function reparseSkipped() {
+    var rows = [];
+    var inputs = $('skippedList').querySelectorAll('input');
+    for (var i = 0; i < inputs.length; i++) {
+      var text = inputs[i].value.trim();
+      if (text && text !== inputs[i].getAttribute('data-original')) rows.push(text);
+    }
+    if (!rows.length) {
+      toast('고쳐 쓴 줄이 없습니다.');
+      return;
+    }
+    var merged = $('pasteInput').value.replace(/\s*$/, '') + '\n' + rows.join('\n');
+    $('pasteInput').value = merged;
+    runParse();
+    toast(rows.length + '줄을 고쳐 다시 읽었습니다.');
   }
 
   /**
@@ -1248,10 +1340,12 @@
 
   function updateApplyButton() {
     var n = selectedPreviewEntries().length;
-    var blocked = hasBlockingGaps();
+    var lost = tooManySkipped(state.preview);
+    var blocked = hasBlockingGaps() || lost;
     var btn = $('applyBtn');
     btn.disabled = n === 0 || blocked;
-    btn.title = blocked ? '읽기에 실패한 데가 있어 반영할 수 없습니다. 위 안내를 보세요.' : '';
+    btn.title = lost ? '입력 형식을 인식하지 못했습니다. 못 읽은 줄을 고쳐 주세요.'
+      : blocked ? '읽기에 실패한 데가 있어 반영할 수 없습니다. 위 안내를 보세요.' : '';
     btn.textContent = n ? '캘린더에 반영 (' + n + '건)' : '캘린더에 반영';
   }
 
@@ -1998,7 +2092,7 @@
   /* ---------------- 동료가 보내는 의견 ---------------- */
 
   // 화면 아래와 의견 보내기에 적히는 판 번호. sw.js 의 VERSION 과 함께 올린다.
-  var APP_VERSION = 'v35';
+  var APP_VERSION = 'v36';
 
   /**
    * 의견을 받을 메일 주소. 저장소가 공개라 통짜로 적어두면 스팸 크롤러가 긁어가므로

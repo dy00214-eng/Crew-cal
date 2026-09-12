@@ -418,14 +418,30 @@
   }
 
   /**
+   * 구간이 안 적힌 체류(LO)가 어디서 한 것인지. 그날 비행이 닿은 곳이 곧 체류지다.
+   * 붙여넣은 글에 'LO' 만 있어도 같은 날 비행이 있으면 도시를 알 수 있다.
+   * 지어내는 것이 아니라 그날 비행이 이미 알려 준 값을 쓰는 것이다.
+   */
+  function stayPlaceOf(list) {
+    if (!airports) return null;
+    var found = null;
+    (list || []).forEach(function (e) {
+      if (found || e.strange || e.type !== 'flight') return;
+      found = airports.tripPlace(e);
+    });
+    return found;
+  }
+
+  /**
    * 칸에 그릴 덩이들. 도시가 같으면 한 덩이로 묶고, 도시가 없는 근무(휴무·대기)는
    * 저마다 한 덩이가 된다. 원본 엔트리는 모두 어느 덩이엔가 들어간다 — 버리지 않는다.
    */
   function cellGroups(list, date, staying, localOnly) {
     var groups = [];
     var byKey = {};
+    var stayPlace = stayPlaceOf(list) || staying || null;
     (list || []).forEach(function (entry) {
-      var place = placeOf(entry, staying);
+      var place = placeOf(entry, stayPlace);
       var key = place ? 'place:' + place.iata : 'code:' + groups.length + ':' + (entry.code || '');
       var group = byKey[key];
       if (!group) {
@@ -577,7 +593,7 @@
       var shown = cellItems(list);
       var dayHasFlight = shown.some(function (e) { return e.type === 'flight'; });
       var staying = places[date] || null;
-      var groups = cellGroups(shown, date, dayHasFlight ? null : staying, localOnly);
+      var groups = cellGroups(shown, date, staying, localOnly);
       var alerts = [];
 
       groups.slice(0, CELL_LIMIT).forEach(function (group) {
@@ -641,15 +657,20 @@
             time.title = point.text;
             item.appendChild(time);
           });
-        } else if (group.enroute) {
-          var air = document.createElement('span');
-          air.className = 'cal-time stay';
-          air.textContent = '기내';
-          item.appendChild(air);
-        } else if (group.layover) {
+        } else if (place && (group.enroute || group.layover)) {
+          // 도시가 제목일 때만 덧붙인다. 구간을 몰라 제목이 이미 '체류' 인 칸에
+          // 또 적으면 '체류 체류 LO' 처럼 두 번 찍힌다.
+          // 원래 코드는 같은 줄에 붙여 '체류 LO' 한 줄로 만든다.
+          var dutyCodes = [];
+          group.entries.forEach(function (e) {
+            if (e.type === 'flight') return;
+            var code = e.code || '';
+            if (code && code !== (e.label || '') && dutyCodes.indexOf(code) < 0) dutyCodes.push(code);
+          });
           var stay = document.createElement('span');
           stay.className = 'cal-time stay';
-          stay.textContent = '체류';
+          stay.textContent = (group.enroute ? '기내' : '체류') +
+            (dutyCodes.length ? ' ' + dutyCodes.join(' · ') : '');
           item.appendChild(stay);
         }
 
@@ -1198,6 +1219,7 @@
     tripBands: tripBands,
     awayCountryOf: awayCountryOf,
     cellGroups: cellGroups,
+    stayPlaceOf: stayPlaceOf,
     groupLines: groupLines,
     entryTimes: entryTimes,
     timePoint: timePoint,
