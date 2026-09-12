@@ -106,3 +106,37 @@ test('날짜별 표를 그대로 받아 정리한다', () => {
   });
   assert.deepStrictEqual(out.entriesByDate['2026-04-12'].map((e) => e.code), ['LO']);
 });
+
+test('같은 날 휴무와 비행이 함께 오면 휴무를 남긴다', () => {
+  const warned = [];
+  const real = console.warn;
+  console.warn = (m) => warned.push(String(m));
+  try {
+    var out = resolve.resolve([
+      entry('2026-03-09', 'ATDO'), entry('2026-03-09', 'KE0035', 'ICN/ATL')
+    ]);
+  } finally { console.warn = real; }
+  assert.deepStrictEqual(codesOn(out, '2026-03-09'), ['ATDO']);
+  assert.deepStrictEqual(out.dropped.map((d) => d.reason), ['flight-with-off']);
+  assert.ok(/휴무/.test(warned[0]) && /KE0035/.test(warned[0]), warned.join(' '));
+});
+
+test('국내선 뒤의 체류는 알리기만 하고 빼지 않는다', () => {
+  // 부산에서 하룻밤 자는 일정이 실제로 있어, 지우면 진짜 일정이 사라진다.
+  const warned = [];
+  const real = console.warn;
+  console.warn = (m) => warned.push(String(m));
+  try {
+    var out = resolve.resolve([
+      entry('2026-09-29', 'KE1401', 'ICN/PUS'), entry('2026-09-29', 'LO')
+    ]);
+  } finally { console.warn = real; }
+  assert.deepStrictEqual(codesOn(out, '2026-09-29'), ['KE1401', 'LO']);
+  assert.ok(warned.some((m) => /국내선/.test(m) && /KE1401/.test(m)), warned.join(' '));
+});
+
+test('국내선인지 대역으로도 구간으로도 알아본다', () => {
+  assert.strictEqual(resolve.isDomesticFlight(entry('2026-03-01', 'KE1810')), true);
+  assert.strictEqual(resolve.isDomesticFlight(entry('2026-03-01', 'KE2179', 'ICN/KOJ')), false);
+  assert.strictEqual(resolve.isDomesticFlight(entry('2026-03-01', 'LO')), false);
+});

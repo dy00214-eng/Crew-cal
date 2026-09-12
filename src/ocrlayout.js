@@ -172,7 +172,9 @@
     var fixed = fixCode(text);
     if (codes && codes.knownCodeList().indexOf(fixed) !== -1) return true;
     if (schedule && schedule.lookup(fixed)) return true;
-    return /^[A-Z]{2}\d{4}$/.test(fixed);      // 시간표에 없어도 편명 꼴이면 그대로 믿는다
+    // 시간표에 없어도 아는 항공사의 편명 꼴이면 그대로 믿는다.
+    // 모르는 항공사(AS0016)는 잘못 읽은 것으로 보고 다시 읽게 둔다.
+    return !!(codes && codes.isFlightCode && codes.isFlightCode(fixed));
   }
 
   /** 한 글자를 바꾸거나 넣거나 빼면 같아지는지. */

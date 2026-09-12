@@ -8,12 +8,12 @@
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
-    module.exports = factory(require('./codes.js'), require('./airports.js'));
+    module.exports = factory(require('./codes.js'), require('./airports.js'), require('./schedule.js'));
   } else {
     root.CrewCal = root.CrewCal || {};
-    root.CrewCal.resolve = factory(root.CrewCal.codes, root.CrewCal.airports);
+    root.CrewCal.resolve = factory(root.CrewCal.codes, root.CrewCal.airports, root.CrewCal.schedule);
   }
-})(typeof self !== 'undefined' ? self : this, function (codes, airports) {
+})(typeof self !== 'undefined' ? self : this, function (codes, airports, schedule) {
   'use strict';
 
   /** 휴무 계열끼리 겹치면 더 구체적인 쪽을 남긴다. 앞에 있을수록 세다. */
@@ -77,6 +77,18 @@
     return d.toISOString().slice(0, 10);
   }
 
+  /** 국내선인지. 편명 대역으로 보고, 구간을 알면 그것으로 확인한다. */
+  function isDomesticFlight(entry) {
+    if (!isFlight(entry)) return false;
+    if (entry.route && airports) {
+      var parts = airports.splitRoute(entry.route);
+      if (parts.from && parts.to) {
+        return airports.countryOf(parts.from) === 'KR' && airports.countryOf(parts.to) === 'KR';
+      }
+    }
+    return !!schedule && schedule.isDomestic(entry.code);
+  }
+
   /** 도착지가 한국 밖인 비행이면 참. 구간을 모르면 판단하지 않는다(null). */
   function arrivesOverseas(entry) {
     if (!isFlight(entry)) return null;
@@ -113,6 +125,23 @@
       return false;
     }
     return false;
+  }
+
+  /**
+   * 이 날짜, 또는 체류로 이어지는 그 앞날의 마지막 비행. 없으면 null.
+   * 체류가 어디서 비롯됐는지 따질 때 쓴다.
+   */
+  function lastFlightBefore(byDate, date, limit) {
+    var back = limit == null ? 7 : limit;
+    var cursor = date;
+    for (var i = 0; i <= back && cursor; i++) {
+      var list = byDate[cursor] || [];
+      var flights = list.filter(isFlight);
+      if (flights.length) return flights[flights.length - 1];
+      if (i > 0 && !(list.length && list.every(isLayover))) return null;
+      cursor = prevDay(cursor);
+    }
+    return null;
   }
 
   /** 같은 (날짜, 코드) 가 두 번 들어오면 앞의 것만 남긴다. */
@@ -174,7 +203,31 @@
       });
     }
 
-    // 3) 한 칸에 두 개까지. 넘치는 것은 조용히 버리지 않고 알린다.
+    // 3) 휴무와 비행은 같은 날 함께 있을 수 없다. 휴무를 남기고 비행을 뺀다.
+    //    잘못 읽어 비행이 하나 끼어든 것이므로, 무엇을 뺐는지 반드시 알린다.
+    var offs2 = keep.filter(isOff);
+    var flights2 = keep.filter(isFlight);
+    if (offs2.length && flights2.length) {
+      warn(date + ' 에 휴무(' + offs2.map(codeOf).join(', ') + ')와 비행(' +
+        flights2.map(codeOf).join(', ') + ')이 함께 들어왔습니다. 휴무를 남기고 비행을 뺐습니다.');
+      keep = keep.filter(function (e) {
+        if (!isFlight(e)) return true;
+        drop(e, 'flight-with-off');
+        return false;
+      });
+    }
+
+    // 4) 국내선은 체류가 없다. 국내선 뒤에 체류가 붙었으면 잘못 읽은 것일 수 있다.
+    //    다만 부산에서 하룻밤 자는 일정이 실제로 있어, 알리기만 하고 빼지는 않는다.
+    if (keep.some(isLayover)) {
+      var lastFlight = lastFlightBefore(byDate, date);
+      if (lastFlight && isDomesticFlight(lastFlight)) {
+        warn(date + ' 의 체류(LO) 앞이 국내선(' + codeOf(lastFlight) + ' ' +
+          (lastFlight.route || '구간 모름') + ')입니다. 잘못 읽은 것인지 확인해 보세요.');
+      }
+    }
+
+    // 5) 한 칸에 두 개까지. 넘치는 것은 조용히 버리지 않고 알린다.
     if (keep.length > MAX_PER_DAY) {
       var ordered = keep.map(function (e, i) { return { e: e, i: i }; }).sort(function (a, b) {
         var d = keepRank(a.e) - keepRank(b.e);
@@ -239,6 +292,8 @@
     arrivedOverseasBefore: arrivedOverseasBefore,
     OFF_RANK: OFF_RANK,
     keepRank: keepRank,
+    isDomesticFlight: isDomesticFlight,
+    lastFlightBefore: lastFlightBefore,
     MAX_PER_DAY: MAX_PER_DAY
   };
 });

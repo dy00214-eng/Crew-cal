@@ -92,7 +92,7 @@
   }
 
   function isFlightCode(entry) {
-    return entry && entry.type === 'flight' && /^[A-Z]{2}\d{1,4}[A-Z]?$/.test(entry.code || '');
+    return !!entry && entry.type === 'flight' && codes.isFlightCode(entry.code);
   }
 
   /** 구간이나 시각이 들어 있는 항공편이면 그 값을 기억한다. */
@@ -124,7 +124,7 @@
   function recallFlight(code) {
     if (!code) return null;
     var mine = loadFlights()[String(code).toUpperCase()];
-    if (mine) return mine;
+    if (mine && mine.route) return mine;    // 사용자가 넣은 값이 언제나 먼저
     var table = builtinSchedule();
     return table ? table.lookup(code) : null;
   }
@@ -146,6 +146,9 @@
       filled.push('end');
     }
     if (filled.length) entry.autoFilled = filled;
+    // 표에 없어 대역·홀짝 규칙으로 짐작한 구간은 짐작이라고 남긴다.
+    // 사용자가 직접 넣은 값에는 표시하지 않는다.
+    if (filled.indexOf('route') !== -1 && known.derived) entry.derived = known.derived;
     return entry;
   }
 
@@ -185,11 +188,14 @@
   /** KE704 와 KE0704 가 다른 일정으로 남지 않도록 편명 숫자를 네 자리로 맞춘다. */
   function normalizeCode(code) {
     var raw = String(code || '').toUpperCase().replace(/\s+/g, '');
-    var m = raw.match(/^([A-Z]{2})-?(\d{1,4})([A-Z]?)$/);
-    if (!m || codes.lookup(raw)) return raw;
-    var digits = m[2];
+    if (codes.lookup(raw)) return raw;
+    var m = codes.splitFlight(raw);
+    // 아는 항공사의 편명만 자릿수를 맞춘다. 모르는 글자는 읽힌 그대로 남겨야
+    // 나중에 무엇을 잘못 읽었는지 알아볼 수 있다.
+    if (!m || !codes.isAirline(m.airline)) return raw;
+    var digits = m.number;
     while (digits.length < 4) digits = '0' + digits;
-    return m[1] + digits + m[3];
+    return m.airline + digits + m.suffix;
   }
 
   function decorate(entry) {
@@ -205,15 +211,23 @@
       end: entry.end || entry.arr || null,       // 도착(종료) 시각 HH:MM
       endOffset: +(entry.endOffset || entry.arrOffset || 0) || 0, // 도착이 익일이면 1
       memo: entry.memo || null,
-      autoFilled: entry.autoFilled || null
+      autoFilled: entry.autoFilled || null,
+      derived: entry.derived || null,
+      strange: entry.strange || false
     };
     if (!out.end) out.endOffset = 0;
     if (!out.type || !out.category || !out.label) {
-      var flight = out.code.match(/^([A-Z]{2})(\d{1,4})([A-Z])?$/);
+      var flight = codes.isFlightCode(out.code) ? codes.splitFlight(out.code) : null;
       if (flight && !codes.lookup(out.code)) {
         out.type = out.type || 'flight';
         out.category = out.category || 'flight';
-        out.label = out.label || flight[1] + ' ' + flight[2] + '편';
+        out.label = out.label || flight.airline + ' ' + flight.number + '편';
+      } else if (!codes.lookup(out.code) && codes.splitFlight(out.code)) {
+        // 편명 꼴이지만 아는 항공사가 아니다. 비행으로 세지 않는다.
+        out.type = out.type || 'duty';
+        out.category = out.category || 'unknown';
+        out.label = out.label || '알 수 없는 코드';
+        out.strange = true;
       } else {
         var hit = codes.describe(out.code);
         out.type = out.type || 'duty';

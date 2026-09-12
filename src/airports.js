@@ -353,6 +353,9 @@
    * 그 비행이 '어디 가는 편'인지 나타내는 바깥쪽 공항.
    * 한국에서 나가면 도착지, 한국으로 들어오면 출발지. 국내선이면 도착지.
    */
+  // 승무원이 드나드는 집. 국내선에서 '간 곳' 을 가릴 때 이쪽이 아닌 편을 고른다.
+  var BASES = { ICN: true, GMP: true };
+
   function outstation(route) {
     var parts = splitRoute(route);
     if (!parts.from) return null;
@@ -360,6 +363,11 @@
     var toKR = countryOf(parts.to) === 'KR';
     if (fromKR && !toKR && parts.to) return parts.to;
     if (toKR && !fromKR) return parts.from;
+    // 국내선. 김포·인천은 드나드는 집이니 반대쪽을 간 곳으로 본다.
+    if (fromKR && toKR && parts.to) {
+      if (BASES[parts.to] && !BASES[parts.from]) return parts.from;
+      return parts.to;
+    }
     return parts.to || parts.from;
   }
 
@@ -408,6 +416,7 @@
     cityOf: cityOf,
     findCode: findCode,
     describeAirport: describeAirport,
+    BASES: BASES,
     outstation: outstation,
     tripPlace: tripPlace,
     countryOf: countryOf,

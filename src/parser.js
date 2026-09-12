@@ -45,6 +45,7 @@
     'off-merge': '같은 날 휴무가 겹쳐',
     'layover-without-arrival': '앞에 해외 도착 비행이 없어',
     'off-with-layover': '체류 중인 날이라',
+    'flight-with-off': '같은 날 휴무와 겹쳐',
     'overflow': '한 칸에 너무 많이 들어와'
   };
 
@@ -256,6 +257,21 @@
     };
   }
 
+  /**
+   * 편명 꼴이지만 아는 항공사가 아닌 글자. 비행으로 세지 않고 따로 담아 둔다.
+   * 달력 칸에는 띄우지 않고, 날짜를 눌렀을 때 원래 글자를 볼 수 있게만 남긴다.
+   */
+  function makeStrangeItem(code) {
+    return {
+      code: String(code).toUpperCase(),
+      type: 'duty',
+      category: 'unknown',
+      label: '알 수 없는 코드',
+      known: false,
+      strange: true
+    };
+  }
+
   function makeDutyItem(code) {
     var hit = codes.lookup(code);
     if (hit) {
@@ -448,12 +464,20 @@
         }
 
         // 5) 항공편 (KE0035 / KE 0035 / KE-035)
+        //    편명 꼴이어도 아는 항공사가 아니면 비행으로 받지 않는다. 'AS0016' 처럼
+        //    잘못 읽힌 글자가 비행이 되어 달력에 뜨는 일이 있었다.
         var fl = upper.match(RE.flight);
         if (fl && !codes.lookup(upper)) {
-          seg().items.push(makeFlightItem(fl[1], fl[2], fl[3]));
+          if (codes.isAirline(fl[1])) {
+            seg().items.push(makeFlightItem(fl[1], fl[2], fl[3]));
+          } else {
+            seg().items.push(makeStrangeItem(upper));
+            unknownTokens.push(upper);
+          }
           continue;
         }
-        if (RE.airline.test(upper) && !codes.lookup(upper) && i + 1 < tokens.length && RE.digits.test(tokens[i + 1])) {
+        if (RE.airline.test(upper) && codes.isAirline(upper) && !codes.lookup(upper) &&
+            i + 1 < tokens.length && RE.digits.test(tokens[i + 1])) {
           seg().items.push(makeFlightItem(upper, tokens[i + 1]));
           i++;
           continue;
@@ -546,6 +570,7 @@
             start: item.start || null,
             end: item.end || null,
             endOffset: item.endOffset || 0,
+            strange: !!item.strange,
             source: trimmed
           });
         });

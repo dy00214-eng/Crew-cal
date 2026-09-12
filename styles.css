@@ -361,6 +361,18 @@ body {
   white-space: nowrap;
 }
 .cal-cell.needs-route { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cat-unknown) 55%, transparent); }
+/* 시간표에 없어 편명 규칙으로 짐작한 구간 */
+.cal-guess {
+  align-self: center;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 0 3px;
+  border-radius: 3px;
+  color: var(--muted);
+  background: var(--fill);
+}
+.entry-guess { font-size: 10px; font-weight: 600; color: var(--muted); margin-left: 5px; }
 button.cal-badge, button.entry-badge {
   border: none;
   font-family: inherit;

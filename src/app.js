@@ -50,6 +50,21 @@
   var VIEW_KEY = 'crew-cal.view.v1';
   var ASSUME_OFF_KEY = 'crew-cal.assume-off.v1';
 
+  var AIRLINES_KEY = 'crew-cal.airlines.v1';
+
+  /** 편명으로 읽을 항공사. 저장된 값이 없으면 대한항공만. */
+  function loadAirlines() {
+    try {
+      var saved = localStorage.getItem(AIRLINES_KEY);
+      if (saved) return codes.setAirlines(saved.split(/[,\s]+/));
+    } catch (e) { /* 못 읽으면 기본값 */ }
+    return codes.setAirlines(codes.DEFAULT_AIRLINES);
+  }
+
+  function saveAirlines(list) {
+    try { localStorage.setItem(AIRLINES_KEY, list.join(',')); } catch (e) { /* 무시 */ }
+  }
+
   /** 코드 없는 날을 휴무로 볼지. 기본은 켬. */
   function loadAssumeOff() {
     try {
@@ -151,7 +166,7 @@
   }
 
   function renderMonthSummary(entriesByDate) {
-    var s = calendar.summarize(entriesByDate, state.year, state.month);
+    var s = calendar.summarize(entriesByDate, state.year, state.month, { assumeOff: state.assumeOff });
     var box = $('monthSummary');
     box.innerHTML = '';
 
@@ -171,7 +186,10 @@
     // 비행은 몇 편인지가, 나머지는 며칠인지가 궁금한 값이다
     if (s.flights) bits.push(['비행', s.flights + '편']);
     ['layover', 'standby', 'training', 'vacation', 'off', 'other', 'unknown'].forEach(function (key) {
-      if (s.dayCounts[key]) bits.push([codes.CATEGORY_LABELS[key], s.dayCounts[key] + '일']);
+      if (!s.dayCounts[key]) return;
+      // 코드가 없어 휴무로 넘겨짚은 날은 몇 날인지 갈라 적는다
+      var suffix = (key === 'off' && s.assumedOff) ? '일 (추정 ' + s.assumedOff + '일 포함)' : '일';
+      bits.push([codes.CATEGORY_LABELS[key], s.dayCounts[key] + suffix]);
     });
     bits.push(['일정 있는 날', s.days + '일']);
 
@@ -363,6 +381,14 @@
       }
       li.appendChild(main);
 
+      if (entry.derived) {
+        var guess = document.createElement('span');
+        guess.className = 'entry-guess';
+        guess.textContent = '추정';
+        guess.title = '시간표에 없어 편명 규칙으로 짐작한 구간입니다. 실제 로스터를 따르세요.';
+        main.appendChild(guess);
+      }
+
       // 어디 가는 편인지 모르는 비행은 눌러서 넣을 수 있게 한다
       if (calendar.needsRoute(entry)) {
         var badge = document.createElement('button');
@@ -444,6 +470,21 @@
       state.assumeOff = box.checked;
       saveAssumeOff(state.assumeOff);
       refresh();
+    });
+  }
+
+  /** 편명으로 읽을 항공사를 고친다. 이미 저장된 일정은 건드리지 않는다. */
+  function initAirlines() {
+    var box = $('airlineList');
+    var current = loadAirlines();
+    if (!box) return;
+    box.value = current.join(', ');
+    box.addEventListener('change', function () {
+      var next = codes.setAirlines(box.value.split(/[,\s]+/));
+      saveAirlines(next);
+      box.value = next.join(', ');
+      refresh();
+      toast('편명으로 읽을 항공사: ' + next.join(', ') + ' (다음 인식부터 반영됩니다)');
     });
   }
 
@@ -1565,7 +1606,7 @@
   /* ---------------- 동료가 보내는 의견 ---------------- */
 
   // 화면 아래와 의견 보내기에 적히는 판 번호. sw.js 의 VERSION 과 함께 올린다.
-  var APP_VERSION = 'v22';
+  var APP_VERSION = 'v23';
 
   /**
    * 의견을 받을 메일 주소. 저장소가 공개라 통짜로 적어두면 스팸 크롤러가 긁어가므로
@@ -1979,6 +2020,7 @@
     initDownloads();
     initViewToggle();
     initAssumeOff();
+    initAirlines();
     initRouteSheet();
     initTabs();
     initSingleForm();

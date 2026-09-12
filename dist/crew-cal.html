@@ -365,6 +365,18 @@ body {
   white-space: nowrap;
 }
 .cal-cell.needs-route { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cat-unknown) 55%, transparent); }
+/* 시간표에 없어 편명 규칙으로 짐작한 구간 */
+.cal-guess {
+  align-self: center;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 0 3px;
+  border-radius: 3px;
+  color: var(--muted);
+  background: var(--fill);
+}
+.entry-guess { font-size: 10px; font-weight: 600; color: var(--muted); margin-left: 5px; }
 button.cal-badge, button.entry-badge {
   border: none;
   font-family: inherit;
@@ -1566,6 +1578,14 @@ button.ghost.danger { color: var(--danger); }
         <input type="checkbox" id="assumeOff" checked>
         <span>코드 없는 날을 휴무로 표시 <em>(크루넷에서 빈 칸으로 나오는 날입니다. 추정이라 흐리게 적습니다)</em></span>
       </label>
+      <label class="field">
+        <span>편명으로 읽을 항공사 <em>(쉼표로 구분. 비우면 KE 만)</em></span>
+        <input type="text" id="airlineList" autocomplete="off" spellcheck="false" placeholder="KE, OZ, 7C">
+      </label>
+      <p class="muted small-note">
+        여기 없는 항공사 코드는 편명으로 읽지 않고 '알 수 없는 코드' 로 둡니다.
+        잘못 읽힌 글자(AS0016 같은)가 비행으로 달력에 뜨는 것을 막아 줍니다.
+      </p>
     </details>
 
     <div class="data-tools">
@@ -1777,6 +1797,46 @@ button.ghost.danger { color: var(--danger); }
     MTG: { label: '회의', category: 'other' }
   };
 
+  /* ---------------- 편명으로 인정할 항공사 ----------------
+   * 'AS0016' 처럼 잘못 읽힌 글자가 편명 꼴이라는 이유만으로 비행이 되어
+   * 달력에 뜨는 일이 있었다. 그래서 항공사 코드를 흰 목록으로 받는다.
+   * 기본은 대한항공만. 다른 항공사 스케줄을 쓰는 사람은 설정에서 늘린다.
+   */
+  var DEFAULT_AIRLINES = ['KE'];
+  var airlines = DEFAULT_AIRLINES.slice();
+
+  // 편명 꼴: 항공사 두 글자(적어도 하나는 영문) + 숫자 1~4 + 꼬리 글자
+  var FLIGHT_SHAPE = /^([A-Z]{2}|[A-Z][0-9]|[0-9][A-Z])-?(\d{1,4})([A-Z]?)$/;
+
+  function setAirlines(list) {
+    var out = [];
+    (list == null ? [] : [].concat(list)).forEach(function (raw) {
+      var code = String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+      if (/^([A-Z]{2}|[A-Z][0-9]|[0-9][A-Z])$/.test(code) && out.indexOf(code) === -1) out.push(code);
+    });
+    airlines = out.length ? out : DEFAULT_AIRLINES.slice();
+    return airlines.slice();
+  }
+
+  function airlineList() { return airlines.slice(); }
+
+  function isAirline(code) {
+    return !!code && airlines.indexOf(String(code).toUpperCase()) !== -1;
+  }
+
+  /** 'KE0035' -> { airline: 'KE', number: '0035', suffix: '' }. 편명 꼴이 아니면 null. */
+  function splitFlight(token) {
+    var m = String(token == null ? '' : token).toUpperCase().replace(/\s+/g, '').match(FLIGHT_SHAPE);
+    if (!m) return null;
+    return { airline: m[1], number: m[2], suffix: m[3] || '' };
+  }
+
+  /** 편명 꼴이면서 아는 항공사인가. 모르는 항공사는 편명으로 받지 않는다. */
+  function isFlightCode(token) {
+    var parts = splitFlight(token);
+    return !!parts && isAirline(parts.airline);
+  }
+
   // 코드로 오인하기 쉬운 단어들 (요일/헤더/시간 관련)
   var IGNORED_TOKENS = {};
   ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN',
@@ -1832,7 +1892,14 @@ button.ghost.danger { color: var(--danger); }
     timeLabel: timeLabel,
     lookup: lookup,
     describe: describe,
-    knownCodeList: knownCodeList
+    knownCodeList: knownCodeList,
+    DEFAULT_AIRLINES: DEFAULT_AIRLINES,
+    FLIGHT_SHAPE: FLIGHT_SHAPE,
+    setAirlines: setAirlines,
+    airlineList: airlineList,
+    isAirline: isAirline,
+    splitFlight: splitFlight,
+    isFlightCode: isFlightCode
   };
 });
 </script>
@@ -2192,6 +2259,9 @@ button.ghost.danger { color: var(--danger); }
    * 그 비행이 '어디 가는 편'인지 나타내는 바깥쪽 공항.
    * 한국에서 나가면 도착지, 한국으로 들어오면 출발지. 국내선이면 도착지.
    */
+  // 승무원이 드나드는 집. 국내선에서 '간 곳' 을 가릴 때 이쪽이 아닌 편을 고른다.
+  var BASES = { ICN: true, GMP: true };
+
   function outstation(route) {
     var parts = splitRoute(route);
     if (!parts.from) return null;
@@ -2199,6 +2269,11 @@ button.ghost.danger { color: var(--danger); }
     var toKR = countryOf(parts.to) === 'KR';
     if (fromKR && !toKR && parts.to) return parts.to;
     if (toKR && !fromKR) return parts.from;
+    // 국내선. 김포·인천은 드나드는 집이니 반대쪽을 간 곳으로 본다.
+    if (fromKR && toKR && parts.to) {
+      if (BASES[parts.to] && !BASES[parts.from]) return parts.from;
+      return parts.to;
+    }
     return parts.to || parts.from;
   }
 
@@ -2247,6 +2322,7 @@ button.ghost.danger { color: var(--danger); }
     cityOf: cityOf,
     findCode: findCode,
     describeAirport: describeAirport,
+    BASES: BASES,
     outstation: outstation,
     tripPlace: tripPlace,
     countryOf: countryOf,
@@ -2911,6 +2987,63 @@ button.ghost.danger { color: var(--danger); }
     '1402': ['PUS/ICN', '07:00', '08:10', 0]
   };
 
+  /*
+   * 대한항공 편명 대역. 어느 대역인지만으로도 국내선인지 국제선인지 갈린다.
+   *   1~999    국제선 정기편
+   *   1000~1999 국내선
+   *   2000~2999 국제선 (계절편·증편 포함. KE2179 ICN/KOJ 처럼 정기편도 여기 든다)
+   *   9000~9999 화물편
+   */
+  var BANDS = [
+    { from: 1, to: 999, kind: 'international', label: '국제선 정기편' },
+    { from: 1000, to: 1999, kind: 'domestic', label: '국내선' },
+    { from: 2000, to: 2999, kind: 'international', label: '국제선(계절편·증편 포함)' },
+    { from: 9000, to: 9999, kind: 'cargo', label: '화물편' }
+  ];
+
+  /**
+   * 국내선 편명 대역 -> 구간. 홀수가 앞에서 뒤로, 짝수가 뒤에서 앞으로 간다.
+   * (KE1807 GMP/PUS 이면 KE1810 은 PUS/GMP) 전광판에서 모은 편들이 모두 이 규칙을
+   * 따랐다. 시각까지 짐작하지는 않는다.
+   */
+  var DOMESTIC_BANDS = [
+    { from: 1000, to: 1299, route: ['GMP', 'CJU'] },
+    { from: 1400, to: 1429, route: ['ICN', 'PUS'] },
+    { from: 1430, to: 1439, route: ['ICN', 'TAE'] },
+    // 1563~1568 은 어느 쪽인지 확인하지 못해 비워 둔다(1562 는 부산, 1569 는 대구).
+    { from: 1500, to: 1562, route: ['PUS', 'CJU'] },
+    { from: 1569, to: 1579, route: ['TAE', 'CJU'] },
+    { from: 1580, to: 1589, route: ['HIN', 'CJU'] },
+    { from: 1590, to: 1599, route: ['USN', 'CJU'] },
+    { from: 1600, to: 1629, route: ['KWJ', 'CJU'] },
+    { from: 1630, to: 1639, route: ['RSU', 'CJU'] },
+    { from: 1700, to: 1799, route: ['CJJ', 'CJU'] },
+    { from: 1800, to: 1839, route: ['GMP', 'PUS'] },
+    { from: 1840, to: 1899, route: ['GMP', 'USN'] }
+  ];
+
+  /** 편명 숫자 -> 어느 대역인지. 대역 밖이면 null. */
+  function bandOf(number) {
+    var n = +number;
+    if (!n && n !== 0) return null;
+    for (var i = 0; i < BANDS.length; i++) {
+      if (n >= BANDS[i].from && n <= BANDS[i].to) return BANDS[i];
+    }
+    return null;
+  }
+
+  /** 국내선 대역 규칙으로 구간을 뽑는다. 대역에 없으면 null. */
+  function domesticRoute(number) {
+    var n = +number;
+    for (var i = 0; i < DOMESTIC_BANDS.length; i++) {
+      var band = DOMESTIC_BANDS[i];
+      if (n < band.from || n > band.to) continue;
+      var pair = band.route;
+      return n % 2 === 1 ? pair[0] + '/' + pair[1] : pair[1] + '/' + pair[0];
+    }
+    return null;
+  }
+
   // 짝 편명으로 구간을 뒤집을 때 기준이 되는 국내 출발지
   var KR_HUBS = {
     ICN: true, GMP: true, PUS: true, CJU: true, TAE: true, KWJ: true,
@@ -2993,19 +3126,40 @@ button.ghost.danger { color: var(--danger); }
     return { route: parts[1] + '/' + parts[0], start: null, end: null, endOffset: 0, derived: true };
   }
 
+  /** 국내선 대역 규칙으로 채운다. 구간만 확실하고 시각은 모른다. */
+  function fromDomesticBand(key) {
+    var m = key.match(/^[A-Z]{2}(\d{4})$/);
+    if (!m) return null;
+    var route = domesticRoute(m[1]);
+    if (!route) return null;
+    return { route: route, start: null, end: null, endOffset: 0, derived: 'domestic-band' };
+  }
+
   function lookup(code) {
     var key = normalize(code);
     if (!key) return null;
-    var hit = TABLE[key] || pairedReturn(key) || pairedOutbound(key);
+    // 표에 있는 값이 먼저. 없으면 국내선 대역 규칙, 그다음 홀짝 짝 편명.
+    var hit = TABLE[key] || fromDomesticBand(key) || pairedReturn(key) || pairedOutbound(key);
     if (!hit) return null;
+    var number = +key.slice(2);
+    var band = bandOf(number);
     return {
       route: hit.route,
       start: hit.start,
       end: hit.end,
       endOffset: hit.endOffset,
-      derived: !!hit.derived,
+      derived: hit.derived || false,
+      kind: band ? band.kind : null,
       source: 'schedule'
     };
+  }
+
+  /** 편명이 국내선인지. 대역으로 먼저 보고, 구간을 알면 그것으로 확인한다. */
+  function isDomestic(code) {
+    var key = normalize(code);
+    if (!key) return false;
+    var band = bandOf(+key.slice(2));
+    return !!band && band.kind === 'domestic';
   }
 
   function size() {
@@ -3015,7 +3169,12 @@ button.ghost.danger { color: var(--danger); }
   return {
     TABLE: TABLE,
     SOURCE_NOTE: SOURCE_NOTE,
+    BANDS: BANDS,
+    DOMESTIC_BANDS: DOMESTIC_BANDS,
     normalize: normalize,
+    bandOf: bandOf,
+    domesticRoute: domesticRoute,
+    isDomestic: isDomestic,
     lookup: lookup,
     size: size
   };
@@ -3032,12 +3191,12 @@ button.ghost.danger { color: var(--danger); }
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
-    module.exports = factory(require('./codes.js'), require('./airports.js'));
+    module.exports = factory(require('./codes.js'), require('./airports.js'), require('./schedule.js'));
   } else {
     root.CrewCal = root.CrewCal || {};
-    root.CrewCal.resolve = factory(root.CrewCal.codes, root.CrewCal.airports);
+    root.CrewCal.resolve = factory(root.CrewCal.codes, root.CrewCal.airports, root.CrewCal.schedule);
   }
-})(typeof self !== 'undefined' ? self : this, function (codes, airports) {
+})(typeof self !== 'undefined' ? self : this, function (codes, airports, schedule) {
   'use strict';
 
   /** 휴무 계열끼리 겹치면 더 구체적인 쪽을 남긴다. 앞에 있을수록 세다. */
@@ -3101,6 +3260,18 @@ button.ghost.danger { color: var(--danger); }
     return d.toISOString().slice(0, 10);
   }
 
+  /** 국내선인지. 편명 대역으로 보고, 구간을 알면 그것으로 확인한다. */
+  function isDomesticFlight(entry) {
+    if (!isFlight(entry)) return false;
+    if (entry.route && airports) {
+      var parts = airports.splitRoute(entry.route);
+      if (parts.from && parts.to) {
+        return airports.countryOf(parts.from) === 'KR' && airports.countryOf(parts.to) === 'KR';
+      }
+    }
+    return !!schedule && schedule.isDomestic(entry.code);
+  }
+
   /** 도착지가 한국 밖인 비행이면 참. 구간을 모르면 판단하지 않는다(null). */
   function arrivesOverseas(entry) {
     if (!isFlight(entry)) return null;
@@ -3137,6 +3308,23 @@ button.ghost.danger { color: var(--danger); }
       return false;
     }
     return false;
+  }
+
+  /**
+   * 이 날짜, 또는 체류로 이어지는 그 앞날의 마지막 비행. 없으면 null.
+   * 체류가 어디서 비롯됐는지 따질 때 쓴다.
+   */
+  function lastFlightBefore(byDate, date, limit) {
+    var back = limit == null ? 7 : limit;
+    var cursor = date;
+    for (var i = 0; i <= back && cursor; i++) {
+      var list = byDate[cursor] || [];
+      var flights = list.filter(isFlight);
+      if (flights.length) return flights[flights.length - 1];
+      if (i > 0 && !(list.length && list.every(isLayover))) return null;
+      cursor = prevDay(cursor);
+    }
+    return null;
   }
 
   /** 같은 (날짜, 코드) 가 두 번 들어오면 앞의 것만 남긴다. */
@@ -3198,7 +3386,31 @@ button.ghost.danger { color: var(--danger); }
       });
     }
 
-    // 3) 한 칸에 두 개까지. 넘치는 것은 조용히 버리지 않고 알린다.
+    // 3) 휴무와 비행은 같은 날 함께 있을 수 없다. 휴무를 남기고 비행을 뺀다.
+    //    잘못 읽어 비행이 하나 끼어든 것이므로, 무엇을 뺐는지 반드시 알린다.
+    var offs2 = keep.filter(isOff);
+    var flights2 = keep.filter(isFlight);
+    if (offs2.length && flights2.length) {
+      warn(date + ' 에 휴무(' + offs2.map(codeOf).join(', ') + ')와 비행(' +
+        flights2.map(codeOf).join(', ') + ')이 함께 들어왔습니다. 휴무를 남기고 비행을 뺐습니다.');
+      keep = keep.filter(function (e) {
+        if (!isFlight(e)) return true;
+        drop(e, 'flight-with-off');
+        return false;
+      });
+    }
+
+    // 4) 국내선은 체류가 없다. 국내선 뒤에 체류가 붙었으면 잘못 읽은 것일 수 있다.
+    //    다만 부산에서 하룻밤 자는 일정이 실제로 있어, 알리기만 하고 빼지는 않는다.
+    if (keep.some(isLayover)) {
+      var lastFlight = lastFlightBefore(byDate, date);
+      if (lastFlight && isDomesticFlight(lastFlight)) {
+        warn(date + ' 의 체류(LO) 앞이 국내선(' + codeOf(lastFlight) + ' ' +
+          (lastFlight.route || '구간 모름') + ')입니다. 잘못 읽은 것인지 확인해 보세요.');
+      }
+    }
+
+    // 5) 한 칸에 두 개까지. 넘치는 것은 조용히 버리지 않고 알린다.
     if (keep.length > MAX_PER_DAY) {
       var ordered = keep.map(function (e, i) { return { e: e, i: i }; }).sort(function (a, b) {
         var d = keepRank(a.e) - keepRank(b.e);
@@ -3263,6 +3475,8 @@ button.ghost.danger { color: var(--danger); }
     arrivedOverseasBefore: arrivedOverseasBefore,
     OFF_RANK: OFF_RANK,
     keepRank: keepRank,
+    isDomesticFlight: isDomesticFlight,
+    lastFlightBefore: lastFlightBefore,
     MAX_PER_DAY: MAX_PER_DAY
   };
 });
@@ -3315,6 +3529,7 @@ button.ghost.danger { color: var(--danger); }
     'off-merge': '같은 날 휴무가 겹쳐',
     'layover-without-arrival': '앞에 해외 도착 비행이 없어',
     'off-with-layover': '체류 중인 날이라',
+    'flight-with-off': '같은 날 휴무와 겹쳐',
     'overflow': '한 칸에 너무 많이 들어와'
   };
 
@@ -3526,6 +3741,21 @@ button.ghost.danger { color: var(--danger); }
     };
   }
 
+  /**
+   * 편명 꼴이지만 아는 항공사가 아닌 글자. 비행으로 세지 않고 따로 담아 둔다.
+   * 달력 칸에는 띄우지 않고, 날짜를 눌렀을 때 원래 글자를 볼 수 있게만 남긴다.
+   */
+  function makeStrangeItem(code) {
+    return {
+      code: String(code).toUpperCase(),
+      type: 'duty',
+      category: 'unknown',
+      label: '알 수 없는 코드',
+      known: false,
+      strange: true
+    };
+  }
+
   function makeDutyItem(code) {
     var hit = codes.lookup(code);
     if (hit) {
@@ -3718,12 +3948,20 @@ button.ghost.danger { color: var(--danger); }
         }
 
         // 5) 항공편 (KE0035 / KE 0035 / KE-035)
+        //    편명 꼴이어도 아는 항공사가 아니면 비행으로 받지 않는다. 'AS0016' 처럼
+        //    잘못 읽힌 글자가 비행이 되어 달력에 뜨는 일이 있었다.
         var fl = upper.match(RE.flight);
         if (fl && !codes.lookup(upper)) {
-          seg().items.push(makeFlightItem(fl[1], fl[2], fl[3]));
+          if (codes.isAirline(fl[1])) {
+            seg().items.push(makeFlightItem(fl[1], fl[2], fl[3]));
+          } else {
+            seg().items.push(makeStrangeItem(upper));
+            unknownTokens.push(upper);
+          }
           continue;
         }
-        if (RE.airline.test(upper) && !codes.lookup(upper) && i + 1 < tokens.length && RE.digits.test(tokens[i + 1])) {
+        if (RE.airline.test(upper) && codes.isAirline(upper) && !codes.lookup(upper) &&
+            i + 1 < tokens.length && RE.digits.test(tokens[i + 1])) {
           seg().items.push(makeFlightItem(upper, tokens[i + 1]));
           i++;
           continue;
@@ -3816,6 +4054,7 @@ button.ghost.danger { color: var(--danger); }
             start: item.start || null,
             end: item.end || null,
             endOffset: item.endOffset || 0,
+            strange: !!item.strange,
             source: trimmed
           });
         });
@@ -4043,7 +4282,7 @@ button.ghost.danger { color: var(--danger); }
   }
 
   function isFlightCode(entry) {
-    return entry && entry.type === 'flight' && /^[A-Z]{2}\d{1,4}[A-Z]?$/.test(entry.code || '');
+    return !!entry && entry.type === 'flight' && codes.isFlightCode(entry.code);
   }
 
   /** 구간이나 시각이 들어 있는 항공편이면 그 값을 기억한다. */
@@ -4075,7 +4314,7 @@ button.ghost.danger { color: var(--danger); }
   function recallFlight(code) {
     if (!code) return null;
     var mine = loadFlights()[String(code).toUpperCase()];
-    if (mine) return mine;
+    if (mine && mine.route) return mine;    // 사용자가 넣은 값이 언제나 먼저
     var table = builtinSchedule();
     return table ? table.lookup(code) : null;
   }
@@ -4097,6 +4336,9 @@ button.ghost.danger { color: var(--danger); }
       filled.push('end');
     }
     if (filled.length) entry.autoFilled = filled;
+    // 표에 없어 대역·홀짝 규칙으로 짐작한 구간은 짐작이라고 남긴다.
+    // 사용자가 직접 넣은 값에는 표시하지 않는다.
+    if (filled.indexOf('route') !== -1 && known.derived) entry.derived = known.derived;
     return entry;
   }
 
@@ -4136,11 +4378,14 @@ button.ghost.danger { color: var(--danger); }
   /** KE704 와 KE0704 가 다른 일정으로 남지 않도록 편명 숫자를 네 자리로 맞춘다. */
   function normalizeCode(code) {
     var raw = String(code || '').toUpperCase().replace(/\s+/g, '');
-    var m = raw.match(/^([A-Z]{2})-?(\d{1,4})([A-Z]?)$/);
-    if (!m || codes.lookup(raw)) return raw;
-    var digits = m[2];
+    if (codes.lookup(raw)) return raw;
+    var m = codes.splitFlight(raw);
+    // 아는 항공사의 편명만 자릿수를 맞춘다. 모르는 글자는 읽힌 그대로 남겨야
+    // 나중에 무엇을 잘못 읽었는지 알아볼 수 있다.
+    if (!m || !codes.isAirline(m.airline)) return raw;
+    var digits = m.number;
     while (digits.length < 4) digits = '0' + digits;
-    return m[1] + digits + m[3];
+    return m.airline + digits + m.suffix;
   }
 
   function decorate(entry) {
@@ -4156,15 +4401,23 @@ button.ghost.danger { color: var(--danger); }
       end: entry.end || entry.arr || null,       // 도착(종료) 시각 HH:MM
       endOffset: +(entry.endOffset || entry.arrOffset || 0) || 0, // 도착이 익일이면 1
       memo: entry.memo || null,
-      autoFilled: entry.autoFilled || null
+      autoFilled: entry.autoFilled || null,
+      derived: entry.derived || null,
+      strange: entry.strange || false
     };
     if (!out.end) out.endOffset = 0;
     if (!out.type || !out.category || !out.label) {
-      var flight = out.code.match(/^([A-Z]{2})(\d{1,4})([A-Z])?$/);
+      var flight = codes.isFlightCode(out.code) ? codes.splitFlight(out.code) : null;
       if (flight && !codes.lookup(out.code)) {
         out.type = out.type || 'flight';
         out.category = out.category || 'flight';
-        out.label = out.label || flight[1] + ' ' + flight[2] + '편';
+        out.label = out.label || flight.airline + ' ' + flight.number + '편';
+      } else if (!codes.lookup(out.code) && codes.splitFlight(out.code)) {
+        // 편명 꼴이지만 아는 항공사가 아니다. 비행으로 세지 않는다.
+        out.type = out.type || 'duty';
+        out.category = out.category || 'unknown';
+        out.label = out.label || '알 수 없는 코드';
+        out.strange = true;
       } else {
         var hit = codes.describe(out.code);
         out.type = out.type || 'duty';
@@ -4524,18 +4777,78 @@ button.ghost.danger { color: var(--danger); }
   var DAY_ORDER = ['flight', 'standby', 'training', 'layover', 'other', 'unknown', 'vacation', 'off'];
 
   function dayCategory(list) {
-    if (!list || !list.length) return null;
+    // 아는 항공사가 아닌 편명 꼴(AS0016)은 근무가 아니므로 칸 색을 좌우하지 않는다
+    var real = (list || []).filter(function (e) { return !e.strange; });
+    if (!real.length) return null;
     for (var i = 0; i < DAY_ORDER.length; i++) {
-      for (var j = 0; j < list.length; j++) {
-        if ((list[j].category || 'other') === DAY_ORDER[i]) return DAY_ORDER[i];
+      for (var j = 0; j < real.length; j++) {
+        if ((real[j].category || 'other') === DAY_ORDER[i]) return DAY_ORDER[i];
       }
     }
     return null;
   }
 
+  /**
+   * 달력 칸에 그릴 것만 골라 낸다.
+   *  - 아는 항공사가 아닌 편명 꼴(AS0016)은 비행이 아니므로 칸에 띄우지 않는다.
+   *    날짜를 누르면 원래 글자를 볼 수 있으니 데이터에서 지우지는 않는다.
+   *  - 같은 날 오가는 두 편(KE1807 GMP/PUS + KE1810 PUS/GMP)은 '부산 왕복' 하나로 묶는다.
+   */
+  function cellItems(list) {
+    var shown = (list || []).filter(function (e) { return !e.strange; });
+    return mergeRoundTrip(shown);
+  }
+
+  /** 한 날에 A→B, B→A 두 편만 있으면 왕복 하나로 묶는다. 아니면 그대로. */
+  function mergeRoundTrip(list) {
+    if (!airports) return list;
+    var flights = list.filter(function (e) { return e.type === 'flight' && e.route; });
+    if (flights.length !== 2) return list;
+    var a = airports.splitRoute(flights[0].route);
+    var b = airports.splitRoute(flights[1].route);
+    if (!a.from || !a.to || !b.from || !b.to) return list;
+    if (a.from !== b.to || a.to !== b.from) return list;
+
+    var pair = flights[0];
+    var round = {
+      type: 'flight',
+      category: 'flight',
+      code: flights[0].code,
+      route: pair.route,
+      label: flights.map(function (e) { return e.code; }).join(' · '),
+      // 오가는 시각을 하나로 잇는 것은 돌아오는 편이 나중일 때만. 아니면 시각을 비운다.
+      start: roundTimes(flights).start,
+      end: roundTimes(flights).end,
+      endOffset: flights[1].endOffset || 0,
+      derived: flights[0].derived || flights[1].derived || null,
+      roundTrip: flights.slice()
+    };
+    return list.map(function (e) { return e === flights[0] ? round : e; })
+      .filter(function (e) { return e !== flights[1]; });
+  }
+
+  /** 왕복으로 묶을 때 쓸 출발·도착 시각. 앞뒤가 맞지 않으면 둘 다 비운다. */
+  function roundTimes(flights) {
+    var start = flights[0].start || null;
+    var end = flights[1].end || null;
+    // 한쪽 시각만 아는 경우가 흔하다(돌아오는 편을 규칙으로만 짐작한 날). 아는 쪽은 남긴다.
+    if (!start || !end) return { start: start, end: end };
+    if (!flights[1].endOffset && end <= start) return { start: start, end: null };
+    return { start: start, end: end };
+  }
+
   /** 구간을 모르는 항공편인지. 편명만 있고 어디 가는지 모르는 것들. */
   function needsRoute(entry) {
     return !!entry && entry.type === 'flight' && !entry.route;
+  }
+
+  /** 대역·홀짝 규칙으로 짐작한 구간에 붙이는 작은 표. */
+  function guessMark() {
+    var mark = document.createElement('span');
+    mark.className = 'cal-guess';
+    mark.textContent = '추정';
+    mark.title = '시간표에 없어 편명 규칙으로 짐작한 구간입니다. 실제 로스터를 따르세요.';
+    return mark;
   }
 
   function nextDay(date) {
@@ -4694,10 +5007,11 @@ button.ghost.danger { color: var(--danger); }
 
         var chips = document.createElement('span');
         chips.className = 'cal-chips';
-        var dayHasFlight = list.some(function (e) { return e.type === 'flight'; });
+        var shown = cellItems(list);
+        var dayHasFlight = shown.some(function (e) { return e.type === 'flight'; });
         var staying = places[date] || null;
 
-        list.slice(0, 3).forEach(function (e) {
+        shown.slice(0, 3).forEach(function (e) {
           var item = document.createElement('span');
           item.className = 'cal-item';
           item.title = [e.code, e.label || '', airports ? airports.describeRoute(e.route) : e.route,
@@ -4716,8 +5030,9 @@ button.ghost.danger { color: var(--danger); }
             }
             var city = document.createElement('span');
             city.className = 'cal-city cat-' + (e.category || 'other');
-            city.textContent = place.city;
+            city.textContent = place.city + (e.roundTrip ? ' 왕복' : '');
             item.appendChild(city);
+            if (e.derived) item.appendChild(guessMark());
           } else {
             var title = document.createElement('span');
             title.className = 'cal-title cat-' + (e.category || 'other');
@@ -4758,7 +5073,7 @@ button.ghost.danger { color: var(--danger); }
           // 큰 글씨 밑에는 작은 글씨로 한 줄. 도시 밑에는 편명(체류면 '체류'),
           // 휴무·대기처럼 이름이 제목인 경우에는 원래 코드를 적는다.
           var subText = place
-            ? (e.type === 'flight' ? e.code : (e.label || ''))
+            ? (e.type === 'flight' ? (e.roundTrip ? e.label : e.code) : (e.label || ''))
             : (e.type === 'flight' ? '' : (e.code !== e.label ? e.code : ''));
           if (subText) {
             var sub = document.createElement('span');
@@ -4780,10 +5095,10 @@ button.ghost.danger { color: var(--danger); }
           guess.appendChild(guessTitle);
           chips.appendChild(guess);
         }
-        if (list.length > 3) {
+        if (shown.length > 3) {
           var more = document.createElement('span');
           more.className = 'cal-more';
-          more.textContent = '+' + (list.length - 3);
+          more.textContent = '+' + (shown.length - 3);
           chips.appendChild(more);
         }
         cell.appendChild(chips);
@@ -5048,7 +5363,8 @@ button.ghost.danger { color: var(--danger); }
     container.appendChild(wrap);
   }
 
-  function summarize(entriesByDate, year, month) {
+  function summarize(entriesByDate, year, month, options) {
+    var opts = options || {};
     var prefix = year + '-' + pad2(month);
     var counts = { flight: 0, layover: 0, standby: 0, off: 0, vacation: 0, training: 0, other: 0, unknown: 0 };
     var dayCounts = {};
@@ -5059,10 +5375,11 @@ button.ghost.danger { color: var(--danger); }
 
     Object.keys(entriesByDate).sort().forEach(function (date) {
       if (date.indexOf(prefix) !== 0) return;
-      if (!(entriesByDate[date] || []).length) return;
+      if (!(entriesByDate[date] || []).some(function (e) { return !e.strange; })) return;
       days++;
       var seenHere = {};
       entriesByDate[date].forEach(function (e) {
+        if (e.strange) return;      // 근무가 아니라 잘못 읽힌 글자다
         var c = e.category || 'other';
         if (counts[c] == null) counts[c] = 0;
         counts[c]++;
@@ -5079,10 +5396,26 @@ button.ghost.danger { color: var(--danger); }
       });
     });
 
+    // 코드가 없어 휴무로 넘겨짚은 날도 휴무에 넣는다. 몇 날이 짐작인지는 따로 남겨
+    // "휴무 10일 (추정 3일 포함)" 처럼 갈라 보여줄 수 있게 한다.
+    var assumedOff = 0;
+    if (opts.assumeOff) {
+      var total = daysInMonth(year, month);
+      for (var d = 1; d <= total; d++) {
+        var date = iso(year, month, d);
+        if (!(entriesByDate[date] || []).length) assumedOff++;
+      }
+      if (assumedOff) {
+        dayCounts.off = (dayCounts.off || 0) + assumedOff;
+        counts.off += assumedOff;
+      }
+    }
+
     return {
       days: days,
       counts: counts,
       dayCounts: dayCounts,
+      assumedOff: assumedOff,
       flights: Object.keys(flightCodes).length,
       cities: cities
     };
@@ -5145,6 +5478,8 @@ button.ghost.danger { color: var(--danger); }
     chipText: chipText,
     dayCategory: dayCategory,
     needsRoute: needsRoute,
+    cellItems: cellItems,
+    mergeRoundTrip: mergeRoundTrip,
     tripPlaces: tripPlaces,
     iso: iso,
     pad2: pad2,
@@ -5864,7 +6199,9 @@ button.ghost.danger { color: var(--danger); }
     var fixed = fixCode(text);
     if (codes && codes.knownCodeList().indexOf(fixed) !== -1) return true;
     if (schedule && schedule.lookup(fixed)) return true;
-    return /^[A-Z]{2}\d{4}$/.test(fixed);      // 시간표에 없어도 편명 꼴이면 그대로 믿는다
+    // 시간표에 없어도 아는 항공사의 편명 꼴이면 그대로 믿는다.
+    // 모르는 항공사(AS0016)는 잘못 읽은 것으로 보고 다시 읽게 둔다.
+    return !!(codes && codes.isFlightCode && codes.isFlightCode(fixed));
   }
 
   /** 한 글자를 바꾸거나 넣거나 빼면 같아지는지. */
@@ -7704,6 +8041,21 @@ button.ghost.danger { color: var(--danger); }
   var VIEW_KEY = 'crew-cal.view.v1';
   var ASSUME_OFF_KEY = 'crew-cal.assume-off.v1';
 
+  var AIRLINES_KEY = 'crew-cal.airlines.v1';
+
+  /** 편명으로 읽을 항공사. 저장된 값이 없으면 대한항공만. */
+  function loadAirlines() {
+    try {
+      var saved = localStorage.getItem(AIRLINES_KEY);
+      if (saved) return codes.setAirlines(saved.split(/[,\s]+/));
+    } catch (e) { /* 못 읽으면 기본값 */ }
+    return codes.setAirlines(codes.DEFAULT_AIRLINES);
+  }
+
+  function saveAirlines(list) {
+    try { localStorage.setItem(AIRLINES_KEY, list.join(',')); } catch (e) { /* 무시 */ }
+  }
+
   /** 코드 없는 날을 휴무로 볼지. 기본은 켬. */
   function loadAssumeOff() {
     try {
@@ -7805,7 +8157,7 @@ button.ghost.danger { color: var(--danger); }
   }
 
   function renderMonthSummary(entriesByDate) {
-    var s = calendar.summarize(entriesByDate, state.year, state.month);
+    var s = calendar.summarize(entriesByDate, state.year, state.month, { assumeOff: state.assumeOff });
     var box = $('monthSummary');
     box.innerHTML = '';
 
@@ -7825,7 +8177,10 @@ button.ghost.danger { color: var(--danger); }
     // 비행은 몇 편인지가, 나머지는 며칠인지가 궁금한 값이다
     if (s.flights) bits.push(['비행', s.flights + '편']);
     ['layover', 'standby', 'training', 'vacation', 'off', 'other', 'unknown'].forEach(function (key) {
-      if (s.dayCounts[key]) bits.push([codes.CATEGORY_LABELS[key], s.dayCounts[key] + '일']);
+      if (!s.dayCounts[key]) return;
+      // 코드가 없어 휴무로 넘겨짚은 날은 몇 날인지 갈라 적는다
+      var suffix = (key === 'off' && s.assumedOff) ? '일 (추정 ' + s.assumedOff + '일 포함)' : '일';
+      bits.push([codes.CATEGORY_LABELS[key], s.dayCounts[key] + suffix]);
     });
     bits.push(['일정 있는 날', s.days + '일']);
 
@@ -8017,6 +8372,14 @@ button.ghost.danger { color: var(--danger); }
       }
       li.appendChild(main);
 
+      if (entry.derived) {
+        var guess = document.createElement('span');
+        guess.className = 'entry-guess';
+        guess.textContent = '추정';
+        guess.title = '시간표에 없어 편명 규칙으로 짐작한 구간입니다. 실제 로스터를 따르세요.';
+        main.appendChild(guess);
+      }
+
       // 어디 가는 편인지 모르는 비행은 눌러서 넣을 수 있게 한다
       if (calendar.needsRoute(entry)) {
         var badge = document.createElement('button');
@@ -8098,6 +8461,21 @@ button.ghost.danger { color: var(--danger); }
       state.assumeOff = box.checked;
       saveAssumeOff(state.assumeOff);
       refresh();
+    });
+  }
+
+  /** 편명으로 읽을 항공사를 고친다. 이미 저장된 일정은 건드리지 않는다. */
+  function initAirlines() {
+    var box = $('airlineList');
+    var current = loadAirlines();
+    if (!box) return;
+    box.value = current.join(', ');
+    box.addEventListener('change', function () {
+      var next = codes.setAirlines(box.value.split(/[,\s]+/));
+      saveAirlines(next);
+      box.value = next.join(', ');
+      refresh();
+      toast('편명으로 읽을 항공사: ' + next.join(', ') + ' (다음 인식부터 반영됩니다)');
     });
   }
 
@@ -9219,7 +9597,7 @@ button.ghost.danger { color: var(--danger); }
   /* ---------------- 동료가 보내는 의견 ---------------- */
 
   // 화면 아래와 의견 보내기에 적히는 판 번호. sw.js 의 VERSION 과 함께 올린다.
-  var APP_VERSION = 'v22';
+  var APP_VERSION = 'v23';
 
   /**
    * 의견을 받을 메일 주소. 저장소가 공개라 통짜로 적어두면 스팸 크롤러가 긁어가므로
@@ -9633,6 +10011,7 @@ button.ghost.danger { color: var(--danger); }
     initDownloads();
     initViewToggle();
     initAssumeOff();
+    initAirlines();
     initRouteSheet();
     initTabs();
     initSingleForm();

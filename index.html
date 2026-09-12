@@ -314,6 +314,14 @@
         <input type="checkbox" id="assumeOff" checked>
         <span>코드 없는 날을 휴무로 표시 <em>(크루넷에서 빈 칸으로 나오는 날입니다. 추정이라 흐리게 적습니다)</em></span>
       </label>
+      <label class="field">
+        <span>편명으로 읽을 항공사 <em>(쉼표로 구분. 비우면 KE 만)</em></span>
+        <input type="text" id="airlineList" autocomplete="off" spellcheck="false" placeholder="KE, OZ, 7C">
+      </label>
+      <p class="muted small-note">
+        여기 없는 항공사 코드는 편명으로 읽지 않고 '알 수 없는 코드' 로 둡니다.
+        잘못 읽힌 글자(AS0016 같은)가 비행으로 달력에 뜨는 것을 막아 줍니다.
+      </p>
     </details>
 
     <div class="data-tools">

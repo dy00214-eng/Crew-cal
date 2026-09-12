@@ -138,18 +138,78 @@
   var DAY_ORDER = ['flight', 'standby', 'training', 'layover', 'other', 'unknown', 'vacation', 'off'];
 
   function dayCategory(list) {
-    if (!list || !list.length) return null;
+    // 아는 항공사가 아닌 편명 꼴(AS0016)은 근무가 아니므로 칸 색을 좌우하지 않는다
+    var real = (list || []).filter(function (e) { return !e.strange; });
+    if (!real.length) return null;
     for (var i = 0; i < DAY_ORDER.length; i++) {
-      for (var j = 0; j < list.length; j++) {
-        if ((list[j].category || 'other') === DAY_ORDER[i]) return DAY_ORDER[i];
+      for (var j = 0; j < real.length; j++) {
+        if ((real[j].category || 'other') === DAY_ORDER[i]) return DAY_ORDER[i];
       }
     }
     return null;
   }
 
+  /**
+   * 달력 칸에 그릴 것만 골라 낸다.
+   *  - 아는 항공사가 아닌 편명 꼴(AS0016)은 비행이 아니므로 칸에 띄우지 않는다.
+   *    날짜를 누르면 원래 글자를 볼 수 있으니 데이터에서 지우지는 않는다.
+   *  - 같은 날 오가는 두 편(KE1807 GMP/PUS + KE1810 PUS/GMP)은 '부산 왕복' 하나로 묶는다.
+   */
+  function cellItems(list) {
+    var shown = (list || []).filter(function (e) { return !e.strange; });
+    return mergeRoundTrip(shown);
+  }
+
+  /** 한 날에 A→B, B→A 두 편만 있으면 왕복 하나로 묶는다. 아니면 그대로. */
+  function mergeRoundTrip(list) {
+    if (!airports) return list;
+    var flights = list.filter(function (e) { return e.type === 'flight' && e.route; });
+    if (flights.length !== 2) return list;
+    var a = airports.splitRoute(flights[0].route);
+    var b = airports.splitRoute(flights[1].route);
+    if (!a.from || !a.to || !b.from || !b.to) return list;
+    if (a.from !== b.to || a.to !== b.from) return list;
+
+    var pair = flights[0];
+    var round = {
+      type: 'flight',
+      category: 'flight',
+      code: flights[0].code,
+      route: pair.route,
+      label: flights.map(function (e) { return e.code; }).join(' · '),
+      // 오가는 시각을 하나로 잇는 것은 돌아오는 편이 나중일 때만. 아니면 시각을 비운다.
+      start: roundTimes(flights).start,
+      end: roundTimes(flights).end,
+      endOffset: flights[1].endOffset || 0,
+      derived: flights[0].derived || flights[1].derived || null,
+      roundTrip: flights.slice()
+    };
+    return list.map(function (e) { return e === flights[0] ? round : e; })
+      .filter(function (e) { return e !== flights[1]; });
+  }
+
+  /** 왕복으로 묶을 때 쓸 출발·도착 시각. 앞뒤가 맞지 않으면 둘 다 비운다. */
+  function roundTimes(flights) {
+    var start = flights[0].start || null;
+    var end = flights[1].end || null;
+    // 한쪽 시각만 아는 경우가 흔하다(돌아오는 편을 규칙으로만 짐작한 날). 아는 쪽은 남긴다.
+    if (!start || !end) return { start: start, end: end };
+    if (!flights[1].endOffset && end <= start) return { start: start, end: null };
+    return { start: start, end: end };
+  }
+
   /** 구간을 모르는 항공편인지. 편명만 있고 어디 가는지 모르는 것들. */
   function needsRoute(entry) {
     return !!entry && entry.type === 'flight' && !entry.route;
+  }
+
+  /** 대역·홀짝 규칙으로 짐작한 구간에 붙이는 작은 표. */
+  function guessMark() {
+    var mark = document.createElement('span');
+    mark.className = 'cal-guess';
+    mark.textContent = '추정';
+    mark.title = '시간표에 없어 편명 규칙으로 짐작한 구간입니다. 실제 로스터를 따르세요.';
+    return mark;
   }
 
   function nextDay(date) {
@@ -308,10 +368,11 @@
 
         var chips = document.createElement('span');
         chips.className = 'cal-chips';
-        var dayHasFlight = list.some(function (e) { return e.type === 'flight'; });
+        var shown = cellItems(list);
+        var dayHasFlight = shown.some(function (e) { return e.type === 'flight'; });
         var staying = places[date] || null;
 
-        list.slice(0, 3).forEach(function (e) {
+        shown.slice(0, 3).forEach(function (e) {
           var item = document.createElement('span');
           item.className = 'cal-item';
           item.title = [e.code, e.label || '', airports ? airports.describeRoute(e.route) : e.route,
@@ -330,8 +391,9 @@
             }
             var city = document.createElement('span');
             city.className = 'cal-city cat-' + (e.category || 'other');
-            city.textContent = place.city;
+            city.textContent = place.city + (e.roundTrip ? ' 왕복' : '');
             item.appendChild(city);
+            if (e.derived) item.appendChild(guessMark());
           } else {
             var title = document.createElement('span');
             title.className = 'cal-title cat-' + (e.category || 'other');
@@ -372,7 +434,7 @@
           // 큰 글씨 밑에는 작은 글씨로 한 줄. 도시 밑에는 편명(체류면 '체류'),
           // 휴무·대기처럼 이름이 제목인 경우에는 원래 코드를 적는다.
           var subText = place
-            ? (e.type === 'flight' ? e.code : (e.label || ''))
+            ? (e.type === 'flight' ? (e.roundTrip ? e.label : e.code) : (e.label || ''))
             : (e.type === 'flight' ? '' : (e.code !== e.label ? e.code : ''));
           if (subText) {
             var sub = document.createElement('span');
@@ -394,10 +456,10 @@
           guess.appendChild(guessTitle);
           chips.appendChild(guess);
         }
-        if (list.length > 3) {
+        if (shown.length > 3) {
           var more = document.createElement('span');
           more.className = 'cal-more';
-          more.textContent = '+' + (list.length - 3);
+          more.textContent = '+' + (shown.length - 3);
           chips.appendChild(more);
         }
         cell.appendChild(chips);
@@ -662,7 +724,8 @@
     container.appendChild(wrap);
   }
 
-  function summarize(entriesByDate, year, month) {
+  function summarize(entriesByDate, year, month, options) {
+    var opts = options || {};
     var prefix = year + '-' + pad2(month);
     var counts = { flight: 0, layover: 0, standby: 0, off: 0, vacation: 0, training: 0, other: 0, unknown: 0 };
     var dayCounts = {};
@@ -673,10 +736,11 @@
 
     Object.keys(entriesByDate).sort().forEach(function (date) {
       if (date.indexOf(prefix) !== 0) return;
-      if (!(entriesByDate[date] || []).length) return;
+      if (!(entriesByDate[date] || []).some(function (e) { return !e.strange; })) return;
       days++;
       var seenHere = {};
       entriesByDate[date].forEach(function (e) {
+        if (e.strange) return;      // 근무가 아니라 잘못 읽힌 글자다
         var c = e.category || 'other';
         if (counts[c] == null) counts[c] = 0;
         counts[c]++;
@@ -693,10 +757,26 @@
       });
     });
 
+    // 코드가 없어 휴무로 넘겨짚은 날도 휴무에 넣는다. 몇 날이 짐작인지는 따로 남겨
+    // "휴무 10일 (추정 3일 포함)" 처럼 갈라 보여줄 수 있게 한다.
+    var assumedOff = 0;
+    if (opts.assumeOff) {
+      var total = daysInMonth(year, month);
+      for (var d = 1; d <= total; d++) {
+        var date = iso(year, month, d);
+        if (!(entriesByDate[date] || []).length) assumedOff++;
+      }
+      if (assumedOff) {
+        dayCounts.off = (dayCounts.off || 0) + assumedOff;
+        counts.off += assumedOff;
+      }
+    }
+
     return {
       days: days,
       counts: counts,
       dayCounts: dayCounts,
+      assumedOff: assumedOff,
       flights: Object.keys(flightCodes).length,
       cities: cities
     };
@@ -759,6 +839,8 @@
     chipText: chipText,
     dayCategory: dayCategory,
     needsRoute: needsRoute,
+    cellItems: cellItems,
+    mergeRoundTrip: mergeRoundTrip,
     tripPlaces: tripPlaces,
     iso: iso,
     pad2: pad2,

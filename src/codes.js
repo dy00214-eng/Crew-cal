@@ -90,6 +90,46 @@
     MTG: { label: '회의', category: 'other' }
   };
 
+  /* ---------------- 편명으로 인정할 항공사 ----------------
+   * 'AS0016' 처럼 잘못 읽힌 글자가 편명 꼴이라는 이유만으로 비행이 되어
+   * 달력에 뜨는 일이 있었다. 그래서 항공사 코드를 흰 목록으로 받는다.
+   * 기본은 대한항공만. 다른 항공사 스케줄을 쓰는 사람은 설정에서 늘린다.
+   */
+  var DEFAULT_AIRLINES = ['KE'];
+  var airlines = DEFAULT_AIRLINES.slice();
+
+  // 편명 꼴: 항공사 두 글자(적어도 하나는 영문) + 숫자 1~4 + 꼬리 글자
+  var FLIGHT_SHAPE = /^([A-Z]{2}|[A-Z][0-9]|[0-9][A-Z])-?(\d{1,4})([A-Z]?)$/;
+
+  function setAirlines(list) {
+    var out = [];
+    (list == null ? [] : [].concat(list)).forEach(function (raw) {
+      var code = String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+      if (/^([A-Z]{2}|[A-Z][0-9]|[0-9][A-Z])$/.test(code) && out.indexOf(code) === -1) out.push(code);
+    });
+    airlines = out.length ? out : DEFAULT_AIRLINES.slice();
+    return airlines.slice();
+  }
+
+  function airlineList() { return airlines.slice(); }
+
+  function isAirline(code) {
+    return !!code && airlines.indexOf(String(code).toUpperCase()) !== -1;
+  }
+
+  /** 'KE0035' -> { airline: 'KE', number: '0035', suffix: '' }. 편명 꼴이 아니면 null. */
+  function splitFlight(token) {
+    var m = String(token == null ? '' : token).toUpperCase().replace(/\s+/g, '').match(FLIGHT_SHAPE);
+    if (!m) return null;
+    return { airline: m[1], number: m[2], suffix: m[3] || '' };
+  }
+
+  /** 편명 꼴이면서 아는 항공사인가. 모르는 항공사는 편명으로 받지 않는다. */
+  function isFlightCode(token) {
+    var parts = splitFlight(token);
+    return !!parts && isAirline(parts.airline);
+  }
+
   // 코드로 오인하기 쉬운 단어들 (요일/헤더/시간 관련)
   var IGNORED_TOKENS = {};
   ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN',
@@ -145,6 +185,13 @@
     timeLabel: timeLabel,
     lookup: lookup,
     describe: describe,
-    knownCodeList: knownCodeList
+    knownCodeList: knownCodeList,
+    DEFAULT_AIRLINES: DEFAULT_AIRLINES,
+    FLIGHT_SHAPE: FLIGHT_SHAPE,
+    setAirlines: setAirlines,
+    airlineList: airlineList,
+    isAirline: isAirline,
+    splitFlight: splitFlight,
+    isFlightCode: isFlightCode
   };
 });

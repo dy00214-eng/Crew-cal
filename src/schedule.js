@@ -246,6 +246,63 @@
     '1402': ['PUS/ICN', '07:00', '08:10', 0]
   };
 
+  /*
+   * 대한항공 편명 대역. 어느 대역인지만으로도 국내선인지 국제선인지 갈린다.
+   *   1~999    국제선 정기편
+   *   1000~1999 국내선
+   *   2000~2999 국제선 (계절편·증편 포함. KE2179 ICN/KOJ 처럼 정기편도 여기 든다)
+   *   9000~9999 화물편
+   */
+  var BANDS = [
+    { from: 1, to: 999, kind: 'international', label: '국제선 정기편' },
+    { from: 1000, to: 1999, kind: 'domestic', label: '국내선' },
+    { from: 2000, to: 2999, kind: 'international', label: '국제선(계절편·증편 포함)' },
+    { from: 9000, to: 9999, kind: 'cargo', label: '화물편' }
+  ];
+
+  /**
+   * 국내선 편명 대역 -> 구간. 홀수가 앞에서 뒤로, 짝수가 뒤에서 앞으로 간다.
+   * (KE1807 GMP/PUS 이면 KE1810 은 PUS/GMP) 전광판에서 모은 편들이 모두 이 규칙을
+   * 따랐다. 시각까지 짐작하지는 않는다.
+   */
+  var DOMESTIC_BANDS = [
+    { from: 1000, to: 1299, route: ['GMP', 'CJU'] },
+    { from: 1400, to: 1429, route: ['ICN', 'PUS'] },
+    { from: 1430, to: 1439, route: ['ICN', 'TAE'] },
+    // 1563~1568 은 어느 쪽인지 확인하지 못해 비워 둔다(1562 는 부산, 1569 는 대구).
+    { from: 1500, to: 1562, route: ['PUS', 'CJU'] },
+    { from: 1569, to: 1579, route: ['TAE', 'CJU'] },
+    { from: 1580, to: 1589, route: ['HIN', 'CJU'] },
+    { from: 1590, to: 1599, route: ['USN', 'CJU'] },
+    { from: 1600, to: 1629, route: ['KWJ', 'CJU'] },
+    { from: 1630, to: 1639, route: ['RSU', 'CJU'] },
+    { from: 1700, to: 1799, route: ['CJJ', 'CJU'] },
+    { from: 1800, to: 1839, route: ['GMP', 'PUS'] },
+    { from: 1840, to: 1899, route: ['GMP', 'USN'] }
+  ];
+
+  /** 편명 숫자 -> 어느 대역인지. 대역 밖이면 null. */
+  function bandOf(number) {
+    var n = +number;
+    if (!n && n !== 0) return null;
+    for (var i = 0; i < BANDS.length; i++) {
+      if (n >= BANDS[i].from && n <= BANDS[i].to) return BANDS[i];
+    }
+    return null;
+  }
+
+  /** 국내선 대역 규칙으로 구간을 뽑는다. 대역에 없으면 null. */
+  function domesticRoute(number) {
+    var n = +number;
+    for (var i = 0; i < DOMESTIC_BANDS.length; i++) {
+      var band = DOMESTIC_BANDS[i];
+      if (n < band.from || n > band.to) continue;
+      var pair = band.route;
+      return n % 2 === 1 ? pair[0] + '/' + pair[1] : pair[1] + '/' + pair[0];
+    }
+    return null;
+  }
+
   // 짝 편명으로 구간을 뒤집을 때 기준이 되는 국내 출발지
   var KR_HUBS = {
     ICN: true, GMP: true, PUS: true, CJU: true, TAE: true, KWJ: true,
@@ -328,19 +385,40 @@
     return { route: parts[1] + '/' + parts[0], start: null, end: null, endOffset: 0, derived: true };
   }
 
+  /** 국내선 대역 규칙으로 채운다. 구간만 확실하고 시각은 모른다. */
+  function fromDomesticBand(key) {
+    var m = key.match(/^[A-Z]{2}(\d{4})$/);
+    if (!m) return null;
+    var route = domesticRoute(m[1]);
+    if (!route) return null;
+    return { route: route, start: null, end: null, endOffset: 0, derived: 'domestic-band' };
+  }
+
   function lookup(code) {
     var key = normalize(code);
     if (!key) return null;
-    var hit = TABLE[key] || pairedReturn(key) || pairedOutbound(key);
+    // 표에 있는 값이 먼저. 없으면 국내선 대역 규칙, 그다음 홀짝 짝 편명.
+    var hit = TABLE[key] || fromDomesticBand(key) || pairedReturn(key) || pairedOutbound(key);
     if (!hit) return null;
+    var number = +key.slice(2);
+    var band = bandOf(number);
     return {
       route: hit.route,
       start: hit.start,
       end: hit.end,
       endOffset: hit.endOffset,
-      derived: !!hit.derived,
+      derived: hit.derived || false,
+      kind: band ? band.kind : null,
       source: 'schedule'
     };
+  }
+
+  /** 편명이 국내선인지. 대역으로 먼저 보고, 구간을 알면 그것으로 확인한다. */
+  function isDomestic(code) {
+    var key = normalize(code);
+    if (!key) return false;
+    var band = bandOf(+key.slice(2));
+    return !!band && band.kind === 'domestic';
   }
 
   function size() {
@@ -350,7 +428,12 @@
   return {
     TABLE: TABLE,
     SOURCE_NOTE: SOURCE_NOTE,
+    BANDS: BANDS,
+    DOMESTIC_BANDS: DOMESTIC_BANDS,
     normalize: normalize,
+    bandOf: bandOf,
+    domesticRoute: domesticRoute,
+    isDomestic: isDomestic,
     lookup: lookup,
     size: size
   };

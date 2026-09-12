@@ -110,10 +110,46 @@ test('김포 국내선도 구간을 갖는다', () => {
   assert.strictEqual(schedule.lookup('KE1843').route, 'GMP/USN');
 });
 
-test('짝 편명 추정은 김포에도 적용된다', () => {
+test('국내선은 대역 규칙으로 구간을 채운다', () => {
+  // 표에 없는 편이라도 대역이 알려 준다. 홀수가 앞에서 뒤로, 짝수가 뒤에서 앞으로.
   const back = schedule.lookup('KE1122');
   assert.strictEqual(back.route, 'CJU/GMP');
-  assert.strictEqual(back.derived, true);
+  assert.strictEqual(back.derived, 'domestic-band', '짐작이라고 남긴다');
+
+  const busan = schedule.lookup('KE1810');
+  assert.strictEqual(busan.route, 'PUS/GMP');
+  assert.strictEqual(busan.derived, 'domestic-band');
+  assert.strictEqual(schedule.lookup('KE1807').route, 'GMP/PUS');
+  assert.strictEqual(schedule.lookup('KE1807').derived, false, '표에 있으면 짐작이 아니다');
+
+  // 대역 규칙은 표에 있는 국내선 편과 하나도 어긋나지 않는다
+  Object.keys(schedule.TABLE).forEach((key) => {
+    const n = +key.slice(2);
+    if (n < 1000 || n > 1999) return;
+    const guess = schedule.domesticRoute(n);
+    if (guess) assert.strictEqual(guess, schedule.TABLE[key].route, key);
+  });
+});
+
+test('편명 대역으로 국내선·국제선·화물을 가른다', () => {
+  assert.strictEqual(schedule.bandOf(35).kind, 'international');
+  assert.strictEqual(schedule.bandOf(1807).kind, 'domestic');
+  assert.strictEqual(schedule.bandOf(2179).kind, 'international', '2000번대는 계절편이어도 국제선');
+  assert.strictEqual(schedule.bandOf(9001).kind, 'cargo');
+  assert.strictEqual(schedule.bandOf(5000), null);
+
+  assert.strictEqual(schedule.isDomestic('KE1810'), true);
+  assert.strictEqual(schedule.isDomestic('KE2179'), false);
+  assert.strictEqual(schedule.isDomestic('KE0035'), false);
+  assert.strictEqual(schedule.lookup('KE2179').kind, 'international');
+});
+
+test('어느 쪽인지 확인 못 한 대역은 지어내지 않는다', () => {
+  // 1562 는 부산, 1569 는 대구. 그 사이는 비워 둔다.
+  assert.strictEqual(schedule.domesticRoute(1562), 'CJU/PUS');
+  assert.strictEqual(schedule.domesticRoute(1569), 'TAE/CJU');
+  assert.strictEqual(schedule.domesticRoute(1564), null);
+  assert.strictEqual(schedule.lookup('KE1564'), null);
 });
 
 test('부산 출발·도착편도 표에 있다', () => {
