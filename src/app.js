@@ -139,6 +139,8 @@
     var entriesByDate = store.getAll();
     // 편명 -> 노선 세 단계. 1·2단계로 안 풀린 편명만 모아 3단계로 넘긴다.
     var unresolved = routes.apply(entriesByDate);
+    // 이어진 날의 같은 편은 한 비행이다. 편수도 표시도 그에 맞춘다.
+    routes.linkDays(entriesByDate, CrewCal.resolve);
     markPending(entriesByDate);
     $('monthLabel').textContent = monthLabel(state.year, state.month);
 
@@ -981,15 +983,24 @@
     if (!entries.length) return;
 
     var mode = document.querySelector('input[name=applyMode]:checked').value;
+    var opts = {};
+    if ($('clearMonth') && $('clearMonth').checked) {
+      opts.clearMonth = entries[0].date.slice(0, 7);
+    }
     if (mode === 'replace') {
-      var existing = store.countExisting(entries);
+      var span = store.dateSpan(entries, opts);
+      var existing = store.countInRange(span);
       if (existing > 0) {
-        var ok = window.confirm('해당 날짜의 기존 일정 ' + existing + '건을 지우고 ' + entries.length + '건을 반영합니다. 계속할까요?');
+        var what = opts.clearMonth
+          ? opts.clearMonth.replace('-', '년 ') + '월 전체'
+          : span.from + ' ~ ' + span.to;
+        var ok = window.confirm(what + ' 의 기존 일정 ' + existing + '건을 지우고 ' +
+          entries.length + '건을 반영합니다. 계속할까요?');
         if (!ok) return;
       }
     }
 
-    var res = store.applyEntries(entries, mode);
+    var res = store.applyEntries(entries, mode, opts);
     var first = entries[0].date;
     state.year = +first.slice(0, 4);
     state.month = +first.slice(5, 7);
@@ -1657,7 +1668,7 @@
   /* ---------------- 동료가 보내는 의견 ---------------- */
 
   // 화면 아래와 의견 보내기에 적히는 판 번호. sw.js 의 VERSION 과 함께 올린다.
-  var APP_VERSION = 'v28';
+  var APP_VERSION = 'v29';
 
   /**
    * 의견을 받을 메일 주소. 저장소가 공개라 통짜로 적어두면 스팸 크롤러가 긁어가므로

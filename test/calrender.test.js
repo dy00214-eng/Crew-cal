@@ -154,13 +154,31 @@ test('추정 휴무를 휴무 집계에 넣되 몇 날인지 밝힌다', () => {
   assert.strictEqual(guessed.days, 1, '일정 있는 날은 그대로');
 });
 
-test('국내선은 집이 아닌 쪽을 간 곳으로 본다', () => {
+test('도시는 from·to 가운데 한국이 아닌 쪽으로 고른다', () => {
   const airports = require('../src/airports.js');
-  assert.strictEqual(airports.outstation('GMP/PUS'), 'PUS');
-  assert.strictEqual(airports.outstation('PUS/GMP'), 'PUS', '김포는 드나드는 집이다');
-  assert.strictEqual(airports.outstation('CJU/ICN'), 'CJU');
-  assert.strictEqual(airports.outstation('PUS/CJU'), 'CJU', '둘 다 집이 아니면 도착지');
+  // 한국 출발이면 도착지, 한국 도착이면 출발지. 홀수 편(한국 출발)도 도시가 나와야 한다.
+  assert.strictEqual(airports.outstation('ICN/BKK'), 'BKK');
+  assert.strictEqual(airports.outstation('BKK/ICN'), 'BKK');
   assert.strictEqual(airports.outstation('ICN/ATL'), 'ATL');
+  assert.strictEqual(airports.outstation('CJU/ICN'), 'ICN', '둘 다 한국이면 도착지');
+  // 둘 다 한국이거나 둘 다 해외면 도착지
+  assert.strictEqual(airports.outstation('GMP/PUS'), 'PUS');
+  assert.strictEqual(airports.outstation('PUS/GMP'), 'GMP');
+  assert.strictEqual(airports.outstation('PVG/NRT'), 'NRT');
+  // 한국인지는 공항표의 country 로만 본다
+  assert.strictEqual(airports.countryOf('ICN'), 'KR');
+  assert.strictEqual(airports.countryOf('GMP'), 'KR');
+});
+
+test('홀수 편명도 시드에서 도시를 찾는다', () => {
+  const routes = require('../src/routes.js');
+  const airports = require('../src/airports.js');
+  [['KE0657', 'ICN/BKK', '방콕'], ['KE0457', 'ICN/DAD', '다낭'], ['KE0401', 'ICN/SYD', '시드니']]
+    .forEach(([code, route, city]) => {
+      const got = routes.resolve(store.decorate({ date: '2026-01-03', code }));
+      assert.strictEqual(got.route, route, code);
+      assert.strictEqual(airports.tripPlace({ route: got.route, type: 'flight' }).city, city, code);
+    });
 });
 
 test('근무가 있는 날에 추정 휴무를 붙이려 하면 예외를 던진다', () => {

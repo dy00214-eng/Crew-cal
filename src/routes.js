@@ -207,12 +207,21 @@
     return Object.keys(unresolved).sort();
   }
 
+  /** 이어진 날의 같은 편을 한 덩어리로 묶고 출발·기내·도착을 적는다. */
+  function linkDays(entriesByDate, resolver) {
+    if (!resolver) return entriesByDate;
+    resolver.linkSegments(entriesByDate);
+    resolver.markLegs(entriesByDate);
+    return entriesByDate;
+  }
+
   return {
     KEY: KEY,
     RETRY_DAYS: RETRY_DAYS,
     SEED: SEED,
     resolve: resolve,
     apply: apply,
+    linkDays: linkDays,
     remember: remember,
     rememberFailure: rememberFailure,
     forget: forget,

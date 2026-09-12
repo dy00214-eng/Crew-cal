@@ -127,3 +127,33 @@ test('사전에서 이름이 바뀌면 예전에 넣어둔 일정도 새 이름�
   store.addEntry({ date: '2026-09-07', code: 'ZZZZ', label: '내가 적은 것', category: 'other' });
   assert.strictEqual(store.getByDate('2026-09-07')[0].label, '내가 적은 것');
 });
+
+test('덮어쓰기는 넣는 범위를 통째로 지운다', () => {
+  // 넣는 날짜만 지우면 예전에 잘못 들어간 날이 그대로 남아, 1월 1일 유령 비행이
+  // 다시 읽어도 사라지지 않았다.
+  store.addEntry({ date: '2026-01-05', code: 'KE9999' });
+  store.addEntry({ date: '2026-01-08', code: 'ADO' });
+  const parsed = parser.parse('2026-01-04\tLO\n2026-01-12\tKE0006', { year: 2026, month: 1 });
+  store.applyEntries(parsed.entries, 'replace');
+  assert.deepStrictEqual(store.getByDate('2026-01-05').map((e) => e.code), []);
+  assert.deepStrictEqual(store.getByDate('2026-01-08').map((e) => e.code), []);
+  assert.deepStrictEqual(store.getByDate('2026-01-04').map((e) => e.code), ['LO']);
+});
+
+test('범위 밖은 건드리지 않고, 달 전체 지우기를 고르면 그 달만 비운다', () => {
+  store.addEntry({ date: '2026-01-01', code: 'KE2012' });
+  store.addEntry({ date: '2026-02-20', code: 'ATDO' });
+  const parsed = parser.parse('2026-01-04\tLO', { year: 2026, month: 1 });
+
+  store.applyEntries(parsed.entries, 'replace');
+  assert.deepStrictEqual(store.getByDate('2026-01-01').map((e) => e.code), ['KE2012'], '범위 밖은 남는다');
+
+  store.applyEntries(parsed.entries, 'replace', { clearMonth: '2026-01' });
+  assert.deepStrictEqual(store.getByDate('2026-01-01').map((e) => e.code), [], '달 전체를 비운다');
+  assert.deepStrictEqual(store.getByDate('2026-02-20').map((e) => e.code), ['ATDO'], '다른 달은 그대로');
+
+  assert.deepStrictEqual(store.dateSpan([{ date: '2026-01-04' }, { date: '2026-01-12' }]),
+    { from: '2026-01-04', to: '2026-01-12' });
+  assert.deepStrictEqual(store.dateSpan([], { clearMonth: '2026-02' }),
+    { from: '2026-02-01', to: '2026-02-28' });
+});

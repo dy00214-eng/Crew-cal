@@ -365,22 +365,24 @@
    * 그 비행이 '어디 가는 편'인지 나타내는 바깥쪽 공항.
    * 한국에서 나가면 도착지, 한국으로 들어오면 출발지. 국내선이면 도착지.
    */
-  // 승무원이 드나드는 집. 국내선에서 '간 곳' 을 가릴 때 이쪽이 아닌 편을 고른다.
+  // 승무원이 드나드는 집. '간 곳' 목록에서 이곳은 빼고 센다.
   var BASES = { ICN: true, GMP: true };
 
+  /**
+   * 그 편이 '어디 가는 편' 인지. 한국이 아닌 쪽을 고른다.
+   *   한국 출발 -> 도착지    한국 도착 -> 출발지
+   *   둘 다 한국(국내선) -> 도착지    둘 다 해외 -> 도착지
+   * 한국인지는 공항표의 country 로만 본다. 공항 코드를 손으로 박아 넣지 않는다.
+   */
   function outstation(route) {
     var parts = splitRoute(route);
     if (!parts.from) return null;
+    if (!parts.to) return parts.from;
     var fromKR = countryOf(parts.from) === 'KR';
     var toKR = countryOf(parts.to) === 'KR';
-    if (fromKR && !toKR && parts.to) return parts.to;
+    if (fromKR && !toKR) return parts.to;
     if (toKR && !fromKR) return parts.from;
-    // 국내선. 김포·인천은 드나드는 집이니 반대쪽을 간 곳으로 본다.
-    if (fromKR && toKR && parts.to) {
-      if (BASES[parts.to] && !BASES[parts.from]) return parts.from;
-      return parts.to;
-    }
-    return parts.to || parts.from;
+    return parts.to;
   }
 
   /** 일정 하나의 목적지 표기: { flag, city, iata } */

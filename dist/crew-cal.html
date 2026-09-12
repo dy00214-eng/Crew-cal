@@ -1566,6 +1566,7 @@ button.ghost.danger { color: var(--danger); }
           <legend>기존 일정 처리</legend>
           <label><input type="radio" name="applyMode" value="replace" checked> 해당 날짜 기존 일정을 덮어쓰기</label>
           <label><input type="radio" name="applyMode" value="merge"> 기존 일정에 이어 붙이기</label>
+          <label><input type="checkbox" id="clearMonth"> 이 달에 있던 일정을 먼저 전부 지우기 <em>(예전에 잘못 들어간 날까지 정리됩니다)</em></label>
         </fieldset>
         <div class="actions">
           <button type="button" id="applyBtn" class="primary">캘린더에 반영</button>
@@ -1784,7 +1785,7 @@ button.ghost.danger { color: var(--danger); }
   'use strict';
 
   var SEED = {
-    "note": "대한항공 편명 -> 노선 시드. 크루넷 원본에 구간이 있으면 원본이 이긴다.",
+    "note": "대한항공 편명 -> 노선 시드. 크루넷 원본에 구간이 있으면 원본이 이긴다. 짝 편명(홀수 한국 출발 / 짝수 한국 도착)은 반대쪽을 뒤집어 채웠다.",
     "updatedAt": "2026-09-12",
     "domesticRanges": [
       {
@@ -2071,6 +2072,13 @@ button.ghost.danger { color: var(--danger); }
         "country": "US",
         "flag": "🇺🇸"
       },
+      "KE0091": {
+        "from": "ICN",
+        "to": "BOS",
+        "city": "보스턴",
+        "country": "US",
+        "flag": "🇺🇸"
+      },
       "KE0092": {
         "from": "BOS",
         "to": "ICN",
@@ -2141,6 +2149,20 @@ button.ghost.danger { color: var(--danger); }
         "country": "CN",
         "flag": "🇨🇳"
       },
+      "KE0128": {
+        "from": "FOC",
+        "to": "ICN",
+        "city": "푸저우",
+        "country": "CN",
+        "flag": "🇨🇳"
+      },
+      "KE0133": {
+        "from": "ICN",
+        "to": "CGO",
+        "city": "정저우",
+        "country": "CN",
+        "flag": "🇨🇳"
+      },
       "KE0134": {
         "from": "CGO",
         "to": "ICN",
@@ -2173,6 +2195,13 @@ button.ghost.danger { color: var(--danger); }
         "from": "HFE",
         "to": "ICN",
         "city": "허페이",
+        "country": "CN",
+        "flag": "🇨🇳"
+      },
+      "KE0163": {
+        "from": "ICN",
+        "to": "DYG",
+        "city": "장자제",
         "country": "CN",
         "flag": "🇨🇳"
       },
@@ -2211,6 +2240,13 @@ button.ghost.danger { color: var(--danger); }
         "country": "US",
         "flag": "🇺🇸"
       },
+      "KE0223": {
+        "from": "ICN",
+        "to": "NRT",
+        "city": "도쿄",
+        "country": "JP",
+        "flag": "🇯🇵"
+      },
       "KE0224": {
         "from": "NRT",
         "to": "ICN",
@@ -2218,10 +2254,24 @@ button.ghost.danger { color: var(--danger); }
         "country": "JP",
         "flag": "🇯🇵"
       },
+      "KE0233": {
+        "from": "ICN",
+        "to": "SEA",
+        "city": "시애틀",
+        "country": "US",
+        "flag": "🇺🇸"
+      },
       "KE0234": {
         "from": "SEA",
         "to": "ICN",
         "city": "시애틀",
+        "country": "US",
+        "flag": "🇺🇸"
+      },
+      "KE0249": {
+        "from": "ICN",
+        "to": "JFK",
+        "city": "뉴욕",
         "country": "US",
         "flag": "🇺🇸"
       },
@@ -2239,6 +2289,20 @@ button.ghost.danger { color: var(--danger); }
         "country": "US",
         "flag": "🇺🇸"
       },
+      "KE0258": {
+        "from": "ANC",
+        "to": "ICN",
+        "city": "앵커리지",
+        "country": "US",
+        "flag": "🇺🇸"
+      },
+      "KE0277": {
+        "from": "ICN",
+        "to": "YVR",
+        "city": "밴쿠버",
+        "country": "CA",
+        "flag": "🇨🇦"
+      },
       "KE0278": {
         "from": "YVR",
         "to": "ICN",
@@ -2249,6 +2313,13 @@ button.ghost.danger { color: var(--danger); }
       "KE0283": {
         "from": "ICN",
         "to": "ANC",
+        "city": "앵커리지",
+        "country": "US",
+        "flag": "🇺🇸"
+      },
+      "KE0284": {
+        "from": "ANC",
+        "to": "ICN",
         "city": "앵커리지",
         "country": "US",
         "flag": "🇺🇸"
@@ -2270,6 +2341,13 @@ button.ghost.danger { color: var(--danger); }
       "KE0317": {
         "from": "ICN",
         "to": "ANC",
+        "city": "앵커리지",
+        "country": "US",
+        "flag": "🇺🇸"
+      },
+      "KE0318": {
+        "from": "ANC",
+        "to": "ICN",
         "city": "앵커리지",
         "country": "US",
         "flag": "🇺🇸"
@@ -2344,10 +2422,24 @@ button.ghost.danger { color: var(--danger); }
         "country": "VN",
         "flag": "🇻🇳"
       },
+      "KE0401": {
+        "from": "ICN",
+        "to": "SYD",
+        "city": "시드니",
+        "country": "AU",
+        "flag": "🇦🇺"
+      },
       "KE0402": {
         "from": "SYD",
         "to": "ICN",
         "city": "시드니",
+        "country": "AU",
+        "flag": "🇦🇺"
+      },
+      "KE0407": {
+        "from": "ICN",
+        "to": "BNE",
+        "city": "브리즈번",
         "country": "AU",
         "flag": "🇦🇺"
       },
@@ -2361,6 +2453,13 @@ button.ghost.danger { color: var(--danger); }
       "KE0411": {
         "from": "ICN",
         "to": "AKL",
+        "city": "오클랜드",
+        "country": "NZ",
+        "flag": "🇳🇿"
+      },
+      "KE0412": {
+        "from": "AKL",
+        "to": "ICN",
         "city": "오클랜드",
         "country": "NZ",
         "flag": "🇳🇿"
@@ -2442,6 +2541,13 @@ button.ghost.danger { color: var(--danger); }
         "country": "ID",
         "flag": "🇮🇩"
       },
+      "KE0438": {
+        "from": "CGK",
+        "to": "ICN",
+        "city": "자카르타",
+        "country": "ID",
+        "flag": "🇮🇩"
+      },
       "KE0441": {
         "from": "ICN",
         "to": "HAN",
@@ -2456,10 +2562,24 @@ button.ghost.danger { color: var(--danger); }
         "country": "VN",
         "flag": "🇻🇳"
       },
+      "KE0457": {
+        "from": "ICN",
+        "to": "DAD",
+        "city": "다낭",
+        "country": "VN",
+        "flag": "🇻🇳"
+      },
       "KE0458": {
         "from": "DAD",
         "to": "ICN",
         "city": "다낭",
+        "country": "VN",
+        "flag": "🇻🇳"
+      },
+      "KE0467": {
+        "from": "ICN",
+        "to": "CXR",
+        "city": "나트랑",
         "country": "VN",
         "flag": "🇻🇳"
       },
@@ -2512,6 +2632,13 @@ button.ghost.danger { color: var(--danger); }
         "country": "VN",
         "flag": "🇻🇳"
       },
+      "KE0485": {
+        "from": "ICN",
+        "to": "PQC",
+        "city": "푸꾸옥",
+        "country": "VN",
+        "flag": "🇻🇳"
+      },
       "KE0486": {
         "from": "PQC",
         "to": "ICN",
@@ -2533,6 +2660,13 @@ button.ghost.danger { color: var(--danger); }
         "country": "IN",
         "flag": "🇮🇳"
       },
+      "KE0503": {
+        "from": "ICN",
+        "to": "CDG",
+        "city": "파리",
+        "country": "FR",
+        "flag": "🇫🇷"
+      },
       "KE0504": {
         "from": "CDG",
         "to": "ICN",
@@ -2546,6 +2680,20 @@ button.ghost.danger { color: var(--danger); }
         "city": "암스테르담",
         "country": "NL",
         "flag": "🇳🇱"
+      },
+      "KE0510": {
+        "from": "AMS",
+        "to": "ICN",
+        "city": "암스테르담",
+        "country": "NL",
+        "flag": "🇳🇱"
+      },
+      "KE0537": {
+        "from": "ICN",
+        "to": "FRA",
+        "city": "프랑크푸르트",
+        "country": "DE",
+        "flag": "🇩🇪"
       },
       "KE0538": {
         "from": "FRA",
@@ -2596,9 +2744,23 @@ button.ghost.danger { color: var(--danger); }
         "country": "PH",
         "flag": "🇵🇭"
       },
+      "KE0621": {
+        "from": "ICN",
+        "to": "MNL",
+        "city": "마닐라",
+        "country": "PH",
+        "flag": "🇵🇭"
+      },
       "KE0622": {
         "from": "MNL",
         "to": "ICN",
+        "city": "마닐라",
+        "country": "PH",
+        "flag": "🇵🇭"
+      },
+      "KE0623": {
+        "from": "ICN",
+        "to": "MNL",
         "city": "마닐라",
         "country": "PH",
         "flag": "🇵🇭"
@@ -2610,6 +2772,13 @@ button.ghost.danger { color: var(--danger); }
         "country": "PH",
         "flag": "🇵🇭"
       },
+      "KE0625": {
+        "from": "ICN",
+        "to": "MNL",
+        "city": "마닐라",
+        "country": "PH",
+        "flag": "🇵🇭"
+      },
       "KE0626": {
         "from": "MNL",
         "to": "ICN",
@@ -2617,9 +2786,23 @@ button.ghost.danger { color: var(--danger); }
         "country": "PH",
         "flag": "🇵🇭"
       },
+      "KE0643": {
+        "from": "ICN",
+        "to": "SIN",
+        "city": "싱가포르",
+        "country": "SG",
+        "flag": "🇸🇬"
+      },
       "KE0644": {
         "from": "SIN",
         "to": "ICN",
+        "city": "싱가포르",
+        "country": "SG",
+        "flag": "🇸🇬"
+      },
+      "KE0645": {
+        "from": "ICN",
+        "to": "SIN",
         "city": "싱가포르",
         "country": "SG",
         "flag": "🇸🇬"
@@ -2659,6 +2842,13 @@ button.ghost.danger { color: var(--danger); }
         "country": "TH",
         "flag": "🇹🇭"
       },
+      "KE0655": {
+        "from": "ICN",
+        "to": "BKK",
+        "city": "방콕",
+        "country": "TH",
+        "flag": "🇹🇭"
+      },
       "KE0656": {
         "from": "BKK",
         "to": "ICN",
@@ -2666,9 +2856,23 @@ button.ghost.danger { color: var(--danger); }
         "country": "TH",
         "flag": "🇹🇭"
       },
+      "KE0657": {
+        "from": "ICN",
+        "to": "BKK",
+        "city": "방콕",
+        "country": "TH",
+        "flag": "🇹🇭"
+      },
       "KE0658": {
         "from": "BKK",
         "to": "ICN",
+        "city": "방콕",
+        "country": "TH",
+        "flag": "🇹🇭"
+      },
+      "KE0659": {
+        "from": "ICN",
+        "to": "BKK",
         "city": "방콕",
         "country": "TH",
         "flag": "🇹🇭"
@@ -2694,6 +2898,13 @@ button.ghost.danger { color: var(--danger); }
         "country": "TH",
         "flag": "🇹🇭"
       },
+      "KE0689": {
+        "from": "ICN",
+        "to": "PNH",
+        "city": "프놈펜",
+        "country": "KH",
+        "flag": "🇰🇭"
+      },
       "KE0690": {
         "from": "PNH",
         "to": "ICN",
@@ -2711,6 +2922,13 @@ button.ghost.danger { color: var(--danger); }
       "KE0704": {
         "from": "NRT",
         "to": "ICN",
+        "city": "도쿄",
+        "country": "JP",
+        "flag": "🇯🇵"
+      },
+      "KE0705": {
+        "from": "ICN",
+        "to": "NRT",
         "city": "도쿄",
         "country": "JP",
         "flag": "🇯🇵"
@@ -2764,6 +2982,13 @@ button.ghost.danger { color: var(--danger); }
         "country": "JP",
         "flag": "🇯🇵"
       },
+      "KE0721": {
+        "from": "ICN",
+        "to": "KIX",
+        "city": "오사카",
+        "country": "JP",
+        "flag": "🇯🇵"
+      },
       "KE0722": {
         "from": "KIX",
         "to": "ICN",
@@ -2813,6 +3038,13 @@ button.ghost.danger { color: var(--danger); }
         "country": "JP",
         "flag": "🇯🇵"
       },
+      "KE0737": {
+        "from": "ICN",
+        "to": "KIX",
+        "city": "오사카",
+        "country": "JP",
+        "flag": "🇯🇵"
+      },
       "KE0738": {
         "from": "KIX",
         "to": "ICN",
@@ -2848,6 +3080,13 @@ button.ghost.danger { color: var(--danger); }
         "country": "JP",
         "flag": "🇯🇵"
       },
+      "KE0765": {
+        "from": "ICN",
+        "to": "CTS",
+        "city": "삿포로",
+        "country": "JP",
+        "flag": "🇯🇵"
+      },
       "KE0766": {
         "from": "CTS",
         "to": "ICN",
@@ -2866,6 +3105,13 @@ button.ghost.danger { color: var(--danger); }
         "from": "CTS",
         "to": "ICN",
         "city": "삿포로",
+        "country": "JP",
+        "flag": "🇯🇵"
+      },
+      "KE0781": {
+        "from": "ICN",
+        "to": "FUK",
+        "city": "후쿠오카",
         "country": "JP",
         "flag": "🇯🇵"
       },
@@ -2917,6 +3163,13 @@ button.ghost.danger { color: var(--danger); }
         "city": "후쿠오카",
         "country": "JP",
         "flag": "🇯🇵"
+      },
+      "KE0803": {
+        "from": "ICN",
+        "to": "TSN",
+        "city": "톈진",
+        "country": "CN",
+        "flag": "🇨🇳"
       },
       "KE0804": {
         "from": "TSN",
@@ -2970,6 +3223,13 @@ button.ghost.danger { color: var(--danger); }
       "KE0835": {
         "from": "ICN",
         "to": "SZX",
+        "city": "선전",
+        "country": "CN",
+        "flag": "🇨🇳"
+      },
+      "KE0836": {
+        "from": "SZX",
+        "to": "ICN",
         "city": "선전",
         "country": "CN",
         "flag": "🇨🇳"
@@ -3100,6 +3360,13 @@ button.ghost.danger { color: var(--danger); }
         "country": "CN",
         "flag": "🇨🇳"
       },
+      "KE0891": {
+        "from": "ICN",
+        "to": "PVG",
+        "city": "상하이",
+        "country": "CN",
+        "flag": "🇨🇳"
+      },
       "KE0892": {
         "from": "PVG",
         "to": "ICN",
@@ -3142,6 +3409,20 @@ button.ghost.danger { color: var(--danger); }
         "country": "ES",
         "flag": "🇪🇸"
       },
+      "KE0914": {
+        "from": "MAD",
+        "to": "ICN",
+        "city": "마드리드",
+        "country": "ES",
+        "flag": "🇪🇸"
+      },
+      "KE0917": {
+        "from": "ICN",
+        "to": "ZRH",
+        "city": "취리히",
+        "country": "CH",
+        "flag": "🇨🇭"
+      },
       "KE0918": {
         "from": "ZRH",
         "to": "ICN",
@@ -3156,6 +3437,20 @@ button.ghost.danger { color: var(--danger); }
         "country": "PT",
         "flag": "🇵🇹"
       },
+      "KE0922": {
+        "from": "LIS",
+        "to": "ICN",
+        "city": "리스본",
+        "country": "PT",
+        "flag": "🇵🇹"
+      },
+      "KE0925": {
+        "from": "ICN",
+        "to": "AMS",
+        "city": "암스테르담",
+        "country": "NL",
+        "flag": "🇳🇱"
+      },
       "KE0926": {
         "from": "AMS",
         "to": "ICN",
@@ -3166,6 +3461,13 @@ button.ghost.danger { color: var(--danger); }
       "KE0927": {
         "from": "ICN",
         "to": "MXP",
+        "city": "밀라노",
+        "country": "IT",
+        "flag": "🇮🇹"
+      },
+      "KE0928": {
+        "from": "MXP",
+        "to": "ICN",
         "city": "밀라노",
         "country": "IT",
         "flag": "🇮🇹"
@@ -3191,6 +3493,20 @@ button.ghost.danger { color: var(--danger); }
         "country": "DE",
         "flag": "🇩🇪"
       },
+      "KE0946": {
+        "from": "FRA",
+        "to": "ICN",
+        "city": "프랑크푸르트",
+        "country": "DE",
+        "flag": "🇩🇪"
+      },
+      "KE0955": {
+        "from": "ICN",
+        "to": "IST",
+        "city": "이스탄불",
+        "country": "TR",
+        "flag": "🇹🇷"
+      },
       "KE0956": {
         "from": "IST",
         "to": "ICN",
@@ -3198,12 +3514,26 @@ button.ghost.danger { color: var(--danger); }
         "country": "TR",
         "flag": "🇹🇷"
       },
+      "KE0963": {
+        "from": "ICN",
+        "to": "BUD",
+        "city": "부다페스트",
+        "country": "HU",
+        "flag": "🇭🇺"
+      },
       "KE0964": {
         "from": "BUD",
         "to": "ICN",
         "city": "부다페스트",
         "country": "HU",
         "flag": "🇭🇺"
+      },
+      "KE0969": {
+        "from": "ICN",
+        "to": "PRG",
+        "city": "프라하",
+        "country": "CZ",
+        "flag": "🇨🇿"
       },
       "KE0970": {
         "from": "PRG",
@@ -3842,6 +4172,13 @@ button.ghost.danger { color: var(--danger); }
         "country": "KR",
         "flag": "🇰🇷"
       },
+      "KE2001": {
+        "from": "ICN",
+        "to": "HKG",
+        "city": "홍콩",
+        "country": "HK",
+        "flag": "🇭🇰"
+      },
       "KE2002": {
         "from": "HKG",
         "to": "ICN",
@@ -3954,6 +4291,13 @@ button.ghost.danger { color: var(--danger); }
         "country": "CN",
         "flag": "🇨🇳"
       },
+      "KE2058": {
+        "from": "PVG",
+        "to": "GMP",
+        "city": "상하이",
+        "country": "CN",
+        "flag": "🇨🇳"
+      },
       "KE2061": {
         "from": "PUS",
         "to": "PEK",
@@ -4045,6 +4389,13 @@ button.ghost.danger { color: var(--danger); }
         "country": "JP",
         "flag": "🇯🇵"
       },
+      "KE2104": {
+        "from": "HND",
+        "to": "GMP",
+        "city": "도쿄",
+        "country": "JP",
+        "flag": "🇯🇵"
+      },
       "KE2105": {
         "from": "GMP",
         "to": "HND",
@@ -4076,6 +4427,13 @@ button.ghost.danger { color: var(--danger); }
       "KE2119": {
         "from": "GMP",
         "to": "KIX",
+        "city": "오사카",
+        "country": "JP",
+        "flag": "🇯🇵"
+      },
+      "KE2120": {
+        "from": "KIX",
+        "to": "GMP",
         "city": "오사카",
         "country": "JP",
         "flag": "🇯🇵"
@@ -4185,6 +4543,13 @@ button.ghost.danger { color: var(--danger); }
         "country": "JP",
         "flag": "🇯🇵"
       },
+      "KE2174": {
+        "from": "KIX",
+        "to": "ICN",
+        "city": "오사카",
+        "country": "JP",
+        "flag": "🇯🇵"
+      },
       "KE2179": {
         "from": "ICN",
         "to": "KOJ",
@@ -4210,6 +4575,13 @@ button.ghost.danger { color: var(--danger); }
         "from": "OKJ",
         "to": "ICN",
         "city": "오카야마",
+        "country": "JP",
+        "flag": "🇯🇵"
+      },
+      "KE2189": {
+        "from": "ICN",
+        "to": "KMQ",
+        "city": "고마쓰",
         "country": "JP",
         "flag": "🇯🇵"
       },
@@ -4262,6 +4634,13 @@ button.ghost.danger { color: var(--danger); }
         "country": "US",
         "flag": "🇺🇸"
       },
+      "KE8203": {
+        "from": "ICN",
+        "to": "LAX",
+        "city": "로스앤젤레스",
+        "country": "US",
+        "flag": "🇺🇸"
+      },
       "KE8204": {
         "from": "LAX",
         "to": "ICN",
@@ -4272,6 +4651,13 @@ button.ghost.danger { color: var(--danger); }
       "KE8207": {
         "from": "ICN",
         "to": "LAX",
+        "city": "로스앤젤레스",
+        "country": "US",
+        "flag": "🇺🇸"
+      },
+      "KE8208": {
+        "from": "LAX",
+        "to": "ICN",
         "city": "로스앤젤레스",
         "country": "US",
         "flag": "🇺🇸"
@@ -6964,22 +7350,24 @@ button.ghost.danger { color: var(--danger); }
    * 그 비행이 '어디 가는 편'인지 나타내는 바깥쪽 공항.
    * 한국에서 나가면 도착지, 한국으로 들어오면 출발지. 국내선이면 도착지.
    */
-  // 승무원이 드나드는 집. 국내선에서 '간 곳' 을 가릴 때 이쪽이 아닌 편을 고른다.
+  // 승무원이 드나드는 집. '간 곳' 목록에서 이곳은 빼고 센다.
   var BASES = { ICN: true, GMP: true };
 
+  /**
+   * 그 편이 '어디 가는 편' 인지. 한국이 아닌 쪽을 고른다.
+   *   한국 출발 -> 도착지    한국 도착 -> 출발지
+   *   둘 다 한국(국내선) -> 도착지    둘 다 해외 -> 도착지
+   * 한국인지는 공항표의 country 로만 본다. 공항 코드를 손으로 박아 넣지 않는다.
+   */
   function outstation(route) {
     var parts = splitRoute(route);
     if (!parts.from) return null;
+    if (!parts.to) return parts.from;
     var fromKR = countryOf(parts.from) === 'KR';
     var toKR = countryOf(parts.to) === 'KR';
-    if (fromKR && !toKR && parts.to) return parts.to;
+    if (fromKR && !toKR) return parts.to;
     if (toKR && !fromKR) return parts.from;
-    // 국내선. 김포·인천은 드나드는 집이니 반대쪽을 간 곳으로 본다.
-    if (fromKR && toKR && parts.to) {
-      if (BASES[parts.to] && !BASES[parts.from]) return parts.from;
-      return parts.to;
-    }
-    return parts.to || parts.from;
+    return parts.to;
   }
 
   /** 일정 하나의 목적지 표기: { flag, city, iata } */
@@ -7616,6 +8004,74 @@ button.ghost.danger { color: var(--danger); }
     return out;
   }
 
+  /**
+   * 같은 편명이 이어진 날에 거듭 나오면 날짜를 넘어가는 한 비행이다.
+   * 크루넷 홈 목록은 시각 칸으로 그날 무슨 일이 있었는지 알려 주지만, 달력 캡처에는
+   * 편명만 있다. 그때도 이어진 날을 한 덩어리로 묶어 한 편으로 센다.
+   *   첫날 = 출발, 가운데 = 기내, 마지막 = 도착
+   * 엔트리를 지우거나 만들지 않는다. 어느 덩어리에 드는지만 적어 준다.
+   */
+  function linkSegments(entriesByDate) {
+    var runs = {};
+    Object.keys(entriesByDate || {}).sort().forEach(function (date) {
+      (entriesByDate[date] || []).forEach(function (entry) {
+        if (!isFlight(entry)) return;
+        var code = codeOf(entry);
+        var run = runs[code];
+        if (run && isNextDay(run.last, date)) {
+          run.last = date;
+          run.days.push(entry);
+        } else {
+          run = runs[code] = { id: code + '@' + date, last: date, days: [entry] };
+        }
+        entry.segment = run.id;
+      });
+    });
+
+    // 덩어리마다 첫날·가운데·마지막을 적는다. 크루넷이 알려 준 값이 있으면 그것이 먼저.
+    var seen = {};
+    Object.keys(entriesByDate || {}).sort().forEach(function (date) {
+      (entriesByDate[date] || []).forEach(function (entry) {
+        if (!isFlight(entry) || !entry.segment) return;
+        var first = !seen[entry.segment];
+        seen[entry.segment] = true;
+        entry.segmentStart = first;
+      });
+    });
+
+    Object.keys(runs).forEach(function (code) { /* 마지막 상태만 쓰고 버린다 */ });
+    return entriesByDate;
+  }
+
+  /** 덩어리 안에서 그날이 출발인지 기내인지 도착인지. 시각을 아는 날은 시각이 먼저. */
+  function markLegs(entriesByDate) {
+    var groups = {};
+    Object.keys(entriesByDate || {}).sort().forEach(function (date) {
+      (entriesByDate[date] || []).forEach(function (entry) {
+        if (!isFlight(entry) || !entry.segment) return;
+        (groups[entry.segment] = groups[entry.segment] || []).push(entry);
+      });
+    });
+    Object.keys(groups).forEach(function (id) {
+      var days = groups[id];
+      days.forEach(function (entry, i) {
+        if (entry.legRole) return;                 // 크루넷 원본이 적어 준 것이 먼저
+        if (entry.start) { entry.legRole = 'depart'; return; }
+        if (entry.end) { entry.legRole = 'arrive'; return; }
+        if (days.length < 2) return;               // 하루짜리는 시각을 모를 뿐이다
+        entry.legRole = i === 0 ? 'depart' : (i === days.length - 1 ? 'arrive' : 'enroute');
+      });
+    });
+    return entriesByDate;
+  }
+
+  function isNextDay(a, b) {
+    var d = new Date(a + 'T00:00:00Z');
+    if (isNaN(d.getTime())) return false;
+    d.setUTCDate(d.getUTCDate() + 1);
+    return d.toISOString().slice(0, 10) === b;
+  }
+
   /** 글자 그대로 같은 (날짜, 코드) 가 두 번 들어오면 앞의 것만 남긴다. */
   function dedupe(entries) {
     var seen = {};
@@ -7694,6 +8150,9 @@ button.ghost.danger { color: var(--danger); }
     resolveByDate: resolveByDate,
     dedupe: dedupe,
     conflictsOf: conflictsOf,
+    linkSegments: linkSegments,
+    markLegs: markLegs,
+    isNextDay: isNextDay,
     primaryOff: primaryOff,
     isOff: isOff,
     isLayover: isLayover,
@@ -8072,12 +8531,21 @@ button.ghost.danger { color: var(--danger); }
     return Object.keys(unresolved).sort();
   }
 
+  /** 이어진 날의 같은 편을 한 덩어리로 묶고 출발·기내·도착을 적는다. */
+  function linkDays(entriesByDate, resolver) {
+    if (!resolver) return entriesByDate;
+    resolver.linkSegments(entriesByDate);
+    resolver.markLegs(entriesByDate);
+    return entriesByDate;
+  }
+
   return {
     KEY: KEY,
     RETRY_DAYS: RETRY_DAYS,
     SEED: SEED,
     resolve: resolve,
     apply: apply,
+    linkDays: linkDays,
     remember: remember,
     rememberFailure: rememberFailure,
     forget: forget,
@@ -9633,21 +10101,44 @@ button.ghost.danger { color: var(--danger); }
    * 파싱 결과를 일괄 반영한다.
    * mode: 'replace' (해당 날짜의 기존 일정을 지우고 반영) | 'merge' (기존에 이어 붙임)
    */
-  function applyEntries(entries, mode) {
+  /**
+   * 'replace' 로 넣을 때 지울 범위.
+   *   options.clearMonth 를 주면 그 달 전체(1일~말일)
+   *   아니면 넣는 일정의 첫날~마지막 날
+   * 넣는 날짜만 지우면 예전에 잘못 들어간 날이 살아남는다.
+   */
+  function dateSpan(entries, options) {
+    var opts = options || {};
+    if (opts.clearMonth) {
+      var m = /^(\d{4})-(\d{2})$/.exec(opts.clearMonth);
+      if (m) {
+        var last = new Date(Date.UTC(+m[1], +m[2], 0)).getUTCDate();
+        return { from: opts.clearMonth + '-01', to: opts.clearMonth + '-' + (last < 10 ? '0' : '') + last };
+      }
+    }
+    var dates = entries.map(function (e) { return e.date; }).filter(Boolean).sort();
+    if (!dates.length) return null;
+    return { from: dates[0], to: dates[dates.length - 1] };
+  }
+
+  function applyEntries(entries, mode, options) {
     var data = load();
     var touched = {};
     var removed = 0;
     var added = 0;
 
     if (mode === 'replace') {
-      entries.forEach(function (e) {
-        if (touched[e.date]) return;
-        touched[e.date] = true;
-        if (data.entries[e.date]) {
-          removed += data.entries[e.date].length;
-          delete data.entries[e.date];
-        }
+      // 넣는 날짜만 지우면, 예전에 잘못 들어간 날은 새로 읽어도 그대로 남는다.
+      // (1월 1일에 유령 비행이 계속 붙어 있던 까닭) 그래서 넣는 범위를 통째로 지운다.
+      var span = dateSpan(entries, options);
+      Object.keys(data.entries).forEach(function (date) {
+        if (span && (date < span.from || date > span.to)) return;
+        if (!span && !entries.some(function (e) { return e.date === date; })) return;
+        touched[date] = true;
+        removed += data.entries[date].length;
+        delete data.entries[date];
       });
+      entries.forEach(function (e) { touched[e.date] = true; });
     }
 
     entries.forEach(function (entry) {
@@ -9696,6 +10187,17 @@ button.ghost.danger { color: var(--danger); }
     return dropped;
   }
 
+  /** 그 범위에 이미 들어 있는 건수. 덮어쓰기 전에 사람에게 알리는 데 쓴다. */
+  function countInRange(span) {
+    if (!span) return 0;
+    var data = load();
+    var n = 0;
+    Object.keys(data.entries).forEach(function (date) {
+      if (date >= span.from && date <= span.to) n += data.entries[date].length;
+    });
+    return n;
+  }
+
   function countExisting(entries) {
     var data = load();
     var dates = {};
@@ -9732,7 +10234,9 @@ button.ghost.danger { color: var(--danger); }
     clearDate: clearDate,
     applyEntries: applyEntries,
     countExisting: countExisting,
+    countInRange: countInRange,
     clearAll: clearAll,
+    dateSpan: dateSpan,
     resolveDates: resolveDates,
     exportJson: exportJson,
     importJson: importJson,
@@ -13309,6 +13813,8 @@ button.ghost.danger { color: var(--danger); }
     var entriesByDate = store.getAll();
     // 편명 -> 노선 세 단계. 1·2단계로 안 풀린 편명만 모아 3단계로 넘긴다.
     var unresolved = routes.apply(entriesByDate);
+    // 이어진 날의 같은 편은 한 비행이다. 편수도 표시도 그에 맞춘다.
+    routes.linkDays(entriesByDate, CrewCal.resolve);
     markPending(entriesByDate);
     $('monthLabel').textContent = monthLabel(state.year, state.month);
 
@@ -14151,15 +14657,24 @@ button.ghost.danger { color: var(--danger); }
     if (!entries.length) return;
 
     var mode = document.querySelector('input[name=applyMode]:checked').value;
+    var opts = {};
+    if ($('clearMonth') && $('clearMonth').checked) {
+      opts.clearMonth = entries[0].date.slice(0, 7);
+    }
     if (mode === 'replace') {
-      var existing = store.countExisting(entries);
+      var span = store.dateSpan(entries, opts);
+      var existing = store.countInRange(span);
       if (existing > 0) {
-        var ok = window.confirm('해당 날짜의 기존 일정 ' + existing + '건을 지우고 ' + entries.length + '건을 반영합니다. 계속할까요?');
+        var what = opts.clearMonth
+          ? opts.clearMonth.replace('-', '년 ') + '월 전체'
+          : span.from + ' ~ ' + span.to;
+        var ok = window.confirm(what + ' 의 기존 일정 ' + existing + '건을 지우고 ' +
+          entries.length + '건을 반영합니다. 계속할까요?');
         if (!ok) return;
       }
     }
 
-    var res = store.applyEntries(entries, mode);
+    var res = store.applyEntries(entries, mode, opts);
     var first = entries[0].date;
     state.year = +first.slice(0, 4);
     state.month = +first.slice(5, 7);
@@ -14827,7 +15342,7 @@ button.ghost.danger { color: var(--danger); }
   /* ---------------- 동료가 보내는 의견 ---------------- */
 
   // 화면 아래와 의견 보내기에 적히는 판 번호. sw.js 의 VERSION 과 함께 올린다.
-  var APP_VERSION = 'v28';
+  var APP_VERSION = 'v29';
 
   /**
    * 의견을 받을 메일 주소. 저장소가 공개라 통짜로 적어두면 스팸 크롤러가 긁어가므로

@@ -209,21 +209,44 @@
    * 파싱 결과를 일괄 반영한다.
    * mode: 'replace' (해당 날짜의 기존 일정을 지우고 반영) | 'merge' (기존에 이어 붙임)
    */
-  function applyEntries(entries, mode) {
+  /**
+   * 'replace' 로 넣을 때 지울 범위.
+   *   options.clearMonth 를 주면 그 달 전체(1일~말일)
+   *   아니면 넣는 일정의 첫날~마지막 날
+   * 넣는 날짜만 지우면 예전에 잘못 들어간 날이 살아남는다.
+   */
+  function dateSpan(entries, options) {
+    var opts = options || {};
+    if (opts.clearMonth) {
+      var m = /^(\d{4})-(\d{2})$/.exec(opts.clearMonth);
+      if (m) {
+        var last = new Date(Date.UTC(+m[1], +m[2], 0)).getUTCDate();
+        return { from: opts.clearMonth + '-01', to: opts.clearMonth + '-' + (last < 10 ? '0' : '') + last };
+      }
+    }
+    var dates = entries.map(function (e) { return e.date; }).filter(Boolean).sort();
+    if (!dates.length) return null;
+    return { from: dates[0], to: dates[dates.length - 1] };
+  }
+
+  function applyEntries(entries, mode, options) {
     var data = load();
     var touched = {};
     var removed = 0;
     var added = 0;
 
     if (mode === 'replace') {
-      entries.forEach(function (e) {
-        if (touched[e.date]) return;
-        touched[e.date] = true;
-        if (data.entries[e.date]) {
-          removed += data.entries[e.date].length;
-          delete data.entries[e.date];
-        }
+      // 넣는 날짜만 지우면, 예전에 잘못 들어간 날은 새로 읽어도 그대로 남는다.
+      // (1월 1일에 유령 비행이 계속 붙어 있던 까닭) 그래서 넣는 범위를 통째로 지운다.
+      var span = dateSpan(entries, options);
+      Object.keys(data.entries).forEach(function (date) {
+        if (span && (date < span.from || date > span.to)) return;
+        if (!span && !entries.some(function (e) { return e.date === date; })) return;
+        touched[date] = true;
+        removed += data.entries[date].length;
+        delete data.entries[date];
       });
+      entries.forEach(function (e) { touched[e.date] = true; });
     }
 
     entries.forEach(function (entry) {
@@ -272,6 +295,17 @@
     return dropped;
   }
 
+  /** 그 범위에 이미 들어 있는 건수. 덮어쓰기 전에 사람에게 알리는 데 쓴다. */
+  function countInRange(span) {
+    if (!span) return 0;
+    var data = load();
+    var n = 0;
+    Object.keys(data.entries).forEach(function (date) {
+      if (date >= span.from && date <= span.to) n += data.entries[date].length;
+    });
+    return n;
+  }
+
   function countExisting(entries) {
     var data = load();
     var dates = {};
@@ -308,7 +342,9 @@
     clearDate: clearDate,
     applyEntries: applyEntries,
     countExisting: countExisting,
+    countInRange: countInRange,
     clearAll: clearAll,
+    dateSpan: dateSpan,
     resolveDates: resolveDates,
     exportJson: exportJson,
     importJson: importJson,

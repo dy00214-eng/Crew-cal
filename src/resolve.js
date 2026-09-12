@@ -170,6 +170,74 @@
     return out;
   }
 
+  /**
+   * 같은 편명이 이어진 날에 거듭 나오면 날짜를 넘어가는 한 비행이다.
+   * 크루넷 홈 목록은 시각 칸으로 그날 무슨 일이 있었는지 알려 주지만, 달력 캡처에는
+   * 편명만 있다. 그때도 이어진 날을 한 덩어리로 묶어 한 편으로 센다.
+   *   첫날 = 출발, 가운데 = 기내, 마지막 = 도착
+   * 엔트리를 지우거나 만들지 않는다. 어느 덩어리에 드는지만 적어 준다.
+   */
+  function linkSegments(entriesByDate) {
+    var runs = {};
+    Object.keys(entriesByDate || {}).sort().forEach(function (date) {
+      (entriesByDate[date] || []).forEach(function (entry) {
+        if (!isFlight(entry)) return;
+        var code = codeOf(entry);
+        var run = runs[code];
+        if (run && isNextDay(run.last, date)) {
+          run.last = date;
+          run.days.push(entry);
+        } else {
+          run = runs[code] = { id: code + '@' + date, last: date, days: [entry] };
+        }
+        entry.segment = run.id;
+      });
+    });
+
+    // 덩어리마다 첫날·가운데·마지막을 적는다. 크루넷이 알려 준 값이 있으면 그것이 먼저.
+    var seen = {};
+    Object.keys(entriesByDate || {}).sort().forEach(function (date) {
+      (entriesByDate[date] || []).forEach(function (entry) {
+        if (!isFlight(entry) || !entry.segment) return;
+        var first = !seen[entry.segment];
+        seen[entry.segment] = true;
+        entry.segmentStart = first;
+      });
+    });
+
+    Object.keys(runs).forEach(function (code) { /* 마지막 상태만 쓰고 버린다 */ });
+    return entriesByDate;
+  }
+
+  /** 덩어리 안에서 그날이 출발인지 기내인지 도착인지. 시각을 아는 날은 시각이 먼저. */
+  function markLegs(entriesByDate) {
+    var groups = {};
+    Object.keys(entriesByDate || {}).sort().forEach(function (date) {
+      (entriesByDate[date] || []).forEach(function (entry) {
+        if (!isFlight(entry) || !entry.segment) return;
+        (groups[entry.segment] = groups[entry.segment] || []).push(entry);
+      });
+    });
+    Object.keys(groups).forEach(function (id) {
+      var days = groups[id];
+      days.forEach(function (entry, i) {
+        if (entry.legRole) return;                 // 크루넷 원본이 적어 준 것이 먼저
+        if (entry.start) { entry.legRole = 'depart'; return; }
+        if (entry.end) { entry.legRole = 'arrive'; return; }
+        if (days.length < 2) return;               // 하루짜리는 시각을 모를 뿐이다
+        entry.legRole = i === 0 ? 'depart' : (i === days.length - 1 ? 'arrive' : 'enroute');
+      });
+    });
+    return entriesByDate;
+  }
+
+  function isNextDay(a, b) {
+    var d = new Date(a + 'T00:00:00Z');
+    if (isNaN(d.getTime())) return false;
+    d.setUTCDate(d.getUTCDate() + 1);
+    return d.toISOString().slice(0, 10) === b;
+  }
+
   /** 글자 그대로 같은 (날짜, 코드) 가 두 번 들어오면 앞의 것만 남긴다. */
   function dedupe(entries) {
     var seen = {};
@@ -248,6 +316,9 @@
     resolveByDate: resolveByDate,
     dedupe: dedupe,
     conflictsOf: conflictsOf,
+    linkSegments: linkSegments,
+    markLegs: markLegs,
+    isNextDay: isNextDay,
     primaryOff: primaryOff,
     isOff: isOff,
     isLayover: isLayover,

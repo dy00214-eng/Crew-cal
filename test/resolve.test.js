@@ -91,3 +91,32 @@ test('날짜별 표를 그대로 받아도 지우지 않는다', () => {
   assert.strictEqual(out.entriesByDate['2026-03-01'].length, 4);
   assert.strictEqual(out.entriesByDate['2026-03-08'].length, 2);
 });
+
+test('이어진 날의 같은 편은 한 덩어리 — 시각을 몰라도', () => {
+  // 달력 캡처에는 편명만 있다. 그래도 3편이 아니라 1편이어야 한다.
+  const byDate = {
+    '2026-01-10': [entry('2026-01-10', 'KE0006')],
+    '2026-01-11': [entry('2026-01-11', 'KE0006')],
+    '2026-01-12': [entry('2026-01-12', 'KE0006')],
+    '2026-01-20': [entry('2026-01-20', 'KE0006')]      // 끊긴 날은 다른 비행
+  };
+  resolve.linkSegments(byDate);
+  resolve.markLegs(byDate);
+
+  const run = ['2026-01-10', '2026-01-11', '2026-01-12'].map((d) => byDate[d][0]);
+  assert.strictEqual(new Set(run.map((e) => e.segment)).size, 1, '한 덩어리');
+  assert.deepStrictEqual(run.map((e) => e.legRole), ['depart', 'enroute', 'arrive']);
+  assert.deepStrictEqual(run.map((e) => e.segmentStart), [true, false, false]);
+  assert.notStrictEqual(byDate['2026-01-20'][0].segment, run[0].segment, '하루 끊기면 다른 덩어리');
+
+  // 엔트리를 지우거나 만들지 않는다
+  assert.strictEqual(Object.keys(byDate).length, 4);
+  Object.keys(byDate).forEach((d) => assert.strictEqual(byDate[d].length, 1));
+});
+
+test('하루짜리 비행은 기내로 적지 않는다', () => {
+  const byDate = { '2026-01-03': [entry('2026-01-03', 'KE0657')] };
+  resolve.linkSegments(byDate);
+  resolve.markLegs(byDate);
+  assert.ok(!byDate['2026-01-03'][0].legRole, '시각을 모를 뿐이다');
+});
