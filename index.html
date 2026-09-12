@@ -319,6 +319,7 @@
         <input type="text" id="airlineList" autocomplete="off" spellcheck="false" placeholder="KE, OZ, 7C">
       </label>
       <p class="actions">
+        <button type="button" id="bulkOpen" class="ghost small">미등록 편명 일괄 등록</button>
         <button type="button" id="verifyOpen" class="ghost small">파싱 검증 (개발용)</button>
       </p>
       <p class="muted small-note">
@@ -326,6 +327,22 @@
         잘못 읽힌 글자(AS0016 같은)가 비행으로 달력에 뜨는 것을 막아 줍니다.
       </p>
     </details>
+
+    <section id="bulkPanel" class="verify-panel" hidden>
+      <h2>미등록 편명 일괄 등록</h2>
+      <p class="muted small-note">
+        저장된 일정에서 구간을 모르는 편명을 모았습니다. 도착 공항만 넣으면
+        도시·나라·국기가 채워집니다. 홀수는 한국발, 짝수는 한국행으로 보고
+        짝이 되는 편도 함께 제안합니다. 실제 로스터가 언제나 우선입니다.
+      </p>
+      <div id="bulkList" class="bulk-list"></div>
+      <div class="actions">
+        <button type="button" id="bulkSave" class="primary">전부 저장하고 채우기</button>
+        <button type="button" id="bulkReload" class="ghost small">다시 모으기</button>
+        <button type="button" id="bulkClose" class="ghost small">닫기</button>
+      </div>
+      <p id="bulkStatus" class="status"></p>
+    </section>
 
     <section id="verifyPanel" class="verify-panel" hidden>
       <h2>파싱 검증 <em>(개발용)</em></h2>
@@ -464,6 +481,7 @@
 
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
+<script src="src/routedata.js"></script>
 <script src="src/codes.js"></script>
 <script src="src/airports.js"></script>
 <script src="src/clock.js"></script>
@@ -472,6 +490,7 @@
 <script src="src/schedule.js"></script>
 <script src="src/resolve.js"></script>
 <script src="src/verify.js"></script>
+<script src="src/bulkroutes.js"></script>
 <script src="src/parser.js"></script>
 <script src="src/store.js"></script>
 <script src="src/calendar.js"></script>

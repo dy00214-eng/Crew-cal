@@ -39,7 +39,36 @@
    * 아니까, 그 꼴에 맞춰 되돌린다. 글자 수가 하나 늘어 KE00035 처럼 되는 일도 있어
    * 앞의 0 을 떼고 네 자리로 맞춘다. 편명 아닌 글자는 건드리지 않는다.
    */
+  /**
+   * 숫자가 온전히 읽힌 편명에서 그 숫자를 뽑는다. 숫자 자리에 글자가 섞였으면
+   * (KE060I) 아직 되돌릴 여지가 있으므로 null 을 준다.
+   */
+  function flightDigits(token) {
+    var m = /^[A-Z]{2}(\d{3,4})$/.exec(String(token || ''));
+    return m ? String(+m[1]) : null;
+  }
+
+  /**
+   * 고친 결과가 편명의 숫자를 바꿔 놓았으면 되돌린다.
+   * 인식기가 읽은 숫자가 곧 편명이다. 짐작으로 다른 편을 만들어 내지 않는다.
+   */
+  function keepFlightNumber(before, after) {
+    var a = flightDigits(before);
+    var b = flightDigits(after);
+    if (a && b && a !== b) {
+      if (typeof console !== 'undefined' && console && console.warn) {
+        console.warn('[crew-cal] ' + before + ' 를 ' + after + ' 로 바꾸려다 되돌렸습니다. 편명 숫자는 건드리지 않습니다.');
+      }
+      return before;
+    }
+    return after;
+  }
+
   function fixCode(token, tone) {
+    return keepFlightNumber(token, fixCodeRaw(token, tone));
+  }
+
+  function fixCodeRaw(token, tone) {
     // 코드 뒤에 붙어 읽힌 칸 선(ATDO-, KE2193.)을 떼어 낸다.
     // 시각(0945-)은 뒤의 - 가 뜻이 있어 그대로 둔다.
     var trailing = /^([A-Z][A-Z0-9]+)[-.]+$/.exec(token);
@@ -53,38 +82,29 @@
     // 앞에 글자가 한둘 붙어 읽힌 편명(IKEO703)은 뒤쪽만 떼어 본다
     if (token.length > 6 && /^[A-Z]/.test(token)) {
       var trimmed = token.slice(token.length - 6);
-      var guess = new RegExp('^[A-Z]{2}[' + DIGITISH + ']{4}$').test(trimmed) ? fixCode(trimmed) : null;
+      var guess = new RegExp('^[A-Z]{2}[' + DIGITISH + ']{4}$').test(trimmed) ? fixCodeRaw(trimmed) : null;
       if (guess && schedule && schedule.lookup(guess)) return guess;
     }
 
+    // 편명. 글자로 읽힌 것을 숫자로 되돌리기만 한다(O -> 0). 되돌릴 길이 여럿이면
+    // 손대지 않는다. 시간표를 보고 비슷한 편으로 갈아 끼우는 일은 하지 않는다.
+    // KE0601 이 KE0502 로 바뀌어 나온 일이 있었다. 읽은 숫자가 곧 편명이다.
     var flight = new RegExp('^([A-Z]{2})([' + DIGITISH + ']{3,7})$').exec(token);
     if (flight) {
       var candidates = flightCandidates(flight[1], flight[2]);
-      if (!candidates.length) return token;
-      var known = candidates.filter(function (code) { return schedule && schedule.lookup(code); });
-      if (known.length === 1) return known[0];             // 시간표에 있는 편이 하나뿐이면 그것
-      if (known.length) return candidates[0];
-
-      // 아는 편이 하나도 없다. 앞 두 글자를 잘못 읽었을 수 있다(BC0075 → KE0075).
-      // 아는 항공사 코드가 아니고, 시간표에 KE 편이 있을 때만 바로잡는다.
-      var airline = ['KE', 'OZ', 'LJ', 'TW', 'BX', 'ZE', 'RS', 'RF'].indexOf(flight[1]) !== -1;
-      var digits = candidates[0].slice(2);
-      if (!airline && schedule && schedule.lookup('KE' + digits)) return 'KE' + digits;
-      return candidates[0];
+      return candidates.length === 1 ? candidates[0] : token;
     }
 
     // 앞에 군더더기가 붙은 편명(JJKE1402)은 뒤의 편명만 남긴다
     var tail = /^[A-Z]{1,3}([A-Z]{2}\d{4})$/.exec(token);
     if (tail) return tail[1];
 
-    // 앞 글자가 잘못 읽히거나(BC0075) 떨어져 나간(E0805, 0703) 편명을 되살린다.
-    // 시간표에 그런 편이 있을 때만, 그리고 아는 항공사 코드가 아닐 때만 손댄다.
-    var lost = /^([A-Z]{0,2})(\d{4})$/.exec(token);
+    // 앞 글자가 떨어져 나간 편명(E0805, 0703)에 항공사만 도로 붙인다.
+    // 숫자는 읽은 그대로 두고, 두 글자가 온전히 읽힌 편명은 건드리지 않는다.
+    var lost = /^([A-Z]?)(\d{4})$/.exec(token);
     if (lost && schedule) {
-      var prefix = lost[1];
-      var known = ['KE', 'OZ', 'LJ', 'TW', 'BX', 'ZE', 'RS', 'RF'].indexOf(prefix) !== -1;
       // 숫자만 남은 것은 시각일 수도 있어, 판 위의 글자일 때만 고친다
-      var readable = prefix.length === 2 ? !known : (prefix.length === 1 || tone === 'blue');
+      var readable = lost[1].length === 1 || tone === 'blue';
       if (readable && schedule.lookup('KE' + lost[2])) return 'KE' + lost[2];
     }
     // 날짜(01SEP26). 자릿수가 하나 늘거나 0 이 O 로 읽힌 것을 되돌린다
@@ -148,7 +168,11 @@
    */
   function snapToKnownCode(token, tone) {
     if (!codes || token.length < 2 || token.length > 6 || !/^[A-Z0-9]+$/.test(token)) return token;
+    // 편명 꼴은 근무 코드로 갈아 끼우지 않는다
+    if (codes.splitFlight && codes.splitFlight(token)) return token;
     var known = codes.knownCodeList();
+    // 이미 아는 코드면 그대로 둔다. ATDO 를 ADO 로, DO 를 ATDO 로 바꾸면
+    // 뜻이 다른 근무가 된다. 아는 코드끼리는 절대 바꿔치지 않는다.
     if (known.indexOf(token) !== -1) return token;
 
     // 판 색을 알면 그 색으로 적는 근무만 후보로 둔다. 연두 판의 PO 는 LO 가 아니라 DO 다.
@@ -435,26 +459,10 @@
     var columns = columnsOf(dayRows.map(function (index) { return rowList[index]; }));
     if (!columns.length) return out;
 
-    // 첫 주의 날짜 줄이 안 읽히는 일이 있다. 앞 달 날짜가 흐린 회색이라 통째로
-    // 묻히기 때문이다. 그 줄 바로 아래 근무가 있으면, 다음 주에서 이레를 빼 날짜를 센다.
-    var firstRow = rowList[dayRows[0]];
-    var above = daysOfWeekRow(firstRow, columns).map(function (day) {
-      return day == null ? null : day - 7;
-    });
-    if (above.some(function (day) { return day >= 1; })) {
-      var cellsAbove = above.map(function (day) { return { day: day, tokens: [] }; });
-      for (var back = dayRows[0] - 1; back >= 0; back--) {
-        if (firstRow.cy - rowList[back].cy > weekHeight * 0.8) break;
-        if (isDayRow(rowList[back])) break;
-        rowList[back].words.forEach(function (word) {
-          cellsAbove[nearestColumn(word.cx, columns)].tokens.push(word.text);
-        });
-      }
-      cellsAbove.forEach(function (cell) {
-        if (cell.day == null || cell.day < 1 || !cell.tokens.length) return;
-        out.push({ day: cell.day, tokens: splitCodes(joinTimes(cell.tokens)) });
-      });
-    }
+    // 칸에 근무를 붙이는 기준은 오직 '그 칸에서 실제로 읽은 날짜 숫자' 다.
+    // 예전에는 첫 주가 안 읽히면 다음 주에서 이레를 빼 자리로 날짜를 지어냈다.
+    // 그러다 1월 1일(목)처럼 앞이 빈 달에서 엉뚱한 날의 근무가 복제됐다.
+    // 날짜를 못 읽은 칸은 지어내지 않고 버린다.
 
     dayRows.forEach(function (index, which) {
       var row = rowList[index];
@@ -466,7 +474,9 @@
         if (isDayRow(rowList[i])) break;                    // 다음 주
         if (rowList[i].cy > stopBelow) break;               // 달력 아래의 딴 글
         rowList[i].words.forEach(function (word) {
-          cells[nearestColumn(word.cx, columns)].tokens.push(word.text);
+          var col = columnOf(word.cx, columns);
+          if (col == null) return;             // 어느 칸에도 들지 않는 글자는 버린다
+          cells[col].tokens.push(word.text);
         });
       }
 
@@ -485,6 +495,19 @@
    * 가려내는 법은 "가장 길게 이어 오르는 토막만 남기기". 한 달치 달력에서 그 토막은
    * 언제나 이번 달이고, 앞뒤에 붙은 며칠은 거기서 떨어져 나간다.
    */
+  /**
+   * 글자가 어느 칸의 것인지. 칸 사이 간격의 절반 안에 들어야 그 칸으로 본다.
+   * 달력 밖으로 삐져나온 글자를 가장 가까운 칸에 억지로 밀어 넣지 않는다.
+   */
+  function columnOf(cx, columns) {
+    if (!columns.length) return null;
+    var index = nearestColumn(cx, columns);
+    var gaps = [];
+    for (var i = 1; i < columns.length; i++) gaps.push(columns[i] - columns[i - 1]);
+    var span = gaps.length ? median(gaps) : Infinity;
+    return Math.abs(cx - columns[index]) <= span * 0.75 ? index : null;
+  }
+
   function trimOtherMonths(cells) {
     if (cells.length < 2) return { cells: cells.slice(), dropped: 0 };
 
@@ -507,39 +530,6 @@
    * 달력 칸을 글줄로 옮긴다. 몇 년 몇 월인지 알면 날짜를 또렷이 적는다. 날짜만 적어
    * 두면 파서가 달이 넘어갔다고 잘못 볼 수 있어서다.
    */
-  /**
-   * 자정을 넘겨 한국에 닿는 편은 크루넷이 출발일과 도착일 두 칸에 똑같이 적는다.
-   * 그래서 도착일 칸에 한 자만 다르게 읽힌 편명이 나오면(KE0498 -> KE0408) 앞날의
-   * 편명이 맞다. 앞날 편이 실제로 자정을 넘겨 도착하고, 잘못 읽힌 쪽은 그렇지 않을
-   * 때만 손댄다. 그래야 진짜로 다른 편이 이튿날 뜬 경우를 건드리지 않는다.
-   */
-  function mendNextDayFlights(cells) {
-    if (!schedule) return cells;
-    var byDay = {};
-    cells.forEach(function (cell) { if (cell.day != null && !byDay[cell.day]) byDay[cell.day] = cell; });
-
-    Object.keys(byDay).forEach(function (key) {
-      var day = +key;
-      var prev = byDay[day - 1];
-      if (!prev) return;
-      var here = byDay[day];
-      var flights = here.tokens.filter(function (t) { return /^[A-Z]{2}\d{4}$/.test(t); });
-      if (flights.length !== 1) return;                 // 편이 하나뿐인 칸에서만
-
-      var mine = schedule.lookup(flights[0]);
-      if (mine && mine.endOffset) return;               // 이 편 자체가 이튿날 도착이면 그대로
-
-      prev.tokens.forEach(function (token) {
-        if (!/^[A-Z]{2}\d{4}$/.test(token) || token === flights[0]) return;
-        if (!oneEditApart(token, flights[0])) return;
-        var theirs = schedule.lookup(token);
-        if (!theirs || !theirs.endOffset) return;       // 앞날 편이 자정을 넘겨야 이틀에 걸친다
-        here.tokens = here.tokens.map(function (t) { return t === flights[0] ? token : t; });
-      });
-    });
-    return cells;
-  }
-
   function cellLines(cells, opts) {
     var seen = {};
     var out = [];
@@ -601,7 +591,6 @@
     var cells = fromCalendar(rowList);
     if (cells.length >= 3) {
       var trimmed = trimOtherMonths(cells);
-      mendNextDayFlights(trimmed.cells);
       return {
         text: cellLines(trimmed.cells, opts).join('\n'),
         shape: 'calendar',
@@ -624,8 +613,10 @@
   return {
     toText: toText,
     cellLines: cellLines,
-    mendNextDayFlights: mendNextDayFlights,
+    columnOf: columnOf,
     fixCode: fixCode,
+    flightDigits: flightDigits,
+    keepFlightNumber: keepFlightNumber,
     snapToKnownCode: snapToKnownCode,
     columnsOf: columnsOf,
     daysOfWeekRow: daysOfWeekRow,

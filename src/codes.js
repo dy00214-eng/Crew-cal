@@ -59,15 +59,16 @@
     RES: { label: '예비', category: 'standby' },
     RSV: { label: '예비', category: 'standby' },
 
-    // 비행 근무
-    TVL: { label: '비행 근무', category: 'flight' },
+    // 탑승 근무(데드헤드). 실제 승무가 아니라 손님으로 타고 이동하는 것이라
+    // 비행 편수에는 넣지 않는다. 근무 코드이므로 type 은 duty 로 잡힌다.
+    TVL: { label: '탑승 근무', category: 'flight', deadhead: true },
 
     // 체류 / 비행 부속
     LO: { label: '체류', category: 'layover' },
     LAYOVER: { label: '체류', category: 'layover' },
     LOFF: { label: '체류 휴식', category: 'layover' },
-    DH: { label: '탑승 이동', category: 'flight' },
-    DHD: { label: '탑승 이동', category: 'flight' },
+    DH: { label: '탑승 이동', category: 'flight', deadhead: true },
+    DHD: { label: '탑승 이동', category: 'flight', deadhead: true },
     BRF: { label: '브리핑', category: 'flight' },
     BLK: { label: '블럭', category: 'other' },
 
@@ -172,6 +173,12 @@
     return { label: '미확인 코드', category: 'unknown' };
   }
 
+  /** 손님으로 타고 이동하는 근무인지. 비행 편수에서 뺀다. */
+  function isDeadhead(code) {
+    var hit = lookup(code);
+    return !!(hit && hit.deadhead);
+  }
+
   function knownCodeList() {
     return Object.keys(DUTY_CODES).sort();
   }
@@ -186,6 +193,7 @@
     lookup: lookup,
     describe: describe,
     knownCodeList: knownCodeList,
+    isDeadhead: isDeadhead,
     DEFAULT_AIRLINES: DEFAULT_AIRLINES,
     FLIGHT_SHAPE: FLIGHT_SHAPE,
     setAirlines: setAirlines,

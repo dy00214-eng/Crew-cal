@@ -15,6 +15,7 @@
   var holidays = CrewCal.holidays;
   var clock = CrewCal.clock;
   var verify = CrewCal.verify;
+  var bulkroutes = CrewCal.bulkroutes;
 
   var $ = function (id) { return document.getElementById(id); };
 
@@ -1607,7 +1608,7 @@
   /* ---------------- 동료가 보내는 의견 ---------------- */
 
   // 화면 아래와 의견 보내기에 적히는 판 번호. sw.js 의 VERSION 과 함께 올린다.
-  var APP_VERSION = 'v24';
+  var APP_VERSION = 'v25';
 
   /**
    * 의견을 받을 메일 주소. 저장소가 공개라 통짜로 적어두면 스팸 크롤러가 긁어가므로
@@ -1869,6 +1870,125 @@
     });
   }
 
+  /* ---------------- 미등록 편명 일괄 등록 ----------------
+   * 칸을 하나씩 눌러 고치는 것은 한 달에 열 편씩 나올 때 쓸 수가 없다.
+   * 구간을 모르는 편명을 모아 도착 공항만 줄줄이 넣게 한다.
+   */
+
+  function openBulk() {
+    $('bulkPanel').hidden = false;
+    renderBulk();
+    $('bulkPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function renderBulk() {
+    var missing = bulkroutes.missingFlights(store.getAll(), store.recallFlight);
+    var box = $('bulkList');
+    box.innerHTML = '';
+    $('bulkStatus').textContent = '';
+    $('bulkStatus').className = 'status';
+
+    if (!missing.length) {
+      var done = document.createElement('p');
+      done.className = 'muted';
+      done.textContent = '구간을 모르는 편명이 없습니다.';
+      box.appendChild(done);
+      return;
+    }
+
+    missing.forEach(function (item) {
+      var row = document.createElement('div');
+      row.className = 'bulk-row';
+      row.setAttribute('data-code', item.code);
+
+      var name = document.createElement('span');
+      name.className = 'bulk-code';
+      name.textContent = item.code;
+      name.title = item.dates.join(', ');
+      row.appendChild(name);
+
+      var when = document.createElement('span');
+      when.className = 'bulk-when';
+      when.textContent = item.count + '일';
+      row.appendChild(when);
+
+      var input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'bulk-input';
+      input.autocomplete = 'off';
+      input.spellcheck = false;
+      input.placeholder = '도착 공항 (HKG / 홍콩)';
+      row.appendChild(input);
+
+      var where = document.createElement('span');
+      where.className = 'bulk-where muted';
+      row.appendChild(where);
+
+      input.addEventListener('input', function () { syncBulkRow(item, input, where); });
+      box.appendChild(row);
+    });
+  }
+
+  /** 공항을 넣는 대로 구간·도시·나라를 보여 주고, 짝 편명도 같이 채운다. */
+  function syncBulkRow(item, input, where) {
+    var route = bulkroutes.routeFor(item.code, input.value);
+    if (!route) {
+      where.textContent = input.value.trim() ? '모르는 공항입니다' : '';
+      where.className = 'bulk-where ' + (input.value.trim() ? 'warn' : 'muted');
+      return;
+    }
+    var row = bulkroutes.toRouteRow(route);
+    where.className = 'bulk-where muted';
+    where.textContent = route.from + '/' + route.to + ' · ' + (row.flag || '') + ' ' + row.city;
+
+    // 짝이 되는 편이 목록에 있고 아직 비어 있으면 거꾸로 채워 준다
+    var mate = bulkroutes.pairSuggestion(item.code, input.value);
+    if (!mate) return;
+    var mateRow = $('bulkList').querySelector('[data-code="' + mate.code + '"]');
+    if (!mateRow) return;
+    var mateInput = mateRow.querySelector('.bulk-input');
+    if (!mateInput || mateInput.value.trim()) return;
+    mateInput.value = input.value;
+    mateInput.classList.add('suggested');
+    syncBulkRow({ code: mate.code }, mateInput, mateRow.querySelector('.bulk-where'));
+  }
+
+  function saveBulk() {
+    var rows = $('bulkList').querySelectorAll('.bulk-row');
+    var saved = 0;
+    var bad = [];
+    Array.prototype.forEach.call(rows, function (row) {
+      var code = row.getAttribute('data-code');
+      var value = row.querySelector('.bulk-input').value.trim();
+      if (!value) return;
+      var route = bulkroutes.routeFor(code, value);
+      if (!route) { bad.push(code + ' (' + value + ')'); return; }
+      store.learnFlight({ type: 'flight', code: code, route: route.from + '/' + route.to });
+      saved++;
+    });
+
+    if (!saved && !bad.length) {
+      $('bulkStatus').textContent = '넣은 공항이 없습니다.';
+      $('bulkStatus').className = 'status';
+      return;
+    }
+    var filled = store.enrichAll();
+    renderFlightBook();
+    refresh();
+    var message = saved + '편을 등록해 일정 ' + filled + '건에 채웠습니다.';
+    if (bad.length) message += ' 못 알아본 공항: ' + bad.join(', ');
+    if (!bad.length) renderBulk();            // 목록을 새로 뽑고 나서 알린다
+    $('bulkStatus').textContent = message;
+    $('bulkStatus').className = 'status ' + (bad.length ? 'error' : 'ok');
+  }
+
+  function initBulk() {
+    $('bulkOpen').addEventListener('click', openBulk);
+    $('bulkClose').addEventListener('click', function () { $('bulkPanel').hidden = true; });
+    $('bulkReload').addEventListener('click', renderBulk);
+    $('bulkSave').addEventListener('click', saveBulk);
+  }
+
   /* ---------------- 파싱 검증 (개발용) ----------------
    * 3월 1일 국내선 네 편이 소리 없이 사라진 일이 있었다. 고칠 때마다 여기로 먼저
    * 확인한다. 주소 끝에 #verify 를 붙이거나 보기 설정에서 연다.
@@ -2093,6 +2213,7 @@
     initViewToggle();
     initAssumeOff();
     initAirlines();
+    initBulk();
     initVerify();
     initRouteSheet();
     initTabs();

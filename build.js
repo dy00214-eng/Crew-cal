@@ -10,6 +10,10 @@
 const fs = require('fs');
 const path = require('path');
 
+// 노선·공항 자료를 data/*.json 에서 src/routedata.js 로 먼저 옮겨 적는다.
+// 노선을 더할 때 JSON 만 고치면 되도록.
+require('./scripts/make-routes.js').build();
+
 const root = __dirname;
 const read = (p) => fs.readFileSync(path.join(root, p), 'utf8');
 

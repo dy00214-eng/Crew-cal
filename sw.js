@@ -6,7 +6,7 @@
  * 새 버전이 올라오면 다음 번에 열 때 반영된다. 일정 자체는 여기 담기지 않고
  * 브라우저 저장소(localStorage)에 그대로 남는다.
  */
-var VERSION = 'crew-cal-v24';
+var VERSION = 'crew-cal-v25';
 var SHELL = [
   './',
   './index.html',
@@ -15,6 +15,7 @@ var SHELL = [
   './icons/icon-180.png',
   './icons/icon-192.png',
   './icons/icon-512.png',
+  './src/routedata.js',
   './src/codes.js',
   './src/airports.js',
   './src/clock.js',
@@ -23,6 +24,7 @@ var SHELL = [
   './src/schedule.js',
   './src/resolve.js',
   './src/verify.js',
+  './src/bulkroutes.js',
   './src/parser.js',
   './src/store.js',
   './src/calendar.js',

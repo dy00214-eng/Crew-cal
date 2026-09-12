@@ -185,3 +185,27 @@ test('국내선은 집이 아닌 쪽을 간 곳으로 본다', () => {
   assert.strictEqual(airports.outstation('PUS/CJU'), 'CJU', '둘 다 집이 아니면 도착지');
   assert.strictEqual(airports.outstation('ICN/ATL'), 'ATL');
 });
+
+test('근무가 있는 날에 추정 휴무를 붙이려 하면 예외를 던진다', () => {
+  // 1월 11일(KE0006)과 15일(KE2011 LO)이 흐린 '휴무' 로 덮인 일이 있었다.
+  assert.strictEqual(calendar.canAssumeOff([]), true);
+  assert.strictEqual(calendar.canAssumeOff([{ code: 'KE0006' }]), false);
+  assert.throws(
+    () => calendar.assertNoEntries([store.decorate({ date: '2026-01-11', code: 'KE0006' })], '2026-01-11'),
+    /2026-01-11 에 이미 근무가 1건/);
+});
+
+test('근무가 있는 날은 추정 휴무로 덮이지 않는다 — 1월 11·15일', () => {
+  const byDate = {
+    '2026-01-11': [store.decorate({ date: '2026-01-11', code: 'KE0006' })],
+    '2026-01-15': [store.decorate({ date: '2026-01-15', code: 'KE2011' }),
+      store.decorate({ date: '2026-01-15', code: 'LO' })]
+  };
+  const cells = draw({ year: 2026, month: 1, entriesByDate: byDate, assumeOff: true });
+  ['2026-01-11', '2026-01-15'].forEach((date) => {
+    assert.ok(!cells[date].classList.contains('assumed'), date);
+    assert.ok(!textOf(cells[date]).includes('휴무'), date + ': ' + textOf(cells[date]));
+  });
+  assert.ok(textOf(cells['2026-01-11']).includes('KE0006'), textOf(cells['2026-01-11']));
+  assert.ok(cells['2026-01-02'].classList.contains('assumed'), '빈 날은 그대로 추정 휴무');
+});

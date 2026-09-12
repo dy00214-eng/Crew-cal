@@ -153,6 +153,23 @@
   var CELL_LIMIT = 3;
 
   /**
+   * 넘겨짚은 휴무를 붙여도 되는 날인지. 읽어 들인 근무가 하나라도 있으면 안 된다.
+   * 1월 11일(KE0006)과 15일(KE2011 LO)이 흐린 '휴무' 로 덮여 버린 일이 있었다.
+   * 실수로라도 다시 그러지 않도록 여기서 막고, 어긋나면 소리 내어 알린다.
+   */
+  function canAssumeOff(list) {
+    return (list || []).length === 0;
+  }
+
+  /** 붙이기 직전에 한 번 더 확인한다. 어긋나면 조용히 넘어가지 않고 터뜨린다. */
+  function assertNoEntries(list, date) {
+    if (canAssumeOff(list)) return true;
+    throw new Error('추정 휴무를 붙이려 했으나 ' + (date || '그 날') + ' 에 이미 근무가 ' +
+      (list || []).length + '건 있습니다: ' +
+      (list || []).map(function (e) { return e.code; }).join(', '));
+  }
+
+  /**
    * 달력 칸에 그릴 것만 골라 낸다. 지우는 것이 아니라 감추는 것이다.
    * 아는 항공사가 아닌 편명 꼴(AS0016)은 근무가 아니므로 칸에 띄우지 않는다.
    * 날짜를 누르면 원래 글자가 그대로 보인다.
@@ -318,7 +335,8 @@
         if (holiday) cell.classList.add('holiday');
         // 코드가 없어도 이 달의 날이면 칸을 그린다. 앞뒤 달의 흐린 날과 헷갈리지 않는다.
         // 코드가 하나라도 있는 날은 절대 휴무로 덮어쓰지 않는다. 정확히 0건일 때만.
-        var assumed = !outside && list.length === 0 && assumeOff;
+        var assumed = !outside && assumeOff && canAssumeOff(list);
+        if (assumed) assertNoEntries(list, date);        // 방어 코드
         var dayKind = dayCategory(list) || (assumed ? 'off' : null);
         if (dayKind) cell.classList.add('day-' + dayKind);
         if (assumed) cell.classList.add('assumed');
@@ -841,6 +859,8 @@
     dayCategory: dayCategory,
     needsRoute: needsRoute,
     cellItems: cellItems,
+    canAssumeOff: canAssumeOff,
+    assertNoEntries: assertNoEntries,
     dayNeedsCheck: dayNeedsCheck,
     CELL_LIMIT: CELL_LIMIT,
     tripPlaces: tripPlaces,

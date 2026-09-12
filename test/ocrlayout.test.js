@@ -198,3 +198,62 @@ test('달이 바뀌는 주는 한 줄 안에서 기준이 바뀐다', () => {
 
   assert.deepStrictEqual(days, [28, 29, 30, 1, 2, 3, 4]);
 });
+
+test('달이 목요일에 시작해 앞이 비어도 날짜가 밀리지 않는다', () => {
+  // 2026년 1월. 첫 주 앞 네 칸이 비어 있고 1·2·3 만 오른쪽에 있다.
+  const words = [];
+  ['1', '2', '3'].forEach((d, i) => words.push(word(d, i + 4, 0)));
+  words.push(word('ATDO', 4, 1));                    // 1일
+  ['4', '5', '6', '7', '8', '9', '10'].forEach((d, i) => words.push(word(d, i, 3)));
+  words.push(word('KE0006', 0, 4));                  // 4일
+  ['11', '12', '13', '14', '15', '16', '17'].forEach((d, i) => words.push(word(d, i, 6)));
+  words.push(word('KE2011', 4, 7));                  // 15일
+  words.push(word('KE2012', 6, 7));                  // 17일
+
+  const out = ocrlayout.toText(words, { year: 2026, month: 1 });
+  const lines = out.text.split('\n');
+  assert.deepStrictEqual(lines, [
+    '2026-01-01\tATDO',
+    '2026-01-04\tKE0006',
+    '2026-01-15\tKE2011',
+    '2026-01-17\tKE2012'
+  ], out.text);
+});
+
+test('날짜를 못 읽은 주는 자리로 날짜를 지어내지 않는다', () => {
+  // 첫 주의 날짜 줄이 통째로 안 읽힌 경우. 예전에는 다음 주에서 이레를 빼
+  // 날짜를 만들어 붙였고, 그 바람에 엉뚱한 날에 근무가 복제됐다.
+  const words = [];
+  words.push(word('ATDO', 4, 0));                    // 날짜 줄 없이 근무만
+  ['8', '9', '10', '11', '12', '13', '14'].forEach((d, i) => words.push(word(d, i, 3)));
+  words.push(word('KE0006', 0, 4));
+  ['15', '16', '17', '18', '19', '20', '21'].forEach((d, i) => words.push(word(d, i, 6)));
+  words.push(word('KE2011', 0, 7));
+  words.push(word('KE2012', 2, 7));
+
+  const out = ocrlayout.toText(words, { year: 2026, month: 1 });
+  assert.deepStrictEqual(out.text.split('\n'),
+    ['2026-01-08\tKE0006', '2026-01-15\tKE2011', '2026-01-17\tKE2012'],
+    '지어낸 날짜가 없다: ' + out.text);
+  assert.ok(out.text.indexOf('ATDO') === -1, '날짜를 모르는 근무는 버린다: ' + out.text);
+});
+
+test('편명 숫자는 짐작으로 바뀌지 않는다', () => {
+  // 글자를 숫자로 되돌리는 것은 되지만(O -> 0), 숫자를 다른 숫자로 바꾸지는 않는다
+  assert.strictEqual(ocrlayout.fixCode('KEO601'), 'KE0601');
+  assert.strictEqual(ocrlayout.fixCode('KE060I'), 'KE0601');
+  assert.strictEqual(ocrlayout.fixCode('KE0601'), 'KE0601', '시간표에 없어도 그대로');
+  assert.strictEqual(ocrlayout.fixCode('KE0502'), 'KE0502');
+  assert.strictEqual(ocrlayout.keepFlightNumber('KE0601', 'KE0502'), 'KE0601');
+  assert.strictEqual(ocrlayout.flightDigits('KE0601'), '601');
+  assert.strictEqual(ocrlayout.flightDigits('KE060I'), null, '아직 되돌릴 여지가 있다');
+});
+
+test('휴무 코드끼리는 절대 바꿔치지 않는다', () => {
+  // ATDO / ADO / DO 는 서로 다른 근무다
+  assert.strictEqual(ocrlayout.fixCode('ATDO', 'green'), 'ATDO');
+  assert.strictEqual(ocrlayout.fixCode('ADO', 'green'), 'ADO');
+  assert.strictEqual(ocrlayout.fixCode('DO', 'green'), 'DO');
+  assert.strictEqual(ocrlayout.fixCode('ATDO'), 'ATDO');
+  assert.strictEqual(ocrlayout.fixCode('ADO'), 'ADO');
+});

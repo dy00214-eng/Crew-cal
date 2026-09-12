@@ -15,12 +15,12 @@
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
-    module.exports = factory();
+    module.exports = factory(require('./routedata.js'));
   } else {
     root.CrewCal = root.CrewCal || {};
-    root.CrewCal.schedule = factory();
+    root.CrewCal.schedule = factory(root.CrewCal.routedata);
   }
-})(typeof self !== 'undefined' ? self : this, function () {
+})(typeof self !== 'undefined' ? self : this, function (routedata) {
   'use strict';
 
   var SOURCE_NOTE = '인천공항 시간표 기준 (2026년 9월)';
@@ -309,35 +309,21 @@
     USN: true, CJJ: true, RSU: true, HIN: true, WJU: true, KUV: true
   };
 
-  var TABLE = {};
-
-  /**
-   * 표를 채운다. 같은 편이 여러 공항 전광판에 걸쳐 나오면(국내선은 출발지와 도착지 양쪽에
-   * 다 뜬다) 구간이 같을 때 시각을 합쳐 출발·도착을 모두 갖게 한다.
+  /*
+   * 표는 data/ke-routes.json 에서 온다. 노선을 더할 때는 그 파일만 고치고
+   * node scripts/make-routes.js 를 돌리면 된다(build.js 가 알아서 부른다).
    */
-  function put(code, route, start, end, offset) {
-    var key = 'KE' + code;
-    var cur = TABLE[key];
-    if (cur && cur.route === route) {
-      if (start && !cur.start) cur.start = start;
-      if (end && !cur.end) { cur.end = end; cur.endOffset = offset || 0; }
-      return;
-    }
-    TABLE[key] = { route: route, start: start || null, end: end || null, endOffset: offset || 0 };
-  }
-
-  Object.keys(OUT).forEach(function (n) { put(n, 'ICN/' + OUT[n][0], OUT[n][1], null, 0); });
-  Object.keys(IN).forEach(function (n) { put(n, IN[n][0] + '/ICN', null, IN[n][1], IN[n][2]); });
-  Object.keys(GMP_OUT).forEach(function (n) { put(n, 'GMP/' + GMP_OUT[n][0], GMP_OUT[n][1], null, 0); });
-  Object.keys(GMP_IN).forEach(function (n) { put(n, GMP_IN[n][0] + '/GMP', null, GMP_IN[n][1], 0); });
-  Object.keys(PUS_OUT).forEach(function (n) { put(n, 'PUS/' + PUS_OUT[n][0], PUS_OUT[n][1], null, 0); });
-  Object.keys(PUS_IN).forEach(function (n) { put(n, PUS_IN[n][0] + '/PUS', null, PUS_IN[n][1], 0); });
-  Object.keys(CJU_OUT).forEach(function (n) { put(n, 'CJU/' + CJU_OUT[n][0], CJU_OUT[n][1], null, 0); });
-  Object.keys(CJU_IN).forEach(function (n) { put(n, CJU_IN[n][0] + '/CJU', null, CJU_IN[n][1], 0); });
-  LOCAL.forEach(function (row) { put(row[0], row[1], row[2], row[3], 0); });
-  LOCAL_NEXTDAY.forEach(function (row) { put(row[0], row[1], null, row[2], row[3]); });
-  Object.keys(FULL).forEach(function (n) {
-    TABLE['KE' + n] = { route: FULL[n][0], start: FULL[n][1], end: FULL[n][2], endOffset: FULL[n][3] || 0 };
+  var TABLE = {};
+  var SOURCE = (routedata && routedata.ROUTES) || {};
+  Object.keys(SOURCE).forEach(function (code) {
+    var row = SOURCE[code];
+    if (!row || !row.from || !row.to) return;
+    TABLE[code] = {
+      route: row.from + '/' + row.to,
+      start: row.start || null,
+      end: row.end || null,
+      endOffset: row.endOffset || 0
+    };
   });
 
   /** 편명을 표기 차이와 상관없이 찾는다. KE35, KE035, KE0035 모두 같은 편으로 본다. */

@@ -207,3 +207,31 @@ test('지방 공항 국내선은 양쪽 전광판이 합쳐져 출발·도착을
     assert.strictEqual(hit.end, end, code + ' 도착');
   });
 });
+
+test('노선 자료는 data/ke-routes.json 에서 온다', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const routes = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'data', 'ke-routes.json'), 'utf8'));
+
+  // 손으로 넣은 새 노선
+  assert.deepStrictEqual(
+    [routes.KE0727.from, routes.KE0727.to, routes.KE0727.city, routes.KE0727.country, routes.KE0727.flag],
+    ['ICN', 'KIX', '오사카', 'JP', '🇯🇵']);
+  assert.deepStrictEqual([routes.KE0728.from, routes.KE0728.to], ['KIX', 'ICN']);
+  assert.deepStrictEqual(
+    [routes.KE2011.from, routes.KE2011.to, routes.KE2011.city, routes.KE2011.country, routes.KE2011.flag],
+    ['ICN', 'HKG', '홍콩', 'HK', '🇭🇰']);
+  assert.deepStrictEqual([routes.KE2012.from, routes.KE2012.to], ['HKG', 'ICN']);
+
+  // JSON 과 생성된 모듈이 어긋나 있지 않다
+  const generated = require('../src/routedata.js');
+  assert.deepStrictEqual(generated.ROUTES, routes,
+    'data/ke-routes.json 을 고쳤으면 node scripts/make-routes.js 를 돌리세요');
+  const air = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'data', 'airports.json'), 'utf8'));
+  assert.deepStrictEqual(generated.AIRPORTS, air);
+
+  // 시간표가 그 자료를 그대로 쓴다
+  assert.strictEqual(schedule.lookup('KE0727').route, 'ICN/KIX');
+  assert.strictEqual(schedule.lookup('KE2012').route, 'HKG/ICN');
+  assert.strictEqual(schedule.size(), Object.keys(routes).length);
+});

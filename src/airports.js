@@ -4,12 +4,12 @@
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
-    module.exports = factory();
+    module.exports = factory(require('./routedata.js'));
   } else {
     root.CrewCal = root.CrewCal || {};
-    root.CrewCal.airports = factory();
+    root.CrewCal.airports = factory(root.CrewCal.routedata);
   }
-})(typeof self !== 'undefined' ? self : this, function () {
+})(typeof self !== 'undefined' ? self : this, function (routedata) {
   'use strict';
 
   // 나라별 공항 목록. 대한항공·아시아나 취항지와 자주 쓰는 공항 위주.
@@ -265,6 +265,18 @@
     BY_COUNTRY[country].split(/\s+/).forEach(function (iata) {
       if (iata) AIRPORT_COUNTRY[iata] = country;
     });
+  });
+
+  /*
+   * data/airports.json 에 적힌 공항은 그것을 따른다. 공항을 더하거나 도시 이름을
+   * 고칠 때는 그 파일만 손보면 된다(node scripts/make-routes.js 가 옮겨 적는다).
+   */
+  var DATA = (routedata && routedata.AIRPORTS) || {};
+  Object.keys(DATA).forEach(function (iata) {
+    var row = DATA[iata];
+    if (!row) return;
+    if (row.country) AIRPORT_COUNTRY[iata] = row.country;
+    if (row.city) CITY_NAMES[iata] = row.city;
   });
 
   /** 나라 코드 -> 국기 이모지. 'KR' -> 🇰🇷 */
