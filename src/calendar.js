@@ -112,6 +112,60 @@
     return '';
   }
 
+  // ── 시각 표기 ────────────────────────────────────────────────────────────
+  // 크루넷이 적어 주는 시각은 그 공항의 현지 시각이다. 달력에는 한국 시각으로
+  // 옮겨 적는다(설정에서 현지 시각으로 되돌릴 수 있다). 어느 공항 기준인지
+  // 헷갈리지 않도록 시각 앞에 늘 공항 코드를 붙인다.
+  var SHIFT_MARK = { '-2': '\u207B\u00B2', '-1': '\u207B\u00B9', '1': '\u207A\u00B9', '2': '\u207A\u00B2' };
+
+  /**
+   * 시각 하나를 칸에 적을 꼴로. 한국 시각으로 옮기면서 날이 넘어가면 표시를 남긴다.
+   *   { text: 'ICN출발 21:03', shift: 0, at: 'ICN', kind: '출발', minutes: 1263 }
+   * 시간대를 모르는 공항은 옮기지 않고 원래 값을 그대로 쓴다. 지어내지 않는다.
+   */
+  function timePoint(iata, kind, date, hhmm, localOnly) {
+    if (!hhmm) return null;
+    var at = iata ? String(iata).toUpperCase() : '';
+    var shown = hhmm;
+    var shift = 0;
+    if (!localOnly && airports && airports.toKst) {
+      var kst = airports.toKst(date, hhmm, at);
+      if (kst) { shown = kst.time; shift = kst.shift; }
+    }
+    var hm = /^(\d{1,2}):(\d{2})$/.exec(shown);
+    return {
+      at: at,
+      kind: kind,
+      time: shown,
+      shift: shift,
+      text: (at ? at : '') + kind + ' ' + shown,
+      minutes: hm ? (+hm[1]) * 60 + (+hm[2]) + shift * 1440 : 0
+    };
+  }
+
+  /**
+   * 한 엔트리가 그날 남기는 시각들. 출발은 떠난 공항, 도착은 닿은 공항 기준이다.
+   * 칸에 적는 시각은 비행에서만 가져온다. 체류는 '체류' 한 마디로 족하다(중간일).
+   */
+  function entryTimes(entry, date, localOnly) {
+    if (!entry || entry.type !== 'flight') return [];
+    var ends = entry.route && airports ? airports.splitRoute(entry.route) : { from: null, to: null };
+    var from = entry.from || ends.from;
+    var to = entry.to || ends.to;
+    var out = [];
+    var start = entry.start ? timePoint(from, '\uCD9C\uBC1C', date, entry.start, localOnly) : null;
+    var end = entry.end ? timePoint(to, '\uB3C4\uCC29', date, entry.end, localOnly) : null;
+    // 비행기가 뜨기 전에 내릴 수는 없다. 시각만 보고 앞뒤가 바뀌면 하루를 넘긴 것이다.
+    // 원본에 없는 값을 지어내는 것이 아니라 이미 있는 두 시각의 앞뒤를 맞추는 것뿐이다.
+    if (start && end && end.minutes <= start.minutes) {
+      end.shift += 1;
+      end.minutes += 1440;
+    }
+    if (start) out.push(start);
+    if (end) out.push(end);
+    return out;
+  }
+
   /** 편명 앞에 붙일 출발 나라 국기. 구간을 모르면 빈 문자열. */
   function departureFlag(entry) {
     return airports ? airports.departureFlag(entry) : '';
@@ -296,6 +350,127 @@
     return out;
   }
 
+  // ── 멀티데이 띠 ──────────────────────────────────────────────────────────
+  // 한 번의 해외 여정(나가는 편 ~ 돌아오는 편)을 칸 아래를 가로지르는 띠로 잇는다.
+  // 띠가 있으면 달력을 훑기만 해도 어느 주에 어디에 나가 있었는지 바로 보인다.
+
+  /** 그날 발이 닿아 있던 외국. 한국 안에서만 움직인 날은 null. */
+  function awayCountryOf(list) {
+    if (!airports) return null;
+    var found = null;
+    (list || []).forEach(function (e) {
+      if (e.strange) return;
+      var ends = e.route ? airports.splitRoute(e.route) : { from: null, to: null };
+      var from = e.from || ends.from;
+      var to = e.to || ends.to;
+      [from, to].forEach(function (code) {
+        if (!code) return;
+        var country = airports.countryOf(code);
+        if (!country || country === 'KR') return;
+        if (!found) found = { country: country, iata: code };
+      });
+    });
+    return found;
+  }
+
+  /**
+   * 하루짜리 왕복은 띠를 그리지 않는다. 이틀 이상 이어지는 여정만 띠로 잇는다.
+   * [{ country:'US', countryName:'미국', flag:'🇺🇸', start:'2026-01-09', end:'2026-01-12' }]
+   */
+  function tripBands(entriesByDate, dates) {
+    if (!airports) return [];
+    var out = [];
+    var open = null;
+    (dates || []).forEach(function (date) {
+      var away = awayCountryOf(entriesByDate[date] || []);
+      if (away && open && open.country === away.country) { open.end = date; return; }
+      if (open) { out.push(open); open = null; }
+      if (away) open = { country: away.country, start: date, end: date };
+    });
+    if (open) out.push(open);
+    return out.filter(function (band) { return band.start !== band.end; })
+      .map(function (band) {
+        band.countryName = airports.countryName(band.country);
+        band.flag = airports.flagOfCountry(band.country);
+        return band;
+      });
+  }
+
+  /** 나라마다 다른 색을 주되 아무 색이나 뽑지 않도록 코드에서 늘 같은 값을 만든다. */
+  function bandHue(country) {
+    var text = String(country || '');
+    var sum = 0;
+    for (var i = 0; i < text.length; i++) sum = (sum * 31 + text.charCodeAt(i)) % 360;
+    return sum;
+  }
+
+  // ── 칸 내용 묶기 ─────────────────────────────────────────────────────────
+  // 한 날에 비행과 체류가 함께 있으면 도시가 두 번 적혀 칸이 지저분해진다.
+  // 같은 도시로 묶어 한 덩이로 보이게 하되, 시각은 하나도 버리지 않는다.
+
+  function placeOf(entry, fallback) {
+    if (!airports) return null;
+    if (entry.type === 'flight') return airports.tripPlace(entry);
+    if ((entry.category || '') === 'layover') {
+      return (entry.route ? airports.tripPlace(entry) : null) || fallback || null;
+    }
+    return null;
+  }
+
+  /**
+   * 칸에 그릴 덩이들. 도시가 같으면 한 덩이로 묶고, 도시가 없는 근무(휴무·대기)는
+   * 저마다 한 덩이가 된다. 원본 엔트리는 모두 어느 덩이엔가 들어간다 — 버리지 않는다.
+   */
+  function cellGroups(list, date, staying, localOnly) {
+    var groups = [];
+    var byKey = {};
+    (list || []).forEach(function (entry) {
+      var place = placeOf(entry, staying);
+      var key = place ? 'place:' + place.iata : 'code:' + groups.length + ':' + (entry.code || '');
+      var group = byKey[key];
+      if (!group) {
+        group = {
+          key: key,
+          place: place,
+          entries: [],
+          times: [],
+          category: entry.category || 'other'
+        };
+        byKey[key] = group;
+        groups.push(group);
+      }
+      group.entries.push(entry);
+      // 비행이 있으면 칸 색은 비행을 따른다. 체류만 있는 날은 체류 색.
+      if (entry.type === 'flight') group.category = 'flight';
+      group.times = group.times.concat(entryTimes(entry, date, localOnly));
+    });
+    groups.forEach(function (group) {
+      group.times.sort(function (a, b) { return a.minutes - b.minutes; });
+      group.enroute = group.entries.every(function (e) {
+        return e.type !== 'flight' || legRole(e) === 'enroute';
+      }) && group.entries.some(function (e) { return e.type === 'flight'; });
+      group.layover = group.entries.some(function (e) { return (e.category || '') === 'layover'; });
+    });
+    return groups;
+  }
+
+  /** 칸에 적을 시각 줄. 여러 편이 겹친 날은 처음 떠난 때와 마지막 닿은 때만 적는다. */
+  function groupLines(group) {
+    var times = group.times;
+    if (!times.length) return [];
+    if (times.length <= 2) return times.slice();
+    return [times[0], times[times.length - 1]];
+  }
+
+  // 달력은 언제나 일요일부터 토요일까지 일곱 칸이다. 이 값을 세는 곳은 여기 하나뿐.
+  var COLUMNS = 7;
+
+  function dayIndex(date) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(date || ''));
+    if (!m) return null;
+    return Math.round(Date.UTC(+m[1], +m[2] - 1, +m[3]) / 86400000);
+  }
+
   function render(container, options) {
     var year = options.year;
     var month = options.month;
@@ -303,6 +478,7 @@
     var selected = options.selectedDate;
     var onSelect = options.onSelect || function () {};
     var hideTimes = options.hideTimes || {};
+    var localOnly = !!options.localTimes;
     // 코드가 안 잡힌 이 달의 날은 휴무로 본다. 크루넷도 빈 칸은 쉬는 날이다.
     var assumeOff = options.assumeOff !== false;
 
@@ -312,7 +488,7 @@
     head.className = 'cal-head';
     WEEKDAYS.forEach(function (w, i) {
       var cell = document.createElement('div');
-      cell.className = 'cal-head-cell' + (i === 0 ? ' sun' : i === 6 ? ' sat' : '');
+      cell.className = 'cal-head-cell' + (i === 0 ? ' sun' : i === COLUMNS - 1 ? ' sat' : '');
       cell.textContent = w;
       head.appendChild(cell);
     });
@@ -322,224 +498,326 @@
     grid.className = 'cal-grid';
 
     var places = tripPlaces(entriesByDate);
-
-    var lead = firstWeekday(year, month);
-    var total = daysInMonth(year, month);
+    var slots = gridDates(year, month);
     var today = todayIso();
+    var origin = dayIndex(slots[0].date);
 
-    // 크루넷처럼 앞뒤 달 날짜도 함께 그린다. 달을 넘겨 이어지는 비행·체류가 잘리지 않는다.
-    gridDates(year, month).forEach(function (slot) {
-      (function (day, date, outside) {
-        var list = entriesByDate[date] || [];
-        var weekday = new Date(date + 'T00:00:00Z').getUTCDay();
+    // 칸이 앉을 자리는 오로지 날짜가 정한다. 몇 번째로 그렸는지는 보지 않는다.
+    function seatOf(date) {
+      var index = dayIndex(date);
+      if (index === null || origin === null) return null;
+      var offset = index - origin;
+      var row = Math.floor(offset / COLUMNS);
+      var column = new Date(date + 'T00:00:00Z').getUTCDay();
+      // 요일과 자리가 어긋나면 달력 전체가 밀린다. 조용히 넘어가지 않는다.
+      if (offset % COLUMNS !== column) {
+        if (typeof console !== 'undefined' && console.error) {
+          console.error('[Crew-cal] 달력 칸이 어긋났습니다: ' + date +
+            ' 는 ' + WEEKDAYS[column] + '요일인데 ' + (offset % COLUMNS) + '번 칸에 놓였습니다.');
+        }
+        return { row: row, column: offset % COLUMNS, mismatch: true };
+      }
+      return { row: row, column: column, mismatch: false };
+    }
 
-        // button 요소는 브라우저가 내용 상자를 오그라뜨려 칩이 칸 너비를 못 채운다.
-        var cell = document.createElement('div');
-        cell.setAttribute('role', 'button');
-        cell.tabIndex = 0;
-        cell.className = 'cal-cell';
-        var holiday = holidays ? holidays.nameOf(date) : null;
-        if (weekday === 0) cell.classList.add('sun');
-        if (weekday === 6) cell.classList.add('sat');
-        if (holiday) cell.classList.add('holiday');
-        // 코드가 없어도 이 달의 날이면 칸을 그린다. 앞뒤 달의 흐린 날과 헷갈리지 않는다.
-        // 코드가 하나라도 있는 날은 절대 휴무로 덮어쓰지 않는다. 정확히 0건일 때만.
-        var assumed = !outside && assumeOff && canAssumeOff(list);
-        if (assumed) assertNoEntries(list, date);        // 방어 코드
-        var dayKind = dayCategory(list) || (assumed ? 'off' : null);
-        if (dayKind) cell.classList.add('day-' + dayKind);
-        if (assumed) cell.classList.add('assumed');
-        if (!outside) cell.classList.add('in-month');
-        if (outside) cell.classList.add('outside');
-        if (date === today) cell.classList.add('today');
-        if (date === selected) cell.classList.add('selected');
-        if (list.length) cell.classList.add('has-entry');
-        cell.setAttribute('data-date', date);
-        cell.setAttribute('aria-label', (+date.slice(5, 7)) + '월 ' + day + '일' +
-          (holiday ? ' ' + holiday : '') +
-          (assumed ? ', 코드 없음 — 휴무로 봄' : ', 일정 ' + list.length + '건'));
+    slots.forEach(function (slot) {
+      var date = slot.date;
+      var day = slot.day;
+      var outside = slot.outside;
+      var list = entriesByDate[date] || [];
+      var weekday = new Date(date + 'T00:00:00Z').getUTCDay();
+      var seat = seatOf(date);
 
-        var num = document.createElement('span');
-        num.className = 'cal-day';
-        num.textContent = String(day);
-        cell.appendChild(num);
+      // button 요소는 브라우저가 내용 상자를 오그라뜨려 칩이 칸 너비를 못 채운다.
+      var cell = document.createElement('div');
+      cell.setAttribute('role', 'button');
+      cell.tabIndex = 0;
+      cell.className = 'cal-cell';
+      if (seat) {
+        cell.style.gridRow = String(seat.row + 1);
+        cell.style.gridColumn = String(seat.column + 1);
+        if (seat.mismatch) cell.classList.add('seat-mismatch');
+      }
+      var holiday = holidays ? holidays.nameOf(date) : null;
+      if (weekday === 0) cell.classList.add('sun');
+      if (weekday === COLUMNS - 1) cell.classList.add('sat');
+      if (holiday) cell.classList.add('holiday');
+      // 코드가 하나라도 있는 날은 절대 휴무로 덮어쓰지 않는다. 정확히 0건일 때만.
+      var assumed = !outside && assumeOff && canAssumeOff(list);
+      if (assumed) assertNoEntries(list, date);        // 방어 코드
+      var dayKind = dayCategory(list) || (assumed ? 'off' : null);
+      if (dayKind) cell.classList.add('day-' + dayKind);
+      if (assumed) cell.classList.add('assumed');
+      if (!outside) cell.classList.add('in-month');
+      if (outside) cell.classList.add('outside');
+      if (date === today) cell.classList.add('today');
+      if (date === selected) cell.classList.add('selected');
+      if (list.length) cell.classList.add('has-entry');
+      cell.setAttribute('data-date', date);
+      cell.setAttribute('aria-label', (+date.slice(5, 7)) + '월 ' + day + '일' +
+        (holiday ? ' ' + holiday : '') +
+        (assumed ? ', 코드 없음 — 휴무로 봄' : ', 일정 ' + list.length + '건'));
 
-        if (holiday) {
-          var mark = document.createElement('span');
-          mark.className = 'cal-holiday';
-          mark.textContent = holiday;
-          cell.appendChild(mark);
+      var head2 = document.createElement('span');
+      head2.className = 'cal-head-row';
+      var num = document.createElement('span');
+      num.className = 'cal-day';
+      num.textContent = String(day);
+      head2.appendChild(num);
+      if (holiday) {
+        var mark = document.createElement('span');
+        mark.className = 'cal-holiday';
+        mark.textContent = holiday;
+        head2.appendChild(mark);
+      }
+      cell.appendChild(head2);
+
+      var chips = document.createElement('span');
+      chips.className = 'cal-chips';
+      var shown = cellItems(list);
+      var dayHasFlight = shown.some(function (e) { return e.type === 'flight'; });
+      var staying = places[date] || null;
+      var groups = cellGroups(shown, date, dayHasFlight ? null : staying, localOnly);
+      var alerts = [];
+
+      groups.slice(0, CELL_LIMIT).forEach(function (group) {
+        var item = document.createElement('span');
+        item.className = 'cal-item';
+        item.title = group.entries.map(function (e) {
+          return [e.code, e.label || '', airports ? airports.describeRoute(e.route) : e.route,
+            describeTimes(e, true)].filter(Boolean).join(' · ');
+        }).join('\n');
+
+        var place = group.place;
+        if (place) {
+          var flag = document.createElement('span');
+          flag.className = 'cal-flag';
+          flag.textContent = place.flag || '';
+          item.appendChild(flag);
+          var city = document.createElement('span');
+          // 라스베이거스처럼 긴 이름은 칸을 넘는다. 글자 수에 따라 조금씩 줄인다.
+          var name = place.city || '';
+          city.className = 'cal-city cat-' + (group.category || 'other') +
+            (name.length >= 6 ? ' long' : name.length >= 5 ? ' longish' : '');
+          city.textContent = name;
+          item.appendChild(city);
+        } else {
+          // 도시가 없는 근무. 휴무는 '쉬는날', 대기는 '스탠바이' 가 제목이고
+          // 원래 코드(ATDO/ADO/DO/STBY)는 아래에 작게 그대로 남는다.
+          var lead = group.entries[0];
+          var title = document.createElement('span');
+          title.className = 'cal-title cat-' + (group.category || 'other');
+          title.textContent = (group.category === 'off') ? '쉬는날'
+            : (group.category === 'standby') ? '스탠바이'
+              : (lead.label || lead.code || '');
+          item.appendChild(title);
+          if (group.category === 'standby') alerts.push('대기');
         }
 
-        var chips = document.createElement('span');
-        chips.className = 'cal-chips';
-        var shown = cellItems(list);
-        var dayHasFlight = shown.some(function (e) { return e.type === 'flight'; });
-        var staying = places[date] || null;
-
-        shown.slice(0, CELL_LIMIT).forEach(function (e) {
-          var item = document.createElement('span');
-          item.className = 'cal-item';
-          item.title = [e.code, e.label || '', airports ? airports.describeRoute(e.route) : e.route,
-            describeTimes(e, true)].filter(Boolean).join(' · ');
-
-          // 도시가 주인공이다. 비행하는 날은 그 편이 가는 곳, 체류하는 날은 머무는 곳.
-          // 기내에서 날을 넘기는 날은 도시 대신 '기내' 라고 적는다.
-          var place = e.type === 'flight' ? (airports ? airports.tripPlace(e) : null)
-            : (e.category === 'layover'
-              ? (airports && e.route ? airports.tripPlace(e) : null) || (dayHasFlight ? null : staying)
-              : null);
-          var enroute = e.type === 'flight' && legRole(e) === 'enroute';
-
-          if (enroute) {
-            var air = document.createElement('span');
-            air.className = 'cal-flag';
-            air.textContent = '\u2708\uFE0F';
-            item.appendChild(air);
-            var inflight = document.createElement('span');
-            inflight.className = 'cal-city cat-flight enroute';
-            inflight.textContent = '기내';
-            item.appendChild(inflight);
-            item.title = e.code + ' 기내 — 날을 넘겨 나는 중입니다' +
-              (e.route ? ' (' + e.route + ')' : '');
-          } else if (place) {
-            if (place.flag || e.type === 'flight') {
-              var flag = document.createElement('span');
-              flag.className = 'cal-flag';
-              flag.textContent = (e.type === 'flight' ? '\u2708\uFE0F ' : '') + (place.flag || '');
-              item.appendChild(flag);
-            }
-            var city = document.createElement('span');
-            city.className = 'cal-city cat-' + (e.category || 'other');
-            city.textContent = place.city;
-            item.appendChild(city);
-          } else {
-            var title = document.createElement('span');
-            title.className = 'cal-title cat-' + (e.category || 'other');
-            // 구간을 모르는 비행은 편명이 곧 제목이다
-            title.textContent = e.type === 'flight'
-              ? '\u2708\uFE0F ' + e.code
-              : (e.label || e.code);
-            item.appendChild(title);
-          }
-
-          var timeText = hideTimes[date + '|' + e.code] ? '' : formatTimeRange(e);
-          if (timeText) {
+        // 시각. 한국 시각으로 옮긴 값이고 어느 공항 기준인지 코드로 밝힌다.
+        var muted = group.entries.every(function (e) { return hideTimes[date + '|' + e.code]; });
+        var lines = muted ? [] : groupLines(group);
+        if (lines.length) {
+          lines.forEach(function (point) {
+            // 칸이 좁아 저절로 줄이 바뀌는 것보다, 'ICN출발' 과 '19:30' 을
+            // 처음부터 두 줄로 나눠 두는 편이 훨씬 읽기 좋다.
             var time = document.createElement('span');
             time.className = 'cal-time';
-            time.textContent = timeText;
+            var what = document.createElement('span');
+            what.className = 'cal-time-at';
+            what.textContent = (point.at ? point.at : '') + point.kind;
+            var clock = document.createElement('span');
+            clock.className = 'cal-clock';
+            clock.textContent = point.time;
+            time.appendChild(what);
+            time.appendChild(clock);
+            if (point.shift && SHIFT_MARK[String(point.shift)]) {
+              var sh = document.createElement('sup');
+              sh.className = 'cal-shift';
+              sh.textContent = SHIFT_MARK[String(point.shift)];
+              sh.title = point.shift > 0 ? '한국 시각으로는 다음 날입니다' : '한국 시각으로는 전날입니다';
+              clock.appendChild(sh);
+            }
+            time.title = point.text;
             item.appendChild(time);
-          }
+          });
+        } else if (group.enroute) {
+          var air = document.createElement('span');
+          air.className = 'cal-time stay';
+          air.textContent = '기내';
+          item.appendChild(air);
+        } else if (group.layover) {
+          var stay = document.createElement('span');
+          stay.className = 'cal-time stay';
+          stay.textContent = '체류';
+          item.appendChild(stay);
+        }
 
-          // 자동으로 물어 채운 노선만 표를 단다. 원본·시드로 푼 것은 아무 표시도 않는다.
-          if (e.routeSource === 'lookup') {
-            var found = document.createElement('span');
-            found.className = 'cal-lookup';
-            found.textContent = '조회';
-            found.title = e.code + ' 의 노선을 자동으로 찾아 채웠습니다. 실제 로스터를 따르세요.';
-            item.appendChild(found);
-          }
-          if (e.routePending) {
-            var waiting = document.createElement('span');
-            waiting.className = 'cal-lookup pending';
-            waiting.textContent = '조회 중';
-            item.appendChild(waiting);
-          }
+        // 자동으로 물어 채운 노선만 표를 단다. 원본·시드로 푼 것은 아무 표시도 않는다.
+        if (group.entries.some(function (e) { return e.routeSource === 'lookup'; })) {
+          var found = document.createElement('span');
+          found.className = 'cal-lookup';
+          found.textContent = '조회';
+          found.title = '노선을 자동으로 찾아 채웠습니다. 실제 로스터를 따르세요.';
+          item.appendChild(found);
+        }
+        if (group.entries.some(function (e) { return e.routePending; })) {
+          var waiting = document.createElement('span');
+          waiting.className = 'cal-lookup pending';
+          waiting.textContent = '조회 중';
+          item.appendChild(waiting);
+        }
 
-          // 공동운항이면 실제로 누가 띄우는 편인지 작게 알려 준다. 주인공은 도시다.
-          if (e.codeshare && e.operatorName) {
-            var by = document.createElement('span');
-            by.className = 'cal-operator';
-            by.textContent = e.operatorName + '운항';
-            by.title = e.code + ' 는 ' + e.operatorName + ' 가 띄우는 공동운항편입니다.';
-            item.appendChild(by);
-          }
-          // 시즌·운휴 같은 덧말. 미심쩍다고 적힌 것은 다른 색으로.
-          if (e.routeNote) {
-            var note = document.createElement('span');
-            note.className = 'cal-note' + (e.routeNoteWarn ? ' warn' : '');
-            note.textContent = e.routeNote.length > 14 ? e.routeNote.slice(0, 13) + '…' : e.routeNote;
-            note.title = e.routeNote;
-            item.appendChild(note);
-          }
+        // 공동운항이면 실제로 누가 띄우는 편인지 작게 알려 준다. 주인공은 도시다.
+        var shares = {};
+        group.entries.forEach(function (e) {
+          if (e.codeshare && e.operatorName) shares[e.operatorName] = true;
+        });
+        Object.keys(shares).forEach(function (name) {
+          var by = document.createElement('span');
+          by.className = 'cal-operator';
+          by.textContent = name + '운항';
+          by.title = name + ' 가 띄우는 공동운항편입니다.';
+          item.appendChild(by);
+        });
+        // 시즌·운휴 같은 덧말. 미심쩍다고 적힌 것은 다른 색으로.
+        var notes = {};
+        group.entries.forEach(function (e) {
+          if (e.routeNote) notes[e.routeNote] = !!e.routeNoteWarn;
+        });
+        Object.keys(notes).forEach(function (text) {
+          var note = document.createElement('span');
+          note.className = 'cal-note' + (notes[text] ? ' warn' : '');
+          note.textContent = text.length > 14 ? text.slice(0, 13) + '…' : text;
+          note.title = text;
+          item.appendChild(note);
+        });
 
-          // 손님으로 타고 가는 편(TVL)은 실제 승무가 아니므로 표를 남긴다
-          if (e.deadhead) {
-            var dh = document.createElement('span');
-            dh.className = 'cal-deadhead';
-            dh.textContent = '탑승 근무';
-            dh.title = 'TVL — 손님으로 타고 이동하는 편입니다. 비행 편수에 넣지 않습니다.';
-            item.appendChild(dh);
-          }
+        // 한 도시로 묶인 편이 여럿이면 몇 편인지 남긴다. 편명은 눌러서 상세로 본다.
+        var flights = group.entries.filter(function (e) { return e.type === 'flight'; }).length;
+        if (flights > 1) {
+          var many = document.createElement('span');
+          many.className = 'cal-count';
+          many.textContent = flights + '편';
+          many.title = group.entries.map(function (e) { return e.code; }).join(' · ');
+          item.appendChild(many);
+        }
 
-          // 큰 글씨 밑에는 작은 글씨로 한 줄. 도시 밑에는 편명(체류면 '체류'),
-          // 휴무·대기처럼 이름이 제목인 경우에는 원래 코드를 적는다.
-          // 큰 글씨가 도시면 아래에 원래 코드를 적는다. 체류도 LO 가 보여야
-          // 어떤 근무였는지 알아볼 수 있다.
-          var subText = (place || enroute)
-            ? (e.type === 'flight' ? e.code
-              : (e.label || '') + (e.code && e.code !== e.label ? ' ' + e.code : ''))
-            : (e.type === 'flight' ? '' : (e.code !== e.label ? e.code : ''));
-          if (subText) {
+        // 손님으로 타고 가는 편(TVL)은 실제 승무가 아니므로 표를 남긴다. 한 번만.
+        if (group.entries.some(function (e) { return e.deadhead; })) {
+          var dh = document.createElement('span');
+          dh.className = 'cal-deadhead';
+          dh.textContent = '탑승 근무';
+          dh.title = 'TVL — 손님으로 타고 이동하는 편입니다. 비행 편수에 넣지 않습니다.';
+          item.appendChild(dh);
+        }
+
+        // 도시가 주인공이라 편명은 칸에서 뺐다(누르면 상세에 그대로 있다).
+        // 휴무·대기처럼 이름을 한글로 바꿔 적은 것만 원래 코드를 아래에 남긴다.
+        if (!place) {
+          var codes = [];
+          group.entries.forEach(function (e) {
+            var code = e.code || '';
+            if (code && code !== (e.label || '') && codes.indexOf(code) < 0) codes.push(code);
+          });
+          if (codes.length) {
             var sub = document.createElement('span');
             sub.className = 'cal-code';
-            sub.textContent = subText;
+            sub.textContent = codes.join(' · ');
             item.appendChild(sub);
           }
-
-          chips.appendChild(item);
-        });
-        // 코드가 없는 날. 휴무라고 적되 코드 자리는 비워 두어 추정임을 드러낸다.
-        if (assumed) {
-          var guess = document.createElement('span');
-          guess.className = 'cal-item assumed';
-          guess.title = '읽어 들인 코드가 없는 날입니다. 휴무로 봅니다.';
-          var guessTitle = document.createElement('span');
-          guessTitle.className = 'cal-title cat-off';
-          guessTitle.textContent = '휴무';
-          guess.appendChild(guessTitle);
-          chips.appendChild(guess);
-        }
-        // 자리가 모자라면 접기만 한다. 날짜를 누르면 전부 보인다.
-        if (shown.length > CELL_LIMIT) {
-          var more = document.createElement('span');
-          more.className = 'cal-more';
-          more.textContent = '+' + (shown.length - CELL_LIMIT);
-          more.title = '이 날 근무 ' + shown.length + '건. 눌러서 전부 보기';
-          chips.appendChild(more);
         }
 
-        // 읽기는 했는데 칸에 아무것도 못 그린 날. 휴무로 덮지 않고 잘못됐다고 알린다.
-        if (list.length && !shown.length) {
-          var failed = document.createElement('span');
-          failed.className = 'cal-badge cal-failed';
-          failed.textContent = '파싱 실패';
-          failed.title = list.map(function (e) { return e.code; }).join(', ') +
-            ' — 읽기는 했으나 근무로 알아보지 못했습니다. 눌러서 원래 글자를 보세요.';
-          chips.appendChild(failed);
-          cell.classList.add('parse-failed');
-        }
+        chips.appendChild(item);
+      });
 
-        var checkNote = dayNeedsCheck(list);
-        if (checkNote) {
-          var check = document.createElement('span');
-          check.className = 'cal-badge cal-check';
-          check.textContent = '확인 필요';
-          check.title = checkNote + ' — 지우지 않았으니 눌러서 확인하세요.';
-          chips.appendChild(check);
-          cell.classList.add('needs-check');
-        }
-        cell.appendChild(chips);
+      // 코드가 없는 날. 쉬는날이라 적되 코드 자리는 비워 두어 추정임을 드러낸다.
+      if (assumed) {
+        var guess = document.createElement('span');
+        guess.className = 'cal-item assumed';
+        guess.title = '읽어 들인 코드가 없는 날입니다. 쉬는날로 봅니다.';
+        var guessTitle = document.createElement('span');
+        guessTitle.className = 'cal-title cat-off';
+        guessTitle.textContent = '쉬는날';
+        guess.appendChild(guessTitle);
+        chips.appendChild(guess);
+      }
+      // 자리가 모자라면 접기만 한다. 날짜를 누르면 전부 보인다.
+      if (groups.length > CELL_LIMIT) {
+        var more = document.createElement('span');
+        more.className = 'cal-more';
+        more.textContent = '+' + (groups.length - CELL_LIMIT);
+        more.title = '이 날 근무 ' + shown.length + '건. 눌러서 전부 보기';
+        chips.appendChild(more);
+      }
 
-        cell.addEventListener('click', function () { onSelect(date); });
-        cell.addEventListener('keydown', function (event) {
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            onSelect(date);
-          }
-        });
-        grid.appendChild(cell);
-      })(slot.day, slot.date, slot.outside);
+      // 읽기는 했는데 칸에 아무것도 못 그린 날. 휴무로 덮지 않고 잘못됐다고 알린다.
+      if (list.length && !shown.length) {
+        var failed = document.createElement('span');
+        failed.className = 'cal-badge cal-failed';
+        failed.textContent = '파싱 실패';
+        failed.title = list.map(function (e) { return e.code; }).join(', ') +
+          ' — 읽기는 했으나 근무로 알아보지 못했습니다. 눌러서 원래 글자를 보세요.';
+        chips.appendChild(failed);
+        cell.classList.add('parse-failed');
+        alerts.push('파싱 실패');
+      }
+
+      var checkNote = dayNeedsCheck(list);
+      if (checkNote) {
+        var check = document.createElement('span');
+        check.className = 'cal-badge cal-check';
+        check.textContent = '확인 필요';
+        check.title = checkNote + ' — 지우지 않았으니 눌러서 확인하세요.';
+        chips.appendChild(check);
+        cell.classList.add('needs-check');
+        alerts.push(checkNote);
+      }
+      cell.appendChild(chips);
+
+      if (alerts.length) {
+        var bell = document.createElement('span');
+        bell.className = 'cal-alert';
+        bell.textContent = '!';
+        bell.title = alerts.join(' · ');
+        head2.appendChild(bell);
+      }
+
+      cell.addEventListener('click', function () { onSelect(date); });
+      cell.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onSelect(date);
+        }
+      });
+      grid.appendChild(cell);
+    });
+
+    // 여러 날에 걸친 한 여정을 칸 아래로 잇는 띠. 주가 바뀌면 끊어서 이어 그린다.
+    var spanDates = slots.map(function (slot) { return slot.date; });
+    tripBands(entriesByDate, spanDates).forEach(function (band) {
+      var first = seatOf(band.start);
+      var last = seatOf(band.end);
+      if (!first || !last) return;
+      var hue = bandHue(band.country);
+      for (var row = first.row; row <= last.row; row++) {
+        var from = (row === first.row) ? first.column : 0;
+        var to = (row === last.row) ? last.column : COLUMNS - 1;
+        if (to < from) continue;
+        var bar = document.createElement('span');
+        bar.className = 'cal-band';
+        if (row === first.row) bar.classList.add('band-start');
+        if (row === last.row) bar.classList.add('band-end');
+        bar.style.gridRow = String(row + 1);
+        bar.style.gridColumn = (from + 1) + ' / span ' + (to - from + 1);
+        bar.style.setProperty('--band-hue', String(hue));
+        bar.title = band.countryName + ' — ' + band.start + ' ~ ' + band.end;
+        var label = document.createElement('span');
+        label.className = 'cal-band-label';
+        label.textContent = (band.flag ? band.flag + ' ' : '') + band.countryName;
+        bar.appendChild(label);
+        grid.appendChild(bar);
+      }
     });
 
     container.appendChild(grid);
@@ -915,7 +1193,14 @@
     assertNoEntries: assertNoEntries,
     dayNeedsCheck: dayNeedsCheck,
     CELL_LIMIT: CELL_LIMIT,
+    COLUMNS: COLUMNS,
     tripPlaces: tripPlaces,
+    tripBands: tripBands,
+    awayCountryOf: awayCountryOf,
+    cellGroups: cellGroups,
+    groupLines: groupLines,
+    entryTimes: entryTimes,
+    timePoint: timePoint,
     iso: iso,
     pad2: pad2,
     todayIso: todayIso,

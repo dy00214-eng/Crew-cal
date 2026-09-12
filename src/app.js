@@ -29,6 +29,7 @@
     view: 'calendar',
     hideTimes: {},
     assumeOff: true,
+    localTimes: false,
     autoLookup: true,
     cleaning: false,
     cleanupAbort: null,
@@ -54,6 +55,7 @@
 
   var VIEW_KEY = 'crew-cal.view.v1';
   var ASSUME_OFF_KEY = 'crew-cal.assume-off.v1';
+  var LOCAL_TIME_KEY = 'crew-cal.local-times.v1';
 
   var AIRLINES_KEY = 'crew-cal.airlines.v1';
 
@@ -81,6 +83,15 @@
 
   function saveAssumeOff(on) {
     try { localStorage.setItem(ASSUME_OFF_KEY, on ? '1' : '0'); } catch (e) { /* 무시 */ }
+  }
+
+  /* 시각은 기본이 한국 시각이다. 현지 시각으로 보고 싶은 사람만 켠다. */
+  function loadLocalTimes() {
+    try { return localStorage.getItem(LOCAL_TIME_KEY) === '1'; } catch (e) { return false; }
+  }
+
+  function saveLocalTimes(on) {
+    try { localStorage.setItem(LOCAL_TIME_KEY, on ? '1' : '0'); } catch (e) { /* 무시 */ }
   }
 
   function loadView() {
@@ -154,6 +165,7 @@
       selectedDate: state.selectedDate,
       hideTimes: state.hideTimes,
       assumeOff: state.assumeOff,
+      localTimes: state.localTimes,
       onSelect: selectDate
     };
 
@@ -174,7 +186,160 @@
 
     renderMonthSummary(entriesByDate);
     renderNextDuty(entriesByDate);
+    renderTriMonth();
+    renderCityCards(entriesByDate);
+    renderDock();
+    var note = $('calFootnote');
+    if (note) {
+      note.textContent = state.localTimes
+        ? '출도착시간은 각 공항의 현지시간 기준'
+        : '출도착시간은 한국시간(KST) 기준';
+    }
     renderDayDetail();
+  }
+
+  /* ---------------- 상단 3개월 · 하단 도시 카드 · 하단 고정 바 ---------------- */
+
+  var MONTH_NAMES = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE',
+    'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
+  var MONTH_SHORT = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
+    'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+
+  function stepMonth(year, month, delta) {
+    var m = month + delta, y = year;
+    while (m > 12) { m -= 12; y++; }
+    while (m < 1) { m += 12; y--; }
+    return { year: y, month: m };
+  }
+
+  function goToMonth(year, month) {
+    state.year = year;
+    state.month = month;
+    syncPasteBase();
+    refresh();
+  }
+
+  /** 옆에 붙는 작은 달력 하나. 날짜를 누르면 그 달로 넘어간다. */
+  function miniMonth(box, year, month) {
+    box.innerHTML = '';
+    var title = document.createElement('div');
+    title.className = 'tri-side-title';
+    title.textContent = MONTH_NAMES[month - 1] + ' ' + month;
+    box.appendChild(title);
+
+    var head = document.createElement('div');
+    head.className = 'tri-mini-head';
+    ['S', 'M', 'T', 'W', 'T', 'F', 'S'].forEach(function (w, i) {
+      var c = document.createElement('span');
+      c.textContent = w;
+      if (i === 0) c.className = 'sun';
+      head.appendChild(c);
+    });
+    box.appendChild(head);
+
+    var grid = document.createElement('div');
+    grid.className = 'tri-mini-grid';
+    var total = calendar.daysInMonth(year, month);
+    for (var day = 1; day <= total; day++) {
+      var date = calendar.iso(year, month, day);
+      var weekday = new Date(date + 'T00:00:00Z').getUTCDay();
+      var cell = document.createElement('button');
+      cell.type = 'button';
+      cell.className = 'tri-mini-day' + (weekday === 0 ? ' sun' : '');
+      // 자리는 요일이 정한다. 첫 주만 빈 칸만큼 밀어 주면 나머지는 저절로 맞는다.
+      if (day === 1) cell.style.gridColumnStart = String(weekday + 1);
+      cell.textContent = String(day);
+      cell.setAttribute('data-date', date);
+      grid.appendChild(cell);
+    }
+    grid.addEventListener('click', function (event) {
+      var hit = event.target.closest ? event.target.closest('.tri-mini-day') : null;
+      if (!hit) return;
+      var date = hit.getAttribute('data-date');
+      goToMonth(+date.slice(0, 4), +date.slice(5, 7));
+      selectDate(date);
+    });
+    box.appendChild(grid);
+  }
+
+  function renderTriMonth() {
+    var prev = stepMonth(state.year, state.month, -1);
+    var next = stepMonth(state.year, state.month, 1);
+    if ($('triPrev')) miniMonth($('triPrev'), prev.year, prev.month);
+    if ($('triNext')) miniMonth($('triNext'), next.year, next.month);
+    if ($('triBig')) $('triBig').textContent = String(state.month);
+    if ($('triLabel')) $('triLabel').textContent = state.year + ' ' + MONTH_NAMES[state.month - 1];
+  }
+
+  /**
+   * 이 달에 가는 도시 카드. 달력에 이미 그린 것에서 뽑으므로 없는 도시가 생기지 않는다.
+   * '전체 도시' 를 누르면 저장된 모든 달의 도시를 함께 보여준다.
+   */
+  var showAllCities = false;
+
+  function citiesIn(entriesByDate, prefix) {
+    var seen = {};
+    var out = [];
+    Object.keys(entriesByDate || {}).sort().forEach(function (date) {
+      if (prefix && date.slice(0, 7) !== prefix) return;
+      (entriesByDate[date] || []).forEach(function (e) {
+        if (e.strange) return;
+        var place = airports.tripPlace(e);
+        if (!place || !place.city) return;
+        if (seen[place.iata]) return;
+        seen[place.iata] = true;
+        out.push({ iata: place.iata, city: place.city, flag: place.flag, date: date });
+      });
+    });
+    return out;
+  }
+
+  function renderCityCards(entriesByDate) {
+    var card = $('cityCard');
+    var grid = $('cityGrid');
+    if (!card || !grid) return;
+    var prefix = state.year + '-' + pad2(state.month);
+    var list = citiesIn(entriesByDate, showAllCities ? null : prefix);
+    $('cityTitle').textContent = showAllCities ? '가 본 모든 도시' : '이번 달 가는 도시';
+    var all = $('cityAll');
+    if (all) all.textContent = showAllCities ? '이번 달만' : '전체 도시';
+    grid.innerHTML = '';
+    if (!list.length) {
+      card.hidden = !showAllCities;
+      if (showAllCities) {
+        var empty = document.createElement('p');
+        empty.className = 'muted small-note';
+        empty.textContent = '아직 저장된 비행이 없습니다.';
+        grid.appendChild(empty);
+      }
+      return;
+    }
+    card.hidden = false;
+    list.forEach(function (place) {
+      var item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'city-item';
+      item.setAttribute('data-date', place.date);
+      var flag = document.createElement('span');
+      flag.className = 'city-flag';
+      flag.textContent = place.flag || '';
+      var name = document.createElement('span');
+      name.className = 'city-name';
+      name.textContent = place.city;
+      var arrow = document.createElement('span');
+      arrow.className = 'city-arrow';
+      arrow.textContent = '›';
+      item.appendChild(flag);
+      item.appendChild(name);
+      item.appendChild(arrow);
+      item.addEventListener('click', function () { goToDate(place.date); });
+      grid.appendChild(item);
+    });
+  }
+
+  function renderDock() {
+    if ($('dockMonth')) $('dockMonth').textContent = MONTH_SHORT[state.month - 1];
+    if ($('dockYear')) $('dockYear').textContent = String(state.year);
   }
 
   /* ---------------- 편명 노선 자동 조회 (3단계) ---------------- */
@@ -610,6 +775,19 @@
     box.addEventListener('change', function () {
       state.assumeOff = box.checked;
       saveAssumeOff(state.assumeOff);
+      refresh();
+    });
+  }
+
+  /* 한국 시각 / 현지 시각 토글. 아래 고정 문구도 함께 바뀐다. */
+  function initLocalTimes() {
+    var box = $('localTimes');
+    state.localTimes = loadLocalTimes();
+    if (!box) return;
+    box.checked = state.localTimes;
+    box.addEventListener('change', function () {
+      state.localTimes = box.checked;
+      saveLocalTimes(state.localTimes);
       refresh();
     });
   }
@@ -1820,7 +1998,7 @@
   /* ---------------- 동료가 보내는 의견 ---------------- */
 
   // 화면 아래와 의견 보내기에 적히는 판 번호. sw.js 의 VERSION 과 함께 올린다.
-  var APP_VERSION = 'v34';
+  var APP_VERSION = 'v35';
 
   /**
    * 의견을 받을 메일 주소. 저장소가 공개라 통짜로 적어두면 스팸 크롤러가 긁어가므로
@@ -2301,7 +2479,68 @@
     if (stamp) stamp.textContent = APP_VERSION;
   }
 
+  /* 라이트 / 다크 / 기기 설정 따르기 — 세 상태를 돌아가며 고른다. */
+  var THEME_KEY = 'crew-cal.theme.v1';
+  var THEMES = ['auto', 'light', 'dark'];
+  var THEME_NAMES = { auto: '기기 설정', light: '라이트', dark: '다크' };
+
+  function applyTheme(theme) {
+    var root = document.documentElement;
+    if (theme === 'light' || theme === 'dark') root.setAttribute('data-theme', theme);
+    else root.removeAttribute('data-theme');
+    var btn = $('themeBtn');
+    if (btn) {
+      btn.textContent = THEME_NAMES[theme] || '테마';
+      btn.title = '테마 — 지금은 ' + (THEME_NAMES[theme] || '기기 설정') + '. 눌러서 바꿉니다.';
+    }
+  }
+
+  function initTheme() {
+    var saved = 'auto';
+    try {
+      var got = localStorage.getItem(THEME_KEY);
+      if (THEMES.indexOf(got) >= 0) saved = got;
+    } catch (e) { /* 못 읽으면 기기 설정을 따른다 */ }
+    applyTheme(saved);
+    var btn = $('themeBtn');
+    if (!btn) return;
+    btn.addEventListener('click', function () {
+      saved = THEMES[(THEMES.indexOf(saved) + 1) % THEMES.length];
+      try { localStorage.setItem(THEME_KEY, saved); } catch (e) { /* 무시 */ }
+      applyTheme(saved);
+      toast('테마: ' + THEME_NAMES[saved]);
+    });
+  }
+
+  /* 하단 고정 바. 달 넘기기는 위 화살표와 같은 일을 한다. */
+  function initDock() {
+    if ($('dockPrev')) $('dockPrev').addEventListener('click', function () { goMonth(-1); });
+    if ($('dockNext')) $('dockNext').addEventListener('click', function () { goMonth(1); });
+    if ($('dockTools')) {
+      $('dockTools').addEventListener('click', function () {
+        var card = document.querySelector('.input-card');
+        if (card && card.scrollIntoView) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
+    if ($('dockOptions')) {
+      $('dockOptions').addEventListener('click', function () {
+        var box = $('viewSettings');
+        if (!box) return;
+        box.open = true;
+        if (box.scrollIntoView) box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    }
+    if ($('cityAll')) {
+      $('cityAll').addEventListener('click', function () {
+        showAllCities = !showAllCities;
+        refresh();
+      });
+    }
+  }
+
   function init() {
+    initTheme();
+    initDock();
     $('prevMonth').addEventListener('click', function () { goMonth(-1); });
     $('nextMonth').addEventListener('click', function () { goMonth(1); });
     $('todayBtn').addEventListener('click', function () {
@@ -2317,6 +2556,7 @@
     initDownloads();
     initViewToggle();
     initAssumeOff();
+    initLocalTimes();
     initAirlines();
     initRouteLookup();
     initTimes();

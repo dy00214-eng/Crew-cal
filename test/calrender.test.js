@@ -19,6 +19,7 @@ function element(tag) {
     setAttribute(k, v) { el.attrs[k] = String(v); },
     getAttribute(k) { return el.attrs[k]; },
     addEventListener() {},
+    style: { setProperty(k, v) { this[k] = v; } },
     classList: {
       add(name) { if (!el.className.split(' ').includes(name)) el.className = (el.className + ' ' + name).trim(); },
       contains(name) { return el.className.split(' ').includes(name); }
@@ -56,13 +57,13 @@ test('코드가 없는 이 달의 날도 칸을 그리고 휴무로 적는다', 
   assert.ok(day19.classList.contains('in-month'), '이 달 칸임을 표시한다');
   assert.ok(day19.classList.contains('assumed'), '넘겨짚은 칸임을 표시한다');
   assert.ok(day19.classList.contains('day-off'), '쉬는 날 색으로 칠한다');
-  assert.ok(textOf(day19).includes('휴무'), textOf(day19));
+  assert.ok(textOf(day19).includes('쉬는날'), textOf(day19));
 
   // 앞뒤 달 날짜는 흐린 채로, 휴무를 지어 넣지 않는다
   const before = cells['2026-03-31'];
   assert.ok(before.classList.contains('outside'));
   assert.ok(!before.classList.contains('in-month'));
-  assert.ok(!textOf(before).includes('휴무'), textOf(before));
+  assert.ok(!textOf(before).includes('쉬는날'), textOf(before));
 });
 
 test('코드가 있는 날은 넘겨짚지 않는다', () => {
@@ -70,7 +71,8 @@ test('코드가 있는 날은 넘겨짚지 않는다', () => {
   const cell = cells['2026-04-19'];
   assert.ok(cell.classList.contains('in-month'));
   assert.ok(!cell.classList.contains('assumed'));
-  assert.ok(textOf(cell).includes('대기'), textOf(cell));
+  assert.ok(textOf(cell).includes('스탠바이'), textOf(cell));
+  assert.ok(textOf(cell).includes('STBY'), '원래 코드는 그대로 남는다: ' + textOf(cell));
 });
 
 test('설정을 끄면 빈 날을 휴무로 적지 않는다', () => {
@@ -78,7 +80,7 @@ test('설정을 끄면 빈 날을 휴무로 적지 않는다', () => {
   const cell = cells['2026-04-19'];
   assert.ok(cell.classList.contains('in-month'), '칸은 그대로 그린다');
   assert.ok(!cell.classList.contains('assumed'));
-  assert.ok(!textOf(cell).includes('휴무'), textOf(cell));
+  assert.ok(!textOf(cell).includes('쉬는날'), textOf(cell));
 });
 
 test('아는 항공사가 아닌 편명 꼴은 칸에 띄우지 않는다', () => {
@@ -88,7 +90,8 @@ test('아는 항공사가 아닌 편명 꼴은 칸에 띄우지 않는다', () =
   ];
   const cells = draw({ year: 2026, month: 3, entriesByDate: { '2026-03-09': entries } });
   const text = textOf(cells['2026-03-09']);
-  assert.ok(text.includes('휴무'), text);
+  assert.ok(text.includes('쉬는날'), text);
+  assert.ok(text.includes('ATDO'), '원래 코드는 그대로 남는다: ' + text);
   assert.ok(!text.includes('AS0016'), '달력 칸에는 안 뜬다: ' + text);
   assert.ok(!cells['2026-03-09'].classList.contains('needs-route'), '비행이 아니니 노선도 안 묻는다');
 
@@ -104,11 +107,15 @@ test('하루 네 편도 모두 그린다 — 지우거나 휴무로 덮지 않�
   const cell = cells['2026-03-01'];
   const text = textOf(cell);
 
-  assert.ok(!text.includes('휴무'), '원본에 휴무가 없으면 휴무를 지어내지 않는다: ' + text);
+  assert.ok(!text.includes('쉬는날'), '원본에 휴무가 없으면 휴무를 지어내지 않는다: ' + text);
   assert.ok(!cell.classList.contains('assumed'));
-  assert.ok(text.includes('KE1807') && text.includes('KE1810'), text);
-  assert.ok(text.includes('+1'), '세 개까지 보이고 나머지는 접는다: ' + text);
+  // 편명은 칸에서 빼고 도시를 앞세우되, 몇 편인지는 칸에서 바로 보여야 한다
+  assert.ok(text.includes('부산'), text);
+  assert.ok(text.includes('4편'), '한 도시로 묶어도 편수는 남긴다: ' + text);
   assert.strictEqual(calendar.cellItems(list).length, 4, '데이터는 넷 그대로');
+  const groups = calendar.cellGroups(list, '2026-03-01', null, false);
+  assert.strictEqual(groups.length, 1, '같은 도시는 한 덩이');
+  assert.strictEqual(groups[0].entries.length, 4, '묶어도 엔트리는 넷 그대로');
   assert.ok(!text.includes('왕복'), '왕복 묶기는 걷어냈다: ' + text);
 });
 
@@ -235,4 +242,97 @@ test('같은 칸의 TVL 은 그날 비행을 탑승 근무로 만든다', () => 
   assert.strictEqual(byDate['2026-01-29'][0].deadhead, true, '비행이 탑승 근무가 된다');
   assert.strictEqual(byDate['2026-01-29'][1].deadhead, false, 'TVL 자신에는 붙지 않는다');
   assert.strictEqual(calendar.summarize(byDate, 2026, 1).flights, 0, '비행 편수에서 뺀다');
+});
+
+test('그리드는 언제나 7열이고 자리는 날짜가 정한다', () => {
+  const cells = draw({ entriesByDate: {} });
+  assert.strictEqual(calendar.COLUMNS, 7);
+  // 2026-01-01 은 목요일 — 일요일부터 세어 다섯 번째 칸(1-based)
+  const jan = {};
+  const container = element('div');
+  calendar.render(container, { year: 2026, month: 1, entriesByDate: {} });
+  walk(container).filter((n) => n.classList.contains('cal-cell'))
+    .forEach((c) => { jan[c.getAttribute('data-date')] = c; });
+  assert.strictEqual(jan['2026-01-01'].style.gridColumn, '5', '1월 1일은 목요일 칸');
+  assert.strictEqual(jan['2026-01-04'].style.gridColumn, '1', '1월 4일은 일요일 칸');
+  assert.strictEqual(jan['2026-01-04'].style.gridRow, '2', '둘째 주');
+  // 어느 칸도 어긋났다고 표시되지 않는다
+  Object.keys(jan).forEach((date) => {
+    assert.ok(!jan[date].classList.contains('seat-mismatch'), date + ' 가 어긋났습니다');
+  });
+  assert.ok(cells['2026-04-01']);
+});
+
+test('시각은 한국 시각으로 옮기고 어느 공항 기준인지 밝힌다', () => {
+  const list = [store.decorate({
+    date: '2026-01-09', code: 'KE0005', route: 'ICN/LAS',
+    start: '21:03', end: '14:43', legRole: 'depart'
+  })];
+  const cells = draw({ year: 2026, month: 1, entriesByDate: { '2026-01-09': list } });
+  const text = textOf(cells['2026-01-09']);
+  assert.ok(text.includes('ICN출발 21:03'), text);
+  // LAS 14:43 은 한국 시각으로 이튿날 07:43
+  assert.ok(text.includes('LAS도착 07:43'), text);
+
+  // 현지 시각으로 보기를 켜면 원본 그대로
+  const local = draw({ year: 2026, month: 1, entriesByDate: { '2026-01-09': list }, localTimes: true });
+  assert.ok(textOf(local['2026-01-09']).includes('LAS도착 14:43'), textOf(local['2026-01-09']));
+});
+
+test('이틀 이상 이어지는 여정만 가로 띠로 잇는다', () => {
+  const byDate = {
+    '2026-01-09': [store.decorate({ date: '2026-01-09', code: 'KE0005', route: 'ICN/LAS', legRole: 'depart' })],
+    '2026-01-10': [store.decorate({ date: '2026-01-10', code: 'LO', route: 'LAS' })],
+    '2026-01-11': [store.decorate({ date: '2026-01-11', code: 'KE0006', route: 'LAS/ICN', legRole: 'enroute' })],
+    '2026-01-12': [store.decorate({ date: '2026-01-12', code: 'KE0006', route: 'LAS/ICN', legRole: 'arrive' })],
+    // 당일 왕복은 띠를 그리지 않는다
+    '2026-01-18': [store.decorate({ date: '2026-01-18', code: 'KE2179', route: 'ICN/KOJ' }),
+      store.decorate({ date: '2026-01-18', code: 'KE2180', route: 'KOJ/ICN' })]
+  };
+  const dates = Object.keys(byDate).sort();
+  const bands = calendar.tripBands(byDate, dates);
+  assert.strictEqual(bands.length, 1, JSON.stringify(bands));
+  assert.strictEqual(bands[0].country, 'US');
+  assert.strictEqual(bands[0].start, '2026-01-09');
+  assert.strictEqual(bands[0].end, '2026-01-12');
+  assert.strictEqual(bands[0].countryName, '미국');
+
+  const container = element('div');
+  calendar.render(container, { year: 2026, month: 1, entriesByDate: byDate });
+  const bars = walk(container).filter((n) => n.classList.contains('cal-band'));
+  // 1월 9일은 금요일, 12일은 그다음 주 월요일 — 주가 갈리니 두 조각으로 이어 그린다
+  assert.strictEqual(bars.length, 2, '주가 갈리니 두 조각');
+  assert.strictEqual(bars[0].style.gridColumn, '6 / span 2', '금·토');
+  assert.strictEqual(bars[1].style.gridColumn, '1 / span 2', '일·월');
+  const covered = bars.reduce((n, b) => n + (+b.style.gridColumn.split('span ')[1]), 0);
+  assert.strictEqual(covered, 4, '9~12일 네 칸을 덮는다');
+  assert.ok(textOf(bars[0]).includes('미국'), textOf(bars[0]));
+});
+
+test('한 주 안에서 끝나는 여정은 한 조각으로 그린다', () => {
+  // 1월 4일(일) ~ 1월 7일(수) — 모두 같은 주
+  const byDate = {
+    '2026-01-04': [store.decorate({ date: '2026-01-04', code: 'KE0081', route: 'ICN/JFK', legRole: 'depart' })],
+    '2026-01-07': [store.decorate({ date: '2026-01-07', code: 'KE0082', route: 'JFK/ICN', legRole: 'arrive' })]
+  };
+  ['2026-01-05', '2026-01-06'].forEach((date) => {
+    byDate[date] = [store.decorate({ date: date, code: 'LO', route: 'JFK' })];
+  });
+  const container = element('div');
+  calendar.render(container, { year: 2026, month: 1, entriesByDate: byDate });
+  const bars = walk(container).filter((n) => n.classList.contains('cal-band'));
+  assert.strictEqual(bars.length, 1, '한 주 안이니 한 조각');
+  assert.strictEqual(bars[0].style.gridColumn, '1 / span 4', '일요일부터 네 칸');
+  assert.ok(bars[0].classList.contains('band-start'));
+  assert.ok(bars[0].classList.contains('band-end'));
+});
+
+test('TVL 은 배지 하나로만 나오고 제 칸을 따로 만들지 않는다', () => {
+  const list = [store.decorate({
+    date: '2026-01-29', code: 'KE0601', route: 'ICN/CEB',
+    start: '18:50', legRole: 'depart', deadhead: true
+  })];
+  const cells = draw({ year: 2026, month: 1, entriesByDate: { '2026-01-29': list } });
+  const badges = walk(cells['2026-01-29']).filter((n) => n.classList.contains('cal-deadhead'));
+  assert.strictEqual(badges.length, 1, '탑승 근무 배지는 한 번만');
 });

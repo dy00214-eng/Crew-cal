@@ -277,6 +277,8 @@
     if (!row) return;
     if (row.country) AIRPORT_COUNTRY[iata] = row.country;
     if (row.city) CITY_NAMES[iata] = row.city;
+    // 시드가 적어 준 시간대가 가장 정확하다. 나라·대륙으로 미루어 짚은 것보다 앞선다.
+    if (row.tz) TZ_BY_AIRPORT[iata] = row.tz;
   });
 
   /** 나라 코드 -> 국기 이모지. 'KR' -> 🇰🇷 */
@@ -420,7 +422,100 @@
     return (country && TZ_BY_COUNTRY[country]) || null;
   }
 
+  var KST = 'Asia/Seoul';
+
+  /**
+   * 어떤 시간대에서 그 순간의 시계가 UTC 와 몇 밀리초 떨어져 있는지.
+   * Intl 이 서머타임까지 알고 있으니 표를 따로 들고 있지 않아도 된다.
+   */
+  var offsetCache = {};
+
+  function zoneOffset(zone, instant) {
+    if (!zone) return null;
+    // 같은 시간대·같은 날이면 값이 같다. 한 달치를 그리면 같은 계산이 수백 번 나온다.
+    var key = zone + '|' + Math.floor(instant / 3600000);
+    if (offsetCache[key] !== undefined) return offsetCache[key];
+    var parts;
+    try {
+      parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: zone, hour12: false,
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+      }).formatToParts(new Date(instant));
+    } catch (err) {
+      offsetCache[key] = null;
+      return null;
+    }
+    var got = {};
+    parts.forEach(function (p) { got[p.type] = p.value; });
+    var asUtc = Date.UTC(+got.year, +got.month - 1, +got.day,
+      (+got.hour) % 24, +got.minute, +got.second);
+    var offset = asUtc - instant;
+    offsetCache[key] = offset;
+    return offset;
+  }
+
+  /** 그 시간대의 벽시계 시각(YYYY-MM-DD HH:MM)이 실제로 언제인지. */
+  function instantOf(zone, date, hhmm) {
+    var dm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(date || ''));
+    var tm = /^(\d{1,2}):(\d{2})$/.exec(String(hhmm || ''));
+    if (!dm || !tm) return null;
+    var wall = Date.UTC(+dm[1], +dm[2] - 1, +dm[3], +tm[1], +tm[2]);
+    var off = zoneOffset(zone, wall);
+    if (off === null) return null;
+    var guess = wall - off;
+    // 서머타임이 바뀌는 날은 한 번 더 맞춰 봐야 어긋나지 않는다.
+    var off2 = zoneOffset(zone, guess);
+    if (off2 !== null && off2 !== off) guess = wall - off2;
+    return guess;
+  }
+
+  function partsIn(zone, instant) {
+    var got = {};
+    new Intl.DateTimeFormat('en-US', {
+      timeZone: zone, hour12: false,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit'
+    }).formatToParts(new Date(instant)).forEach(function (p) { got[p.type] = p.value; });
+    return got;
+  }
+
+  function dayNumber(date) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(date || ''));
+    if (!m) return null;
+    return Math.floor(Date.UTC(+m[1], +m[2] - 1, +m[3]) / 86400000);
+  }
+
+  /**
+   * 어느 공항의 현지 시각을 한국 시각으로 옮긴다.
+   *   toKst('2026-01-09', '21:03', 'LAS') -> { time: '14:03', date: '2026-01-10', shift: 1 }
+   * 시간대를 모르는 공항이면 null 을 준다. 모르면 지어내지 않고 원래 값을 그냥 쓴다.
+   */
+  function toKst(date, hhmm, iata) {
+    var zone = zoneOf(iata);
+    if (!zone) return null;
+    if (zone === KST) {
+      var keep = /^(\d{1,2}):(\d{2})$/.exec(String(hhmm || ''));
+      if (!keep) return null;
+      return { time: (keep[1].length < 2 ? '0' : '') + keep[1] + ':' + keep[2], date: date, shift: 0 };
+    }
+    var instant = instantOf(zone, date, hhmm);
+    if (instant === null) return null;
+    var got = partsIn(KST, instant);
+    var kstDate = got.year + '-' + got.month + '-' + got.day;
+    var a = dayNumber(date), b = dayNumber(kstDate);
+    return {
+      time: ((+got.hour) % 24 < 10 ? '0' : '') + ((+got.hour) % 24) + ':' + got.minute,
+      date: kstDate,
+      shift: (a === null || b === null) ? 0 : b - a
+    };
+  }
+
   return {
+    KST: KST,
+    zoneOffset: zoneOffset,
+    instantOf: instantOf,
+    toKst: toKst,
     AIRPORT_COUNTRY: AIRPORT_COUNTRY,
     TZ_BY_COUNTRY: TZ_BY_COUNTRY,
     TZ_BY_AIRPORT: TZ_BY_AIRPORT,

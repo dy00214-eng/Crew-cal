@@ -1400,3 +1400,344 @@ button.primary[disabled] { opacity: 0.45; cursor: not-allowed; }
 /* 시각 채우기 */
 .route-row.time-row { grid-template-columns: 96px 1fr 1fr auto; }
 @media (max-width: 380px) { .route-row.time-row { grid-template-columns: 78px 1fr 1fr; } .route-row.time-row .tag { grid-column: 1 / -1; } }
+
+/* ==========================================================================
+   달력 새 구조 — 도시를 주인공으로, 여정은 가로 띠로
+   ========================================================================== */
+
+/* 칸 맨 윗줄: 날짜 숫자와 우측 상단 주의 표시. 날짜는 가운데, 표시는 오른쪽. */
+.cal-head-row {
+  position: relative;
+  display: block;
+  flex: none;
+  min-height: 22px;
+}
+.cal-head-row .cal-day { margin: 0 auto 1px; display: block; }
+.cal-alert {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 13px;
+  height: 13px;
+  line-height: 13px;
+  border-radius: 50%;
+  font-size: 9px;
+  font-weight: 800;
+  text-align: center;
+  color: #fff;
+  background: var(--cat-standby);
+}
+
+/* 국기는 크게. 레퍼런스처럼 도시 위에 한 줄을 차지한다. */
+.cal-flag { font-size: 15px; line-height: 1.15; }
+
+/* 휴무는 연한 초록, 대기는 연한 베이지, 비행·체류는 연한 파랑 */
+:root {
+  --cal-off-bg: rgba(110, 148, 108, 0.16);
+  --cal-standby-bg: rgba(176, 150, 104, 0.20);
+  --cal-flight-bg: rgba(84, 116, 178, 0.13);
+  --cal-off-ink: #4f6b4c;
+  --cal-band-ink: #f4f1ea;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --cal-off-bg: rgba(126, 168, 124, 0.16);
+    --cal-standby-bg: rgba(198, 170, 118, 0.18);
+    --cal-flight-bg: rgba(130, 160, 216, 0.15);
+    --cal-off-ink: #9dbd98;
+  }
+}
+:root[data-theme="dark"] {
+  --cal-off-bg: rgba(126, 168, 124, 0.16);
+  --cal-standby-bg: rgba(198, 170, 118, 0.18);
+  --cal-flight-bg: rgba(130, 160, 216, 0.15);
+  --cal-off-ink: #9dbd98;
+}
+
+.cal-cell.day-flight, .cal-cell.day-layover { background: var(--cal-flight-bg); }
+.cal-cell.day-off { background: var(--cal-off-bg); }
+.cal-cell.day-standby { background: var(--cal-standby-bg); }
+.cal-title.cat-off { color: var(--cal-off-ink); }
+
+/* 셀 아래에 띠가 지나가니 그만큼 자리를 비워 둔다 */
+.cal-cell { padding-bottom: 14px; min-height: 104px; }
+.cal-grid { position: relative; }
+
+/* 여러 날에 걸친 한 여정. 칸 아래를 가로질러 몇 칸이든 이어진다. */
+.cal-band {
+  align-self: end;
+  justify-self: stretch;
+  margin: 0 1px 2px;
+  height: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  pointer-events: none;
+  z-index: 2;
+  overflow: hidden;
+  background: hsl(var(--band-hue, 220) 26% 22%);
+  box-shadow: inset 0 0 0 1px hsl(var(--band-hue, 220) 40% 34%);
+}
+.cal-band.band-start { border-top-left-radius: 7px; border-bottom-left-radius: 7px; }
+.cal-band.band-end { border-top-right-radius: 7px; border-bottom-right-radius: 7px; }
+.cal-band:not(.band-start) { margin-left: -3px; }
+.cal-band:not(.band-end) { margin-right: -3px; }
+.cal-band-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+  color: var(--cal-band-ink);
+  white-space: nowrap;
+  line-height: 1;
+}
+
+/* 한국 시각으로 옮기면서 날이 넘어간 시각 */
+.cal-shift { font-size: 8px; font-weight: 700; color: var(--cat-standby); margin-left: 1px; }
+.cal-time.stay { color: var(--muted); font-weight: 600; }
+
+/* 칸이 어긋나면 눈에 보이게 둔다. 콘솔에도 함께 찍는다. */
+.cal-cell.seat-mismatch { outline: 2px dashed var(--cat-unknown); }
+
+/* 달력 아래 고정 문구 */
+.cal-footnote {
+  margin-top: 8px;
+  text-align: right;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+@media (max-width: 420px) {
+  .cal-cell { min-height: 96px; padding-bottom: 13px; }
+  .cal-flag { font-size: 13px; }
+  .cal-band { height: 12px; }
+  .cal-band-label { font-size: 8px; }
+}
+
+/* ==========================================================================
+   상단 3개월 네비 · 이번 달 가는 도시 · 하단 고정 바
+   ========================================================================== */
+
+.tri-month {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 10px;
+  margin: 0 14px 12px;
+  padding: 12px 12px 10px;
+  border-radius: var(--r-card);
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.tri-side { min-width: 0; }
+.tri-side-title {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-align: center;
+  opacity: 0.75;
+  margin-bottom: 3px;
+}
+.tri-mini-head, .tri-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0;
+}
+.tri-mini-head span {
+  font-size: 8px;
+  font-weight: 700;
+  text-align: center;
+  opacity: 0.55;
+  line-height: 1.5;
+}
+.tri-mini-head span.sun { color: #f0a79b; opacity: 0.9; }
+.tri-mini-day {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 9px;
+  font-weight: 500;
+  line-height: 1.5;
+  text-align: center;
+  color: inherit;
+  opacity: 0.85;
+  cursor: pointer;
+  border-radius: 3px;
+  -webkit-tap-highlight-color: transparent;
+}
+.tri-mini-day.sun { color: #f0a79b; opacity: 1; }
+.tri-mini-day:active { background: rgba(255, 255, 255, 0.22); }
+
+.tri-now { text-align: center; padding: 0 6px; }
+.tri-big {
+  display: block;
+  font-size: 40px;
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: -1px;
+}
+.tri-label {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  opacity: 0.85;
+}
+
+.city-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.city-head h2 { margin: 0; font-size: 16px; font-weight: 700; }
+.city-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+@media (max-width: 380px) { .city-grid { grid-template-columns: minmax(0, 1fr); } }
+.city-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 12px;
+  border: 1.5px solid color-mix(in srgb, var(--danger) 45%, transparent);
+  border-radius: 10px;
+  background: var(--surface);
+  font: inherit;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+}
+.city-item:active { background: var(--fill); }
+.city-flag { font-size: 17px; line-height: 1; flex: none; }
+.city-name { font-size: 15px; font-weight: 700; flex: 1; min-width: 0; word-break: keep-all; }
+.city-arrow {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  line-height: 21px;
+  text-align: center;
+  border-radius: 5px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--danger);
+}
+
+/* 하단 고정 바. 스크롤과 상관없이 늘 같은 자리에 있다. */
+.dock {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  display: grid;
+  grid-template-columns: 1fr 1.5fr 1fr;
+  gap: 6px;
+  padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: saturate(180%) blur(14px);
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
+  border-top: 1px solid var(--line);
+}
+.dock-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  padding: 7px 4px;
+  border: none;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.dock-btn:active { opacity: 0.7; }
+.dock-icon { font-size: 15px; line-height: 1; }
+.dock-text { font-size: 10px; font-weight: 700; }
+.dock-month {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 4px 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.dock-month button {
+  border: none;
+  background: none;
+  padding: 2px 8px;
+  font: inherit;
+  font-size: 17px;
+  color: var(--muted);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.dock-label { text-align: center; line-height: 1.1; }
+.dock-label b { display: block; font-size: 15px; font-weight: 700; letter-spacing: 0.4px; }
+.dock-label em { display: block; font-size: 10px; font-style: normal; color: var(--muted); }
+
+/* 고정 바에 가려지지 않도록 본문 아래를 비워 둔다 */
+body { padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
+.cal-count {
+  align-self: center;
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--cat-flight);
+  background: color-mix(in srgb, var(--cat-flight) 16%, transparent);
+  border-radius: 999px;
+  padding: 0 5px;
+  line-height: 1.5;
+}
+/* 긴 도시 이름은 칸을 넘지 않도록 조금 줄이고, 그래도 넘치면 줄을 바꾼다 */
+.cal-city { overflow-wrap: anywhere; }
+.cal-city.longish { font-size: 11.5px; letter-spacing: -0.7px; }
+.cal-city.long { font-size: 10.5px; letter-spacing: -0.8px; }
+@media (max-width: 420px) {
+  .cal-city.longish { font-size: 10.5px; }
+  .cal-city.long { font-size: 9.5px; }
+}
+/* 시각은 '어디서 무엇을' 과 '몇 시' 를 두 줄로 나눠 적는다 */
+.cal-time { display: block; line-height: 1.25; }
+.cal-time-at {
+  display: block;
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: -0.4px;
+  white-space: nowrap;
+}
+.cal-clock {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--cal-sub);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.2px;
+  white-space: nowrap;
+}
+.cal-time + .cal-time { margin-top: 2px; }
+/* 나라 띠는 어둡게. 같은 밝기에서도 초록이 더 밝아 보여 채도를 낮춰 맞춘다. */
+.cal-band { background: hsl(var(--band-hue, 220) 24% 19%); }
+@media (max-width: 420px) {
+  .cal-time-at { font-size: 8.5px; }
+  .cal-clock { font-size: 10px; }
+}
+/* 다크에서는 바탕이 이미 어두워 띠가 묻힌다. 한 단계 밝혀 준다. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .cal-band {
+    background: hsl(var(--band-hue, 220) 30% 32%);
+    box-shadow: inset 0 0 0 1px hsl(var(--band-hue, 220) 40% 46%);
+  }
+}
+:root[data-theme="dark"] .cal-band {
+  background: hsl(var(--band-hue, 220) 30% 32%);
+  box-shadow: inset 0 0 0 1px hsl(var(--band-hue, 220) 40% 46%);
+}
