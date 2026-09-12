@@ -165,6 +165,16 @@
     return candidates.length === 1 ? candidates[0] : token;
   }
 
+  /** 아는 근무 코드이거나 기본 시간표에 있는 편명인지. 잘못 읽은 판을 가려내는 데 쓴다. */
+  function isKnownCode(token) {
+    var text = String(token || '').toUpperCase();
+    if (!text) return false;
+    var fixed = fixCode(text);
+    if (codes && codes.knownCodeList().indexOf(fixed) !== -1) return true;
+    if (schedule && schedule.lookup(fixed)) return true;
+    return /^[A-Z]{2}\d{4}$/.test(fixed);      // 시간표에 없어도 편명 꼴이면 그대로 믿는다
+  }
+
   /** 한 글자를 바꾸거나 넣거나 빼면 같아지는지. */
   function oneEditApart(a, b) {
     if (Math.abs(a.length - b.length) > 1) return false;
@@ -540,6 +550,7 @@
     isDayRow: isDayRow,
     joinTimes: joinTimes,
     splitCodes: splitCodes,
-    splitJunk: splitJunk
+    splitJunk: splitJunk,
+    isKnownCode: isKnownCode
   };
 });

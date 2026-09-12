@@ -5375,6 +5375,16 @@ button.ghost.danger { color: var(--danger); }
     return candidates.length === 1 ? candidates[0] : token;
   }
 
+  /** 아는 근무 코드이거나 기본 시간표에 있는 편명인지. 잘못 읽은 판을 가려내는 데 쓴다. */
+  function isKnownCode(token) {
+    var text = String(token || '').toUpperCase();
+    if (!text) return false;
+    var fixed = fixCode(text);
+    if (codes && codes.knownCodeList().indexOf(fixed) !== -1) return true;
+    if (schedule && schedule.lookup(fixed)) return true;
+    return /^[A-Z]{2}\d{4}$/.test(fixed);      // 시간표에 없어도 편명 꼴이면 그대로 믿는다
+  }
+
   /** 한 글자를 바꾸거나 넣거나 빼면 같아지는지. */
   function oneEditApart(a, b) {
     if (Math.abs(a.length - b.length) > 1) return false;
@@ -5750,7 +5760,8 @@ button.ghost.danger { color: var(--danger); }
     isDayRow: isDayRow,
     joinTimes: joinTimes,
     splitCodes: splitCodes,
-    splitJunk: splitJunk
+    splitJunk: splitJunk,
+    isKnownCode: isKnownCode
   };
 });
 </script>
@@ -6191,7 +6202,11 @@ button.ghost.danger { color: var(--danger); }
           canvas.height = big.height;
           canvas.getContext('2d').putImageData(new ImageData(big.data, big.width, big.height), 0, 0);
           URL.revokeObjectURL(url);
-          resolve({ canvas: canvas, scale: scale, how: how, chips: found.rects, crop: { top: cropTop, scale: scale } });
+          resolve({
+            canvas: canvas, scale: scale, how: how, chips: found.rects,
+            crop: { top: cropTop, scale: scale },
+            full: first                       // 자르기 전 그림. 머리말에서 연·월을 읽는다.
+          });
         } catch (e) {
           URL.revokeObjectURL(url);
           reject(e);
@@ -6242,14 +6257,26 @@ button.ghost.danger { color: var(--danger); }
         var data = result.data || {};
         var words = wordsOf(data);
         return rescueChips(worker, prepared, words).then(function (rescued) {
-          return { data: data, words: words.concat(rescued) };
+          return readMonth(worker, prepared).then(function (month) {
+            // 판을 다시 읽었으면 그 판에서 먼저 읽은 글자는 버린다
+            var kept = words.filter(function (word) {
+              var cx = (word.x0 + word.x1) / 2, cy = (word.y0 + word.y1) / 2;
+              return !rescued.some(function (fresh) {
+                return cx >= fresh.x0 && cx <= fresh.x1 && cy >= fresh.y0 && cy <= fresh.y1;
+              });
+            });
+            return { data: data, words: kept.concat(rescued), month: month };
+          });
         });
       }).then(function (result) {
         var data = result.data;
         var words = result.words;
         var missed = missedChips(prepared, words);
-        var laid = ocrlayout.toText(attachChips(prepared, words), { year: opts.year, month: opts.month });
+        // 화면에서 읽은 연·월이 있으면 그것을 쓴다. 없으면 보고 있던 달에 얹는다.
+        var when = result.month || { year: opts.year, month: opts.month };
+        var laid = ocrlayout.toText(attachChips(prepared, words), when);
         return {
+          month: result.month,
           text: laid.text,
           shape: laid.shape,
           unsure: laid.unsure,
@@ -6306,13 +6333,16 @@ button.ghost.danger { color: var(--danger); }
 
     function chipsUnder(word) {
       var hits = [];
+      var area = Math.max(1, (word.x1 - word.x0) * (word.y1 - word.y0));
       for (var i = 0; i < boxes.length; i++) {
         var box = boxes[i];
         var overlap = Math.max(0, Math.min(word.x1, box.x1) - Math.max(word.x0, box.x0)) *
           Math.max(0, Math.min(word.y1, box.y1) - Math.max(word.y0, box.y0));
         if (!overlap) continue;
         var share = overlap / Math.max(1, (box.x1 - box.x0) * (box.y1 - box.y0));
-        if (share >= 0.3) hits.push({ at: i, share: share });
+        // 판의 3할을 덮거나, 글자 자신이 반 넘게 그 판 안에 있으면 그 판의 글자로 본다.
+        // 뒤엣것은 한 글자가 판 밖으로 길쭉하게 읽힌 경우를 건진다.
+        if (share >= 0.3 || overlap / area >= 0.5) hits.push({ at: i, share: share });
       }
       return hits;
     }
@@ -6352,12 +6382,46 @@ button.ghost.danger { color: var(--danger); }
       taken[best] = true;
       var chosen = boxes[best];
       out.push({
-        text: word.text, conf: word.conf, tone: chosen.tone,
+        text: word.text, conf: word.conf, tone: chosen.tone, chip: best, at: word.x0,
         x0: chosen.x0, x1: chosen.x1, y0: chosen.y0, y1: chosen.y1
       });
     });
 
-    return out;
+    return mergeWithinChip(out);
+  }
+
+  /**
+   * 화면 맨 위에서 몇 년 몇 월 스케줄인지 읽는다.
+   *
+   * 이걸 읽지 않으면 앱이 보고 있던 달에 얹히는데, 4월 화면을 5월에 넣는 사고가 난다.
+   * 크루넷은 달력 위에 "2026.04" 와 "2026-04-29" 를 적어 두므로 거기서 가져온다.
+   */
+  function readMonth(worker, prepared) {
+    var full = prepared.full;
+    var height = Math.min(full.height, prepared.crop.top + 120);
+    if (height < 60) return Promise.resolve(null);
+
+    var zoom = 2;
+    var canvas = document.createElement('canvas');
+    canvas.width = full.width * zoom;
+    canvas.height = height * zoom;
+    var ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(full, 0, 0, full.width, height, 0, 0, canvas.width, canvas.height);
+
+    return worker.setParameters({ tessedit_pageseg_mode: '6' })
+      .then(function () { return worker.recognize(canvas, {}, { text: true }); })
+      .then(function (result) {
+        var text = String((result.data && result.data.text) || '');
+        var found = /(20\d{2})\s*[.\-/년]\s*(0?[1-9]|1[0-2])(?![0-9])/.exec(text);
+        if (!found) return null;
+        return { year: +found[1], month: +found[2] };
+      })
+      .catch(function () { return null; })
+      .then(function (month) {
+        return worker.setParameters({ tessedit_pageseg_mode: '11' }).then(function () { return month; });
+      });
   }
 
   /** 판의 자리를 인식에 쓴 그림의 자리로 옮긴다. */
@@ -6380,12 +6444,20 @@ button.ghost.danger { color: var(--danger); }
    */
   function rescueChips(worker, prepared, words) {
     var chips = (prepared.chips || []).map(function (chip) { return chipBox(chip, prepared); });
-    var missing = chips.filter(function (box) {
-      return !words.some(function (word) {
+
+    function textIn(box) {
+      return words.filter(function (word) {
         var cx = (word.x0 + word.x1) / 2, cy = (word.y0 + word.y1) / 2;
         return cx >= box.x0 && cx <= box.x1 && cy >= box.y0 && cy <= box.y1;
-      });
-    });
+      }).map(function (word) { return String(word.text).replace(/[^0-9A-Za-z]/g, ''); }).join('');
+    }
+
+    // 아무것도 못 읽었거나, 읽은 것이 아는 코드도 편명도 아닌 판은 잘못 읽은 것이다.
+    // (KE0438 이 AL 로 읽히면 연차 휴가가 되어 버리고, E047 은 아무 근무도 아니다)
+    var missing = chips.filter(function (box) {
+      var text = textIn(box);
+      return !text || !ocrlayout.isKnownCode(text);
+    }).slice(0, 10);                                            // 너무 많으면 오래 걸린다
     if (!missing.length) return Promise.resolve([]);
 
     var found = [];
@@ -6419,6 +6491,31 @@ button.ghost.danger { color: var(--danger); }
     }, Promise.resolve())
       .then(function () { return worker.setParameters({ tessedit_pageseg_mode: '11' }); })
       .then(function () { return found; });
+  }
+
+  /**
+   * 한 판 안에서 두 조각으로 읽힌 글자를 도로 붙인다(KEO7 + 44 -> KE0744).
+   * 붙여 봐서 아는 코드가 될 때만 붙인다. TVL 처럼 원래 두 줄인 판을 붙이면 안 된다.
+   */
+  function mergeWithinChip(words) {
+    var byChip = {};
+    words.forEach(function (word) {
+      if (word.chip == null) return;
+      (byChip[word.chip] = byChip[word.chip] || []).push(word);
+    });
+
+    var dropped = {};
+    Object.keys(byChip).forEach(function (key) {
+      var group = byChip[key];
+      if (group.length < 2) return;
+      var ordered = group.slice().sort(function (a, b) { return a.at - b.at; });
+      var merged = ordered.map(function (word) { return word.text; }).join('');
+      if (!ocrlayout.isKnownCode || !ocrlayout.isKnownCode(merged)) return;
+      ordered[0].text = merged;
+      ordered.slice(1).forEach(function (word) { dropped[words.indexOf(word)] = true; });
+    });
+
+    return words.filter(function (word, index) { return !dropped[index]; });
   }
 
   /**
@@ -8077,6 +8174,10 @@ button.ghost.danger { color: var(--danger); }
           : '캡처를 읽는 중… ' + percent + '%', '');
       }
     }).then(function (result) {
+      // 화면에서 몇 월인지 읽었으면 기준 연·월도 그것으로 맞춘다
+      if (result.month) {
+        $('pasteBase').value = result.month.year + '-' + pad2(result.month.month);
+      }
       if (!result.text.trim()) {
         setStatus('글자를 찾지 못했습니다. 더 또렷한 캡처로 다시 해보거나, 아래 방법으로 옮겨 주세요.', 'error');
         showFallbackGuide();
@@ -8088,6 +8189,11 @@ button.ghost.danger { color: var(--danger); }
       runParse();
 
       var notes = [];
+      if (result.month) {
+        notes.push(result.month.year + '년 ' + result.month.month + '월 스케줄로 읽었습니다.');
+      } else {
+        notes.push('화면에서 연·월을 못 찾아 ' + base.year + '년 ' + base.month + '월로 넣었습니다. 다르면 기준 연·월을 고쳐 주세요.');
+      }
       notes.push(result.shape === 'calendar' ? '달력 모양으로 읽었습니다.'
         : result.shape === 'list' ? '목록 모양으로 읽었습니다.' : '글줄로 읽었습니다.');
       if (result.unsure.length) {
@@ -8520,7 +8626,7 @@ button.ghost.danger { color: var(--danger); }
   /* ---------------- 동료가 보내는 의견 ---------------- */
 
   // 화면 아래와 의견 보내기에 적히는 판 번호. sw.js 의 VERSION 과 함께 올린다.
-  var APP_VERSION = 'v18';
+  var APP_VERSION = 'v19';
 
   /**
    * 의견을 받을 메일 주소. 저장소가 공개라 통짜로 적어두면 스팸 크롤러가 긁어가므로

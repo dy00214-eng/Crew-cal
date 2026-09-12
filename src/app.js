@@ -1072,6 +1072,10 @@
           : '캡처를 읽는 중… ' + percent + '%', '');
       }
     }).then(function (result) {
+      // 화면에서 몇 월인지 읽었으면 기준 연·월도 그것으로 맞춘다
+      if (result.month) {
+        $('pasteBase').value = result.month.year + '-' + pad2(result.month.month);
+      }
       if (!result.text.trim()) {
         setStatus('글자를 찾지 못했습니다. 더 또렷한 캡처로 다시 해보거나, 아래 방법으로 옮겨 주세요.', 'error');
         showFallbackGuide();
@@ -1083,6 +1087,11 @@
       runParse();
 
       var notes = [];
+      if (result.month) {
+        notes.push(result.month.year + '년 ' + result.month.month + '월 스케줄로 읽었습니다.');
+      } else {
+        notes.push('화면에서 연·월을 못 찾아 ' + base.year + '년 ' + base.month + '월로 넣었습니다. 다르면 기준 연·월을 고쳐 주세요.');
+      }
       notes.push(result.shape === 'calendar' ? '달력 모양으로 읽었습니다.'
         : result.shape === 'list' ? '목록 모양으로 읽었습니다.' : '글줄로 읽었습니다.');
       if (result.unsure.length) {
@@ -1515,7 +1524,7 @@
   /* ---------------- 동료가 보내는 의견 ---------------- */
 
   // 화면 아래와 의견 보내기에 적히는 판 번호. sw.js 의 VERSION 과 함께 올린다.
-  var APP_VERSION = 'v18';
+  var APP_VERSION = 'v19';
 
   /**
    * 의견을 받을 메일 주소. 저장소가 공개라 통짜로 적어두면 스팸 크롤러가 긁어가므로
