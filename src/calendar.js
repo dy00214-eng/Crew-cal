@@ -123,7 +123,7 @@
    *   { text: 'ICN출발 21:03', shift: 0, at: 'ICN', kind: '출발', minutes: 1263 }
    * 시간대를 모르는 공항은 옮기지 않고 원래 값을 그대로 쓴다. 지어내지 않는다.
    */
-  function timePoint(iata, kind, date, hhmm, localOnly) {
+  function timePoint(iata, kind, date, hhmm, localOnly, source) {
     if (!hhmm) return null;
     var at = iata ? String(iata).toUpperCase() : '';
     var shown = hhmm;
@@ -138,6 +138,8 @@
       kind: kind,
       time: shown,
       shift: shift,
+      // 원본에 없어 예전에 받아 둔 값으로 채운 시각. 원본과 섞이지 않게 표를 단다.
+      remembered: source === 'memory',
       text: (at ? at : '') + kind + ' ' + shown,
       minutes: hm ? (+hm[1]) * 60 + (+hm[2]) + shift * 1440 : 0
     };
@@ -153,8 +155,8 @@
     var from = entry.from || ends.from;
     var to = entry.to || ends.to;
     var out = [];
-    var start = entry.start ? timePoint(from, '\uCD9C\uBC1C', date, entry.start, localOnly) : null;
-    var end = entry.end ? timePoint(to, '\uB3C4\uCC29', date, entry.end, localOnly) : null;
+    var start = entry.start ? timePoint(from, '\uCD9C\uBC1C', date, entry.start, localOnly, entry.timeSource) : null;
+    var end = entry.end ? timePoint(to, '\uB3C4\uCC29', date, entry.end, localOnly, entry.timeSource) : null;
     // 비행기가 뜨기 전에 내릴 수는 없다. 시각만 보고 앞뒤가 바뀌면 하루를 넘긴 것이다.
     // 원본에 없는 값을 지어내는 것이 아니라 이미 있는 두 시각의 앞뒤를 맞추는 것뿐이다.
     if (start && end && end.minutes <= start.minutes) {
@@ -654,7 +656,15 @@
               sh.title = point.shift > 0 ? '한국 시각으로는 다음 날입니다' : '한국 시각으로는 전날입니다';
               clock.appendChild(sh);
             }
-            time.title = point.text;
+            if (point.remembered) {
+              time.classList.add('remembered');
+              var mark = document.createElement('span');
+              mark.className = 'cal-remember';
+              mark.textContent = '기억';
+              mark.title = '원본에 시각이 없어, 예전에 받아 둔 이 편의 시각을 채웠습니다.';
+              what.appendChild(mark);
+            }
+            time.title = point.text + (point.remembered ? ' (기억해 둔 시각)' : '');
             item.appendChild(time);
           });
         } else if (place && (group.enroute || group.layover)) {

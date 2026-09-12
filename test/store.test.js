@@ -3,7 +3,7 @@ const assert = require('node:assert');
 const store = require('../src/store.js');
 const parser = require('../src/parser.js');
 
-test.beforeEach(() => store.clearAll());
+test.beforeEach(() => { store.clearAll(); store.forgetTimes(); });
 
 test('개별 입력으로 추가하고 날짜별로 읽는다', () => {
   store.addEntry({ date: '2026-09-06', code: 'ke0035', route: 'ICN/JFK' });
@@ -186,4 +186,118 @@ test('시각이 빈 비행만 모아 준다', () => {
   store.applyEntries(parser.parse('2026-01-09\tKE0005 LO\n2026-01-11\tKE0006',
     { year: 2026, month: 1 }).entries, 'replace');
   assert.deepStrictEqual(store.missingTimes().map((x) => x.code), ['KE0005', 'KE0006'], '체류는 빼고 비행만');
+});
+
+/* ---------------- 편명별 시각 기억 ---------------- */
+
+test('원본에서 받은 시각을 편명별로 기억했다가 편명만 들어와도 채운다', () => {
+  // 1) 홈 화면(목록) 글 — 시각이 들어 있다
+  store.applyEntries(parser.parse('2026-01-09\tKE0005\tICN/LAS\t2103-1443',
+    { year: 2026, month: 1 }).entries, 'append');
+  assert.strictEqual(store.recallTimes('KE0005').start, '21:03');
+  assert.strictEqual(store.recallTimes('KE0005').source, 'original');
+
+  // 2) 다른 달에 편명만 들어와도 기억해 둔 시각이 붙는다
+  store.applyEntries(parser.parse('2026-02-14\tKE0005', { year: 2026, month: 2 }).entries, 'append');
+  const feb = store.getByDate('2026-02-14')[0];
+  assert.strictEqual(feb.start, '21:03');
+  assert.strictEqual(feb.end, '14:43');
+  assert.strictEqual(feb.timeSource, 'memory', '기억해서 채운 값이라고 표시한다');
+});
+
+test('기억은 원본과 직접 넣은 값만 배운다 — 기억해 채운 값을 다시 배우지 않는다', () => {
+  store.applyEntries([{ date: '2026-01-09', code: 'KE0005', start: '21:03', end: '14:43' }], 'append');
+  // 기억해서 채워진 건은 다시 배움의 재료가 되지 않는다
+  const filled = store.decorate({ date: '2026-02-14', code: 'KE0005', start: '09:00', timeSource: 'memory' });
+  assert.strictEqual(store.learnTimes(filled), null);
+  assert.strictEqual(store.recallTimes('KE0005').start, '21:03', '원본 값이 그대로 남는다');
+});
+
+test('직접 넣은 시각이 기억에서도 원본보다 우선한다', () => {
+  store.applyEntries([{ date: '2026-01-09', code: 'KE0005', start: '21:03' }], 'append');
+  const mine = store.decorate({ date: '2026-01-09', code: 'KE0005', start: '20:30', timeSource: 'user' });
+  store.learnTimes(mine);
+  assert.strictEqual(store.recallTimes('KE0005').start, '20:30');
+  assert.strictEqual(store.recallTimes('KE0005').source, 'user');
+  // 원본이 다시 들어와도 직접 넣은 기억을 덮지 않는다
+  store.learnTimes(store.decorate({ date: '2026-03-01', code: 'KE0005', start: '21:03' }));
+  assert.strictEqual(store.recallTimes('KE0005').start, '20:30');
+});
+
+test('기억이 원본을 덮지 않는다 — 원본에 시각이 있으면 그쪽이 맞다', () => {
+  store.applyEntries([{ date: '2026-01-09', code: 'KE0005', start: '21:03', end: '14:43' }], 'append');
+  store.applyEntries([{ date: '2026-02-14', code: 'KE0005', start: '19:00', end: '12:00' }], 'append');
+  const feb = store.getByDate('2026-02-14')[0];
+  assert.strictEqual(feb.start, '19:00', '새 원본이 우선');
+  assert.notStrictEqual(feb.timeSource, 'memory');
+});
+
+test('기억해 둔 편명 시각을 목록으로 보고 지울 수 있다', () => {
+  store.applyEntries([{ date: '2026-01-09', code: 'KE0005', start: '21:03' },
+    { date: '2026-01-12', code: 'KE0006', end: '05:07' }], 'append');
+  const book = store.timeBook();
+  assert.deepStrictEqual(book.map((x) => x.code), ['KE0005', 'KE0006']);
+  store.forgetTime('KE0005');
+  assert.strictEqual(store.recallTimes('KE0005'), null);
+  assert.ok(store.recallTimes('KE0006'), '나머지는 남는다');
+});
+
+test('이미 저장된 일정에도 기억한 시각을 한 번에 채운다', () => {
+  store.applyEntries([{ date: '2026-01-09', code: 'KE0005', start: '21:03', end: '14:43' }], 'append');
+  store.forgetTimes();
+  store.learnTimes(store.decorate({ date: '2026-01-09', code: 'KE0006', start: '22:46' }));
+  store.applyEntries([{ date: '2026-03-02', code: 'KE0006' }], 'append');
+  // 일부러 비워 두고 나중에 채우는 길도 있어야 한다
+  const before = store.getByDate('2026-03-02')[0];
+  assert.strictEqual(before.start, '22:46');
+  assert.strictEqual(store.fillTimesFromMemory(), 0, '이미 채워졌으면 더 채울 것이 없다');
+});
+
+test('기억 기능이 생기기 전에 넣어 둔 일정에서도 시각을 거둬들인다', () => {
+  store.applyEntries([{ date: '2026-01-09', code: 'KE0005', start: '21:03', end: '14:43' }], 'append');
+  store.forgetTimes();
+  assert.strictEqual(store.recallTimes('KE0005'), null);
+  assert.ok(store.learnFromStored() >= 1);
+  assert.strictEqual(store.recallTimes('KE0005').start, '21:03');
+});
+
+test('날을 넘겨 나는 편은 떠나는 날 출발, 닿는 날 도착만 채운다', () => {
+  // KE0006 은 10일 LAS 출발 → 11일 기내 → 12일 ICN 도착.
+  // 세 칸 모두에 출발·도착을 같이 달면 안 된다.
+  store.applyEntries([{ date: '2026-01-10', code: 'KE0006', route: 'LAS/ICN', start: '22:46' },
+    { date: '2026-01-12', code: 'KE0006', route: 'LAS/ICN', end: '05:07' }], 'append');
+  store.clearAll();
+
+  store.applyEntries([
+    { date: '2026-01-10', code: 'KE0006' },
+    { date: '2026-01-11', code: 'KE0006' },
+    { date: '2026-01-12', code: 'KE0006' }
+  ], 'append');
+  const day = (d) => store.getByDate(d)[0];
+  assert.strictEqual(day('2026-01-10').start, '22:46', '떠나는 날은 출발만');
+  assert.strictEqual(day('2026-01-10').end, null);
+  assert.strictEqual(day('2026-01-11').start, null, '기내인 날은 비워 둔다');
+  assert.strictEqual(day('2026-01-11').end, null);
+  assert.strictEqual(day('2026-01-12').start, null, '닿는 날은 도착만');
+  assert.strictEqual(day('2026-01-12').end, '05:07');
+});
+
+test('떨어진 날에 같은 편명이 또 나오면 저마다 한 번의 비행이다', () => {
+  const roles = store.legRolesOf([
+    { date: '2026-01-04', code: 'KE0658', type: 'flight' },
+    { date: '2026-01-05', code: 'KE0658', type: 'flight' },
+    { date: '2026-01-20', code: 'KE0658', type: 'flight' }
+  ]);
+  assert.strictEqual(roles['2026-01-04|KE0658'], 'depart');
+  assert.strictEqual(roles['2026-01-05|KE0658'], 'arrive');
+  assert.strictEqual(roles['2026-01-20|KE0658'], undefined, '홀로 선 날은 한쪽만 보지 않는다');
+});
+
+test('하루 왕복은 출발·도착을 모두 채운다', () => {
+  store.applyEntries([{ date: '2026-01-07', code: 'KE0727', route: 'ICN/KIX', start: '11:03', end: '12:41' }], 'append');
+  store.clearAll();
+  store.applyEntries([{ date: '2026-02-07', code: 'KE0727' }], 'append');
+  const e = store.getByDate('2026-02-07')[0];
+  assert.strictEqual(e.start, '11:03');
+  assert.strictEqual(e.end, '12:41');
 });

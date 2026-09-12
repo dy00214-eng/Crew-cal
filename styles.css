@@ -1790,3 +1790,17 @@ td.auto-filled {
 }
 .fill-note b { font-weight: 700; }
 .fill-note .auto-badge { margin-left: 0; margin-right: 4px; }
+/* 원본에 없어 예전에 받아 둔 값으로 채운 시각 */
+.cal-remember {
+  display: inline-block;
+  margin-left: 3px;
+  padding: 0 3px;
+  border-radius: 3px;
+  font-size: 8px;
+  font-weight: 800;
+  line-height: 1.5;
+  color: var(--cat-standby);
+  background: color-mix(in srgb, var(--cat-standby) 20%, transparent);
+  vertical-align: text-top;
+}
+.cal-time.remembered .cal-clock { color: var(--muted); }

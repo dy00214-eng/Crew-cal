@@ -187,6 +187,7 @@
     renderMonthSummary(entriesByDate);
     renderNextDuty(entriesByDate);
     renderTriMonth();
+    renderTimeBook();
     renderCityCards(entriesByDate);
     renderDock();
     var note = $('calFootnote');
@@ -1110,7 +1111,7 @@
     var gapBox = $('previewGaps');
     if (noTimeList.length) {
       gapBox.textContent = '시각을 모르는 편: ' + noTimeList.join(', ') +
-        ' — 아래 "편명 시각"에 한 줄씩 등록하면 다음부터 자동으로 붙습니다.';
+        ' — 크루넷 홈 화면(목록) 글을 한 번 넣어 두면 그 편의 시각을 기억했다가 다음부터 자동으로 붙습니다.';
       gapBox.hidden = false;
     } else {
       gapBox.hidden = true;
@@ -1194,6 +1195,69 @@
       }
       return td;
     }
+  }
+
+  /* ---------------- 기억해 둔 편명 시각 ---------------- */
+
+  /**
+   * 홈 화면(목록) 글에서 받아 둔 편명별 시각을 보여 주고 지울 수 있게 한다.
+   * 무엇이 기억되어 있는지 눈으로 볼 수 있어야 '기억' 표가 붙은 시각을 믿을 수 있다.
+   */
+  function renderTimeBook() {
+    var box = $('timeBookList');
+    if (!box) return;
+    var list = store.timeBook();
+    $('timeBookCount').textContent = list.length;
+    box.innerHTML = '';
+    if (!list.length) {
+      var empty = document.createElement('p');
+      empty.className = 'muted small-note';
+      empty.textContent = '아직 기억해 둔 시각이 없습니다. 크루넷 홈 화면(목록) 글을 한 번 넣어 보세요.';
+      box.appendChild(empty);
+      return;
+    }
+    list.forEach(function (row) {
+      var line = document.createElement('div');
+      line.className = 'route-row';
+      var code = document.createElement('b');
+      code.textContent = row.code;
+      var when = document.createElement('span');
+      when.textContent = (row.start ? row.start + ' 출발' : '') +
+        (row.start && row.end ? ' · ' : '') +
+        (row.end ? row.end + ' 도착' : '');
+      var tag = document.createElement('span');
+      tag.className = 'tag';
+      tag.textContent = row.source === 'user' ? '직접 넣음' : '원본';
+      var drop = document.createElement('button');
+      drop.type = 'button';
+      drop.className = 'ghost small';
+      drop.textContent = '잊기';
+      drop.addEventListener('click', function () {
+        store.forgetTime(row.code);
+        renderTimeBook();
+        refresh();
+      });
+      line.appendChild(code);
+      line.appendChild(when);
+      line.appendChild(tag);
+      line.appendChild(drop);
+      box.appendChild(line);
+    });
+  }
+
+  function initTimeBook() {
+    // 이 기능이 생기기 전에 넣어 둔 일정에도 시각이 들어 있다. 한 번 거둬들인다.
+    try { store.learnFromStored(); } catch (e) { /* 기억은 있으면 좋은 것일 뿐 */ }
+    if ($('timeBookClear')) {
+      $('timeBookClear').addEventListener('click', function () {
+        if (!window.confirm('기억해 둔 편명 시각을 전부 잊습니다. 계속할까요?')) return;
+        store.forgetTimes();
+        renderTimeBook();
+        refresh();
+        toast('기억해 둔 시각을 모두 지웠습니다.');
+      });
+    }
+    renderTimeBook();
   }
 
   /* ---------------- 못 읽은 줄 ---------------- */
@@ -2126,7 +2190,7 @@
   /* ---------------- 동료가 보내는 의견 ---------------- */
 
   // 화면 아래와 의견 보내기에 적히는 판 번호. sw.js 의 VERSION 과 함께 올린다.
-  var APP_VERSION = 'v38';
+  var APP_VERSION = 'v39';
 
   /**
    * 의견을 받을 메일 주소. 저장소가 공개라 통짜로 적어두면 스팸 크롤러가 긁어가므로
@@ -2685,6 +2749,7 @@
     initViewToggle();
     initAssumeOff();
     initLocalTimes();
+    initTimeBook();
     initAirlines();
     initRouteLookup();
     initTimes();

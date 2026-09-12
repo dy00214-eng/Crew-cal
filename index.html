@@ -339,6 +339,18 @@
         <input type="checkbox" id="autoLookup" checked>
         <span>모르는 편명 자동 조회 <em>(원본에도 시드에도 없는 편만 물어봅니다. 찾은 값에는 '조회' 표가 붙습니다)</em></span>
       </label>
+      <details id="timeBookBox" class="flight-book">
+        <summary>기억해 둔 편명 시각 <span id="timeBookCount">0</span>편</summary>
+        <p class="muted small-note">
+          홈 화면(목록) 글에서 받은 시각을 편명별로 기억해 둡니다.
+          달력 화면처럼 편명만 들어오는 글을 넣어도 이 값으로 채워지고,
+          채운 자리에는 <b>기억</b> 표가 붙습니다. 원본에 시각이 있으면 언제나 원본이 우선입니다.
+        </p>
+        <div id="timeBookList" class="route-cache"></div>
+        <div class="actions">
+          <button type="button" id="timeBookClear" class="ghost small danger">전부 잊기</button>
+        </div>
+      </details>
       <details id="routeCacheBox" class="flight-book">
         <summary>자동 조회·직접 입력한 노선 <span id="routeCacheCount">0</span>편</summary>
         <p class="muted small-note">

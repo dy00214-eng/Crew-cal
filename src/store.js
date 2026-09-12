@@ -12,6 +12,7 @@
   'use strict';
 
   var KEY = 'crew-cal.schedule.v1';
+  var TIMES_KEY = 'crew-cal.flight-times.v1';
   var memory = null;
   var seq = 0;
 
@@ -258,6 +259,7 @@
       entries.forEach(function (e) { touched[e.date] = true; });
     }
 
+    var roles = legRolesOf(entries);
     entries.forEach(function (entry) {
       var e = decorate(entry);
       e.id = newId();
@@ -265,6 +267,10 @@
       // 시각은 덮어쓰지 않고 보탠다. 달력 캡처(시각 없음)를 나중에 넣어도
       // 홈 화면에서 받아 둔 시각이나 직접 넣은 시각이 날아가지 않도록.
       keepTimes(kept[e.date + '|' + e.code], e);
+      // 원본에서 온 시각은 편명별로 기억해 둔다. 다음에 편명만 들어와도 채울 수 있다.
+      learnTimes(e);
+      // 시각 없이 들어온 편은 기억해 둔 값으로 채운다('기억' 표가 붙는다).
+      fillFromMemory(e, roles[e.date + '|' + String(e.code).toUpperCase()]);
       if (mode !== 'replace') {
         var dup = data.entries[e.date].some(function (x) {
           return x.code === e.code && (x.route || '') === (e.route || '') && (x.start || '') === (e.start || '');
@@ -281,6 +287,201 @@
     save(data);
     return { added: added, removed: removed, dates: Object.keys(touched).length, dropped: dropped };
   }
+
+
+  /* ---------------- 편명별 시각 기억 ----------------
+   *
+   * 달력 화면을 복사해 붙여넣으면 편명만 들어오고 시각이 없다. 홈 화면(목록)을
+   * 한 번이라도 넣었다면 그때 받은 시각을 편명별로 기억해 두었다가 채워 준다.
+   *
+   * 지어내는 것이 아니다 — 기억하는 값은 오로지 원본에서 온 시각과 직접 넣은
+   * 시각뿐이다. 노선표나 규칙으로 짐작한 값은 배우지 않는다.
+   * 채워 넣은 자리에는 '기억' 표를 달아 원본과 구별되게 둔다.
+   */
+
+  var timeMemory = {};
+
+  function loadTimes() {
+    var ls = storage();
+    if (!ls) return timeMemory;
+    try {
+      var raw = ls.getItem(TIMES_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) {
+      return timeMemory;
+    }
+  }
+
+  function saveTimeBook(data) {
+    var ls = storage();
+    if (!ls) { timeMemory = data; return data; }
+    try { ls.setItem(TIMES_KEY, JSON.stringify(data)); } catch (e) { timeMemory = data; }
+    return data;
+  }
+
+  /** 이 엔트리의 시각을 배워도 되는가. 원본과 직접 넣은 값만 배운다. */
+  function teachable(entry) {
+    if (!entry || entry.type !== 'flight' || !entry.code) return false;
+    if (!entry.start && !entry.end) return false;
+    // 기억해 둔 값을 다시 배우면 틀린 값이 굳어 버린다. 짐작한 값도 배우지 않는다.
+    var from = entry.timeSource || null;
+    return from === null || from === 'user' || from === 'kept';
+  }
+
+  /** 편명 하나의 시각을 기억한다. 직접 넣은 값이 언제나 우선이다. */
+  function learnTimes(entry) {
+    if (!teachable(entry)) return null;
+    var code = String(entry.code).toUpperCase();
+    var data = loadTimes();
+    var known = data[code] || {};
+    if (known.source === 'user' && entry.timeSource !== 'user') return known;
+    data[code] = {
+      start: entry.start || known.start || null,
+      end: entry.end || known.end || null,
+      endOffset: entry.end ? (entry.endOffset || 0) : (known.endOffset || 0),
+      source: entry.timeSource === 'user' ? 'user' : 'original',
+      seenAt: new Date().toISOString()
+    };
+    saveTimeBook(data);
+    return data[code];
+  }
+
+  function recallTimes(code) {
+    if (!code) return null;
+    return loadTimes()[String(code).toUpperCase()] || null;
+  }
+
+  /**
+   * 시각이 비어 있는 비행에 기억해 둔 시각을 채운다. 채운 자리는 표를 남긴다.
+   *
+   * 날을 넘겨 나는 편은 하루에 한쪽만 일어난다. 떠나는 날엔 출발만, 닿는 날엔
+   * 도착만, 기내에서 날을 넘기는 날엔 아무것도. 이걸 가리지 않으면 KE0006 이
+   * 10·11·12일 세 칸 모두에 '출발'과 '도착'을 같이 달고 나온다.
+   */
+  function fillFromMemory(entry, role) {
+    if (!entry || entry.type !== 'flight' || !entry.code) return entry;
+    if (entry.start && entry.end) return entry;
+    if (entry.timeSource === 'user') return entry;
+    var known = recallTimes(entry.code);
+    if (!known) return entry;
+
+    var leg = role || entry.legRole || null;
+    if (leg === 'enroute') return entry;          // 기내에서 날을 넘기는 날
+
+    var filled = false;
+    if (!entry.start && known.start && leg !== 'arrive') { entry.start = known.start; filled = true; }
+    if (!entry.end && known.end && leg !== 'depart') {
+      entry.end = known.end;
+      entry.endOffset = known.endOffset || 0;
+      filled = true;
+    }
+    if (filled) {
+      entry.timeSource = 'memory';
+      if (!entry.legRole && leg) entry.legRole = leg;
+    }
+    return entry;
+  }
+
+  function dayNumberOf(date) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(date || ''));
+    return m ? Math.round(Date.UTC(+m[1], +m[2] - 1, +m[3]) / 86400000) : null;
+  }
+
+  /**
+   * 한 묶음 안에서 같은 편명이 이어진 날에 걸쳐 있으면 한 번의 비행이다.
+   * 첫날은 출발, 끝날은 도착, 사이는 기내. 떨어져 있는 날은 저마다 따로 본다.
+   * { '2026-01-10|KE0006': 'depart', '2026-01-11|KE0006': 'enroute', … }
+   */
+  function legRolesOf(entries) {
+    var byCode = {};
+    (entries || []).forEach(function (e) {
+      if (!e || !e.code || !e.date) return;
+      if (e.type !== 'flight' && !codes.isFlightCode(e.code)) return;
+      var key = String(e.code).toUpperCase();
+      (byCode[key] = byCode[key] || []).push(e.date);
+    });
+    var roles = {};
+    Object.keys(byCode).forEach(function (code) {
+      var days = byCode[code].slice().sort();
+      var run = [];
+      function close() {
+        if (run.length > 1) {
+          run.forEach(function (date, i) {
+            roles[date + '|' + code] = i === 0 ? 'depart'
+              : i === run.length - 1 ? 'arrive' : 'enroute';
+          });
+        }
+        run = [];
+      }
+      days.forEach(function (date) {
+        if (!run.length) { run.push(date); return; }
+        var gap = dayNumberOf(date) - dayNumberOf(run[run.length - 1]);
+        if (gap === 1) run.push(date);
+        else if (gap === 0) { /* 같은 날 두 번은 한 칸으로 본다 */ }
+        else { close(); run.push(date); }
+      });
+      close();
+    });
+    return roles;
+  }
+
+  /** 저장해 둔 일정 전체에 기억한 시각을 채운다. 채운 건수를 돌려준다. */
+  function fillTimesFromMemory() {
+    var data = load();
+    var filled = 0;
+    var all = [];
+    Object.keys(data.entries).forEach(function (date) {
+      data.entries[date].forEach(function (e) { all.push(e); });
+    });
+    var roles = legRolesOf(all);
+    Object.keys(data.entries).forEach(function (date) {
+      data.entries[date].forEach(function (entry) {
+        var before = (entry.start || '') + '|' + (entry.end || '');
+        fillFromMemory(entry, roles[entry.date + '|' + String(entry.code).toUpperCase()]);
+        if ((entry.start || '') + '|' + (entry.end || '') !== before) filled++;
+      });
+    });
+    if (filled) save(data);
+    return filled;
+  }
+
+  /**
+   * 이미 저장돼 있는 일정에서 편명 시각을 거둬들인다.
+   * 기억 기능이 생기기 전에 넣어 둔 홈 화면 글도 바로 쓸 수 있게 하려는 것이다.
+   * 원본에서 온 시각과 직접 넣은 시각만 배운다(teachable 이 걸러 준다).
+   */
+  function learnFromStored() {
+    var data = load();
+    var learned = 0;
+    Object.keys(data.entries).forEach(function (date) {
+      data.entries[date].forEach(function (entry) {
+        if (learnTimes(entry)) learned++;
+      });
+    });
+    return learned;
+  }
+
+  /** 기억해 둔 편명 시각 목록. 설정 화면이 쓴다. */
+  function timeBook() {
+    var data = loadTimes();
+    return Object.keys(data).sort().map(function (code) {
+      return {
+        code: code,
+        start: data[code].start || null,
+        end: data[code].end || null,
+        endOffset: data[code].endOffset || 0,
+        source: data[code].source || 'original'
+      };
+    });
+  }
+
+  function forgetTime(code) {
+    var data = loadTimes();
+    delete data[String(code).toUpperCase()];
+    saveTimeBook(data);
+  }
+
+  function forgetTimes() { saveTimeBook({}); }
 
   /**
    * 새로 들어온 건에 시각이 없으면 갖고 있던 시각을 옮겨 준다.
@@ -413,6 +614,15 @@
     dateSpan: dateSpan,
     keepTimes: keepTimes,
     setTimes: setTimes,
+    learnTimes: learnTimes,
+    recallTimes: recallTimes,
+    fillFromMemory: fillFromMemory,
+    legRolesOf: legRolesOf,
+    fillTimesFromMemory: fillTimesFromMemory,
+    timeBook: timeBook,
+    learnFromStored: learnFromStored,
+    forgetTime: forgetTime,
+    forgetTimes: forgetTimes,
     missingTimes: missingTimes,
     resolveDates: resolveDates,
     exportJson: exportJson,
