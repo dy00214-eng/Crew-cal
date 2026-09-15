@@ -81,6 +81,7 @@
     OJT: { label: '현장 훈련', category: 'training' },
     RT: { label: '정기 훈련', category: 'training' },
     TFRS: { label: '교육', category: 'training' },
+    GRD: { label: '안전훈련', category: 'training' },
 
     // 기타
     SICK: { label: '병가', category: 'other' },

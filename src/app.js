@@ -1142,7 +1142,13 @@
       var tdCheck = document.createElement('td');
       var cb = document.createElement('input');
       cb.type = 'checkbox';
-      cb.checked = entry.known !== false; // 미확인 코드는 기본 해제
+      /*
+       * 모르는 근무 코드도 기본으로 담는다.
+       * 빼 버리면 그날이 빈 날이 되고, 빈 날은 '쉬는날' 로 덮여 원본과 달라진다.
+       * (YVC 가 7일 연속 들어온 달이 통째로 휴무로 바뀐 일이 있었다.)
+       * 아는 항공사가 아닌 편명 꼴(AS0016 같은 잘못 읽힌 글자)만 빼 둔다.
+       */
+      cb.checked = !entry.strange;
       cb.setAttribute('data-entry-id', entry.id);
       cb.addEventListener('change', updateApplyButton);
       tdCheck.appendChild(cb);
@@ -1170,7 +1176,7 @@
       tbody.appendChild(tr);
     });
 
-    $('checkAll').checked = result.entries.every(function (e) { return e.known !== false; });
+    $('checkAll').checked = result.entries.every(function (e) { return !e.strange; });
     $('preview').hidden = false;
     updateApplyButton();
     $('preview').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -2210,7 +2216,7 @@
   /* ---------------- 동료가 보내는 의견 ---------------- */
 
   // 화면 아래와 의견 보내기에 적히는 판 번호. sw.js 의 VERSION 과 함께 올린다.
-  var APP_VERSION = 'v40';
+  var APP_VERSION = 'v41';
 
   /**
    * 의견을 받을 메일 주소. 저장소가 공개라 통짜로 적어두면 스팸 크롤러가 긁어가므로

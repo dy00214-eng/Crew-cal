@@ -97,3 +97,13 @@ test('미리보기 버튼이 클릭 이벤트를 인자로 넘기지 않는다',
   assert.ok(!/addEventListener\('click', runParse\)/.test(src),
     "runParse 를 그대로 넘기면 안 된다 — function () { runParse(); } 로 감쌀 것");
 });
+
+test('모르는 근무 코드는 미리보기에서 기본으로 담긴다', () => {
+  // 빼 버리면 그날이 빈 날이 되고, 빈 날은 '쉬는날' 로 덮여 원본과 달라진다.
+  // YVC 가 7일 연속 들어온 달이 통째로 휴무로 바뀐 일이 있었다.
+  const app = fs.readFileSync(path.join(__dirname, '..', 'src', 'app.js'), 'utf8');
+  assert.ok(/cb\.checked = !entry\.strange;/.test(app),
+    '미확인 코드를 기본 해제로 되돌리지 말 것');
+  assert.ok(!/cb\.checked = entry\.known !== false/.test(app),
+    'known === false 로 거르면 모르는 근무가 통째로 빠진다');
+});

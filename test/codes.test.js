@@ -36,3 +36,11 @@ test('편명으로 인정할 항공사는 흰 목록으로 받는다', () => {
   assert.deepStrictEqual(codes.splitFlight('KE-35'), { airline: 'KE', number: '35', suffix: '' });
   assert.strictEqual(codes.splitFlight('ATDO'), null);
 });
+
+test('GRD 는 안전훈련 교육으로 읽는다', () => {
+  const hit = codes.lookup('GRD');
+  assert.strictEqual(hit.label, '안전훈련');
+  assert.strictEqual(hit.category, 'training');
+  // 소문자로 붙여넣어도 같다
+  assert.strictEqual(codes.lookup('grd').category, 'training');
+});
