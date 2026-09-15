@@ -44,3 +44,10 @@ test('GRD 는 안전훈련 교육으로 읽는다', () => {
   // 소문자로 붙여넣어도 같다
   assert.strictEqual(codes.lookup('grd').category, 'training');
 });
+
+test('YVC 는 휴가로 읽는다', () => {
+  const hit = codes.lookup('YVC');
+  assert.strictEqual(hit.label, '휴가');
+  assert.strictEqual(hit.category, 'vacation');
+  assert.strictEqual(codes.lookup('yvc').category, 'vacation');
+});

@@ -41,6 +41,7 @@
     PL: { label: '개인 휴가', category: 'vacation' },
     FVC: { label: '휴가', category: 'vacation' },
     PVC: { label: '휴가', category: 'vacation' },
+    YVC: { label: '휴가', category: 'vacation' },
     UL: { label: '무급 휴가', category: 'vacation' },
 
     // 대기 계열
