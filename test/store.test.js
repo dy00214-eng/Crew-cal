@@ -310,19 +310,20 @@ test('원본에도 기억에도 없으면 기본 시간표에서 한국 쪽 시�
   store.setUseTable(true);
   store.applyEntries([{ date: '2026-01-09', code: 'KE0005' }], 'append');
   const e = store.getByDate('2026-01-09')[0];
-  assert.strictEqual(e.start, '21:00', '인천 출발 시각');
+  assert.strictEqual(e.start, '21:03', '인천 출발 시각');
+  assert.strictEqual(e.end, '14:43', '라스베이거스 도착 시각');
   assert.strictEqual(e.timeSource, 'table', '시간표에서 왔다고 표시한다');
 });
 
 test('시간표는 원본과 기억보다 뒤다', () => {
   store.setUseTable(true);
-  // 원본이 있으면 원본
-  store.applyEntries([{ date: '2026-01-09', code: 'KE0005', start: '21:03' }], 'append');
-  assert.strictEqual(store.getByDate('2026-01-09')[0].start, '21:03');
+  // 원본이 있으면 원본 (시간표 값 21:03 과 다른 값으로 확인한다)
+  store.applyEntries([{ date: '2026-01-09', code: 'KE0005', start: '20:45' }], 'append');
+  assert.strictEqual(store.getByDate('2026-01-09')[0].start, '20:45');
   // 그 원본을 기억했으니 다음 달에는 기억이 시간표를 이긴다
   store.applyEntries([{ date: '2026-02-09', code: 'KE0005' }], 'append');
   const feb = store.getByDate('2026-02-09')[0];
-  assert.strictEqual(feb.start, '21:03', '기억이 시간표보다 먼저');
+  assert.strictEqual(feb.start, '20:45', '기억이 시간표보다 먼저');
   assert.strictEqual(feb.timeSource, 'memory');
 });
 

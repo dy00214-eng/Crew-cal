@@ -635,6 +635,7 @@
         // 시각. 한국 시각으로 옮긴 값이고 어느 공항 기준인지 코드로 밝힌다.
         var muted = group.entries.every(function (e) { return hideTimes[date + '|' + e.code]; });
         var lines = muted ? [] : groupLines(group);
+        var filledFrom = [];
         if (lines.length) {
           lines.forEach(function (point) {
             // 칸이 좁아 저절로 줄이 바뀌는 것보다, 'ICN출발' 과 '19:30' 을
@@ -658,17 +659,24 @@
             }
             if (point.remembered) {
               time.classList.add('remembered');
-              var mark = document.createElement('span');
-              mark.className = 'cal-remember';
-              mark.textContent = point.remembered;
-              mark.title = point.remembered === '기억'
-                ? '원본에 시각이 없어, 예전에 받아 둔 이 편의 시각을 채웠습니다.'
-                : '원본에 시각이 없어 기본 시간표에서 채웠습니다. 요일·계절에 따라 다를 수 있으니 실제 로스터를 따르세요.';
-              clock.appendChild(mark);
+              if (filledFrom.indexOf(point.remembered) < 0) filledFrom.push(point.remembered);
             }
             time.title = point.text + (point.remembered ? ' (' + point.remembered + ')' : '');
             item.appendChild(time);
           });
+          /*
+           * 채워 넣은 시각이라는 표는 칸마다 한 번만 단다.
+           * 시각 줄마다 붙이면 '07:43⁺¹시간표' 처럼 한 줄이 넘쳐 글자가 잘린다.
+           */
+          if (filledFrom.length) {
+            var mark = document.createElement('span');
+            mark.className = 'cal-remember';
+            mark.textContent = filledFrom.join('·');
+            mark.title = filledFrom.indexOf('시간표') >= 0
+              ? '원본에 시각이 없어 기본 시간표에서 채웠습니다. 요일·계절에 따라 다를 수 있으니 실제 로스터를 따르세요.'
+              : '원본에 시각이 없어, 예전에 받아 둔 이 편의 시각을 채웠습니다.';
+            item.appendChild(mark);
+          }
         }
 
         /*

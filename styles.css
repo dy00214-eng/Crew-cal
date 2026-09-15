@@ -1792,15 +1792,17 @@ td.auto-filled {
 .fill-note .auto-badge { margin-left: 0; margin-right: 4px; }
 /* 원본에 없어 예전에 받아 둔 값으로 채운 시각 */
 .cal-remember {
-  display: inline-block;
-  margin-left: 3px;
-  padding: 0 3px;
+  display: block;
+  align-self: center;
+  margin: 1px auto 0;
+  padding: 0 4px;
   border-radius: 3px;
-  font-size: 7.5px;
+  font-size: 8px;
   font-weight: 800;
-  line-height: 1.6;
+  line-height: 1.7;
   letter-spacing: -0.3px;
   white-space: nowrap;
+  width: fit-content;
   color: var(--cat-standby);
   background: color-mix(in srgb, var(--cat-standby) 20%, transparent);
   vertical-align: 1px;
