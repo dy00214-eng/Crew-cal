@@ -8294,6 +8294,9 @@ td.auto-filled {
       "KE0622": {
         "end": "17:25"
       },
+      "KE0623": {
+        "start": "18:55"
+      },
       "KE0624": {
         "end": "04:35"
       },
@@ -13439,6 +13442,9 @@ td.auto-filled {
     hit.endOffset = times.end ? (+times.endOffset || 0) : 0;
     hit.timeSource = (times.start || times.end) ? 'user' : null;
     if (!hit.legRole) hit.legRole = hit.start ? 'depart' : (hit.end ? 'arrive' : null);
+    // 직접 넣어 준 시각은 편명별로 기억해 둔다. 다음 달에 같은 편이 와도
+    // 또 넣지 않아도 된다. 직접 넣은 값은 기억에서도 언제나 우선이다.
+    learnTimes(hit);
     save(data);
     return hit;
   }
@@ -19745,7 +19751,7 @@ td.auto-filled {
   /* ---------------- 동료가 보내는 의견 ---------------- */
 
   // 화면 아래와 의견 보내기에 적히는 판 번호. sw.js 의 VERSION 과 함께 올린다.
-  var APP_VERSION = 'v42';
+  var APP_VERSION = 'v43';
 
   /**
    * 의견을 받을 메일 주소. 저장소가 공개라 통짜로 적어두면 스팸 크롤러가 긁어가므로

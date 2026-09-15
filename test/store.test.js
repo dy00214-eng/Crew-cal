@@ -345,3 +345,18 @@ test('시간표에도 익일 도착이 그대로 담겨 있다', () => {
   assert.strictEqual(row.endOffset, 1);
   assert.strictEqual(store.fromTable('KE9999'), null, '표에 없으면 없다고 한다');
 });
+
+test('직접 넣은 시각은 기억해 두어 다음 달에도 쓴다', () => {
+  const e = store.addEntry({ date: '2026-10-03', code: 'KE0091', route: 'ICN/BOS' });
+  store.setTimes('2026-10-03', e.id, { start: '10:20' });
+  const book = store.timeBook().filter((x) => x.code === 'KE0091');
+  assert.strictEqual(book.length, 1, '기억에 담긴다');
+  assert.strictEqual(book[0].start, '10:20');
+  assert.strictEqual(book[0].source, 'user');
+
+  // 다음 달에 편명만 들어와도 붙는다
+  store.applyEntries([{ date: '2026-11-07', code: 'KE0091' }], 'append');
+  const next = store.getByDate('2026-11-07')[0];
+  assert.strictEqual(next.start, '10:20');
+  assert.strictEqual(next.timeSource, 'memory');
+});

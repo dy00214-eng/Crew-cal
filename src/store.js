@@ -540,6 +540,9 @@
     hit.endOffset = times.end ? (+times.endOffset || 0) : 0;
     hit.timeSource = (times.start || times.end) ? 'user' : null;
     if (!hit.legRole) hit.legRole = hit.start ? 'depart' : (hit.end ? 'arrive' : null);
+    // 직접 넣어 준 시각은 편명별로 기억해 둔다. 다음 달에 같은 편이 와도
+    // 또 넣지 않아도 된다. 직접 넣은 값은 기억에서도 언제나 우선이다.
+    learnTimes(hit);
     save(data);
     return hit;
   }
